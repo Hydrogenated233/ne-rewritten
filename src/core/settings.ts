@@ -41,6 +41,7 @@ export interface Settings {
     max_find_fs: number;
     equiv_active: Record<string, string | undefined>;
     equiv_hide_original: Record<string, boolean>;
+    shown_equiv: Record<string, Record<string, boolean>>;
     language: 'zh' | 'en';
     color_scheme: string;
     hidden_notations: string[];
@@ -66,6 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
     max_find_fs: 10,
     equiv_active: {},
     equiv_hide_original: {},
+    shown_equiv: {},
     language: 'zh',
     color_scheme: 'default',
     hidden_notations: [],

@@ -57,12 +57,45 @@ const resolved_equiv = computed(() => {
 });
 const resolved_original = computed(() => resolve_display(props.notation.display));
 
-const expr_display = computed(() => {
-    const d = resolved_equiv.value ?? resolved_original.value;
-    return settings.display_mode === 'html' ? d.html : settings.display_mode === 'latex' ? d.latex : d.plain;
+const equiv_option_ids = computed(() => {
+    if (!props.notation.display_equiv) return [];
+    return Object.keys(props.notation.display_equiv);
 });
-const expr_display_original = computed(() => {
-    const d = resolved_original.value;
+
+const equiv_rows = computed(() => {
+    const nid = props.notation.id;
+    const current = equiv_name.value;
+    const hideOrig = settings.equiv_hide_original[nid] ?? true;
+    const shownMap: Record<string, boolean> = settings.shown_equiv[nid] ?? {};
+
+    interface Row {
+        label: string;
+        spec: ReturnType<typeof resolve_display>;
+    }
+    const rows: Row[] = [];
+
+    if (current) {
+        const spec = resolved_equiv.value;
+        if (spec) rows.push({ label: '', spec });
+        if (!hideOrig) rows.push({ label: '', spec: resolved_original.value });
+    } else {
+        rows.push({ label: '', spec: resolved_original.value });
+    }
+
+    for (const id of equiv_option_ids.value) {
+        if (shownMap[id] && id !== current) {
+            const spec = resolve_display(props.notation.display_equiv![id]);
+            rows.push({ label: id, spec });
+        }
+    }
+
+    return rows;
+});
+
+const primary_display = computed(() => {
+    const first = equiv_rows.value[0];
+    if (!first) return () => '';
+    const d = first.spec;
     return settings.display_mode === 'html' ? d.html : settings.display_mode === 'latex' ? d.latex : d.plain;
 });
 
@@ -107,8 +140,9 @@ function on_enter() {
     if (!props.notation.is_limit(props.node.expr)) return;
     const n_max = 3;
     tooltip_FS.value = [];
+    const primary_display_fn = primary_display.value;
     for (let n = 0; n <= n_max; n++) {
-        tooltip_FS.value.push(`${n}: ${expr_display.value(props.notation.FS(props.node.expr, n))}`);
+        tooltip_FS.value.push(`${n}: ${primary_display_fn(props.notation.FS(props.node.expr, n))}`);
     }
     tooltip.value = true;
 }
@@ -334,22 +368,25 @@ function on_blur() {
                     @blur="on_blur"
                 />
             </span>
-            <template v-if="equiv_name">
-                <RenderLatex v-if="settings.display_mode === 'latex'" :latex="expr_display(node.expr)" />
-                <span v-else class="expr-display equiv" v-html="expr_display(node.expr)" />
-            </template>
-            <template v-if="!equiv_name || !(settings.equiv_hide_original[props.notation.id] ?? true)">
-                <RenderLatex v-if="settings.display_mode === 'latex'" :latex="expr_display_original(node.expr)" />
-                <span
-                    v-else
-                    class="expr-display"
-                    :class="{ shifted: !!equiv_name }"
-                    v-html="expr_display_original(node.expr)"
-                />
-            </template>
+            <div class="equiv-rows">
+                <div
+                    v-for="(row, ri) in equiv_rows"
+                    :key="ri"
+                    class="equiv-row"
+                    :class="{ 'equiv-row--secondary': ri > 0 }"
+                >
+                    <span v-if="row.label" class="equiv-label">{{ row.label }}:</span>
+                    <RenderLatex v-if="settings.display_mode === 'latex'" :latex="row.spec.latex(node.expr)" />
+                    <span
+                        v-else
+                        class="expr-display"
+                        v-html="settings.display_mode === 'html' ? row.spec.html(node.expr) : row.spec.plain(node.expr)"
+                    />
+                </div>
+            </div>
             <div v-if="tooltip" class="tooltip" @mousedown.stop>
-                <RenderLatex v-if="settings.display_mode === 'latex'" :latex="expr_display(node.expr)" />
-                <span v-else v-html="expr_display(node.expr)" />{{ t('notation-tree.fundamental-sequence') }}
+                <RenderLatex v-if="settings.display_mode === 'latex'" :latex="primary_display(node.expr)" />
+                <span v-else v-html="primary_display(node.expr)" />{{ t('notation-tree.fundamental-sequence') }}
                 <div v-for="term in tooltip_FS" :key="term">
                     <RenderLatex v-if="settings.display_mode === 'latex'" :latex="term" />
                     <span v-else v-html="term" />

@@ -385,9 +385,24 @@ function debug_compare_order(notation_id?: string) {
     color: var(--color-text-muted);
 }
 
-.expr-display.shifted {
-    margin-left: 12px;
-    color: #666;
+.equiv-rows {
+    display: inline-flex;
+    flex-direction: column;
+    vertical-align: top;
+}
+.equiv-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+.equiv-row--secondary {
+    font-size: 0.85em;
+}
+.equiv-label {
+    color: var(--color-text-secondary);
+    font-size: 0.85em;
+    flex-shrink: 0;
 }
 
 .tooltip {

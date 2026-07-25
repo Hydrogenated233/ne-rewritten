@@ -9,6 +9,7 @@ import { import_analysis } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { focus_node_input } from '@/composables/use_focus_tracker.ts';
 import { reload_all } from '@/core/user_defined_notation.ts';
+import ModalDialog from './ModalDialog.vue';
 
 const settings = inject(SETTINGS_KEY)!;
 const t = inject(I18N_KEY)!;
@@ -19,6 +20,7 @@ const { hide, show: show_diagram, dispatch_action } = use_diagram();
 
 const settings_collapsed = ref(true);
 const find_input = ref<HTMLInputElement>();
+const show_equiv_config = ref(false);
 const font_options = ['DEFAULT', 'Comic Sans MS', 'Consolas', 'Microsoft YaHei UI'];
 const DISPLAY_MODES = ['plain', 'html', 'latex'] as const;
 
@@ -263,6 +265,14 @@ function on_find_keydown(e: KeyboardEvent) {
                         />
                         {{ t('equiv.hide-original') }}
                     </label>
+                    <button
+                        v-if="equiv_options.length > 0"
+                        style="margin-left: 8px"
+                        class="toggle-btn"
+                        @mousedown="show_equiv_config = true"
+                    >
+                        额外显示: 配置
+                    </button>
                 </span>
             </div>
             <div class="toolbar-row">
@@ -359,9 +369,49 @@ function on_find_keydown(e: KeyboardEvent) {
             {{ settings_collapsed ? t('settings.more') : t('settings.less') }}
         </button>
     </div>
+    <ModalDialog :show="show_equiv_config" title="额外显示设置" @close="show_equiv_config = false">
+        <div class="equiv-config-list">
+            <label
+                v-for="opt in equiv_options"
+                :key="opt.id"
+                class="equiv-config-row"
+            >
+                <input
+                    type="checkbox"
+                    :checked="settings.shown_equiv[settings.current_notation_id]?.[opt.id] ?? false"
+                    @change="
+                        (e: any) => {
+                            const checked = (e.target as HTMLInputElement).checked;
+                            const current = { ...(settings.shown_equiv[settings.current_notation_id] ?? {}) };
+                            current[opt.id] = checked;
+                            settings.shown_equiv = {
+                                ...settings.shown_equiv,
+                                [settings.current_notation_id]: current,
+                            };
+                        }
+                    "
+                />
+                {{ opt.label }}
+            </label>
+        </div>
+    </ModalDialog>
 </template>
 
 <style scoped>
+.equiv-config-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 0;
+}
+.equiv-config-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
 .toolbar-separator {
     border: none;
     border-top: 2px solid var(--color-border);
