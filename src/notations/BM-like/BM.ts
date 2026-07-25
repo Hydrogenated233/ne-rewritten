@@ -468,7 +468,7 @@ export const BM4: NotationDefinition<Expr> = {
 
     ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
 
-    credit_text_id: 'credit.bashicu',
+    credit_text_id: ['credit.bashicu', 'credit.bashicu-converter'],
     init: () => [INFINITY(), []],
 
     debug: { compute_0Y_mountain, BM_to_triangular, triangular_to_BM },
@@ -511,7 +511,7 @@ export const TriangularBM4: NotationDefinition<Expr> = {
 
     ...sequence_FS_variants(expand, is_infinity, triangular_infinity_FS, is_limit, display),
 
-    credit_text_id: 'credit.bashicu',
+    credit_text_id: ['credit.bashicu', 'credit.bashicu-converter'],
     init: () => [INFINITY(), []],
 
     debug: { compute_0Y_mountain, BM_to_triangular, triangular_to_BM },
@@ -543,6 +543,6 @@ export const seq_0Y: NotationDefinition<Expr> = {
 
     ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
 
-    credit_text_id: 'credit.yukito',
+    credit_text_id: ['credit.yukito', 'credit.bashicu-converter'],
     init: () => [INFINITY(), []],
 };

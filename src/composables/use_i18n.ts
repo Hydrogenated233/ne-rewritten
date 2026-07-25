@@ -97,8 +97,10 @@ const messages: Record<Language, Record<string, string>> = {
         'expand.error-fs': '基本列计算失败',
         'import.error': '遇到错误, 请查看控制台 (F12)。',
         'credit.bashicu': '由 Bashicu Hyudora 定义; 展开器来自原 NE 项目.',
+        'credit.bashicu-converter': '由 test_alpha0 给出 BMS 与三角 BMS 转换算法.',
         'credit.tbm': '由社区定义.',
         'credit.yukito': '由 Yukito 定义; 展开器来自原 NE 项目, 最初由 Yukito 给出; 山脉图绘制由 Yukito 给出.',
+        'credit.yukito-converter': '由 test_alpha0 给出 BMS 与三角 BMS 转换算法.',
         'credit.den':
             '由 Hypcos 基于 test_alpha0 定义的 BLP 作出定义; 展开器来自原 NE 项目; 可视化方案由 test_alpha0 给出.',
         'credit.den23': '由 test_alpha0 基于 DEN 作出定义; 展开器来自原 NE 项目; 可视化方案由 test_alpha0 给出.',
@@ -291,9 +293,11 @@ const messages: Record<Language, Record<string, string>> = {
         'multi-select.manual-copy': 'Manual copy',
         'multi-select.close': 'Close',
         'credit.bashicu': 'Defined by Bashicu Hyudora; expander from the original NE project.',
+        'credit.bashicu-converter': 'BMS-to-triangular-BMS conversion algorithm by test_alpha0.',
         'credit.tbm': 'Defined by the community.',
         'credit.yukito':
             'Defined by Yukito; expander from the original NE project, originally by Yukito; mountain diagram by Yukito.',
+        'credit.yukito-converter': 'BMS-to-triangular-BMS conversion algorithm by test_alpha0.',
         'credit.den':
             'Defined by Hypcos based on BLP by test_alpha0; expander from the original NE project; visualization by test_alpha0.',
         'credit.den23':

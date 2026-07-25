@@ -109,8 +109,8 @@ export interface NotationDefinition<T> {
     draw_diagram?: DiagramControl<T, any>;
     init: () => T[];
 
-    /** Key into the i18n table for credit text displayed below the notation tree. */
-    credit_text_id?: string;
+    /** Key(s) into the i18n table for credit text displayed below the notation tree. Each entry is rendered as a separate line. */
+    credit_text_id?: string | string[];
 
     /** Debug helpers — not consumed by the app but accessible at runtime. */
     debug?: Record<string, any>;

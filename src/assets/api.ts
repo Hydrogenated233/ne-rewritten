@@ -25,7 +25,7 @@ export interface NotationDefinition<T> {
     init: () => T[];
 
     /** Key into the i18n table for credit text displayed below the notation tree. */
-    credit_text_id?: string;
+    credit_text_id?: string | string[];
 
     /** Debug helpers — not consumed by the app but accessible at runtime. */
     debug?: Record<string, any>;

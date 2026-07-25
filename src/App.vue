@@ -151,7 +151,12 @@ function debug_compare_order(notation_id?: string) {
 
         <div v-if="root && notation" class="preview-container">
             <NotationTree :root="root" :notation="notation" :tier="settings.tier" />
-            <div v-if="notation.credit_text_id" class="credit-line">{{ t(notation.credit_text_id) }}</div>
+            <div v-if="notation.credit_text_id" class="credit-line">
+                <template v-if="Array.isArray(notation.credit_text_id)">
+                    <div v-for="key in notation.credit_text_id" :key="key">{{ t(key) }}</div>
+                </template>
+                <template v-else>{{ t(notation.credit_text_id) }}</template>
+            </div>
         </div>
         <div v-else>{{ t('notation-tree.empty') }}</div>
         <div
