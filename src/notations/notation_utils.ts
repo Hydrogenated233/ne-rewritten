@@ -13,17 +13,17 @@ export function Y_FS_variants<T>(
             if (is_infinity(seq)) return infinity_FS(index);
             if (!seq.length) return [];
             if (!is_limit(seq)) return seq.slice(0, seq.length - 1);
-            const data_key = display(seq);
-            if (data[data_key] === undefined) data[data_key] = [];
-            else if (data[data_key][index] !== undefined) return data[data_key][index];
-            return (data[data_key][index] = expand_longer(seq, index));
+            const result = core.FS_alter(seq, index);
+            return result.slice(0, result.length - 1);
         },
         FS_alter: (seq: T[], index: number): T[] => {
             if (is_infinity(seq)) return infinity_FS(index);
             if (!seq.length) return [];
             if (!is_limit(seq)) return seq.slice(0, seq.length - 1);
-            const result = core.FS(seq, index);
-            return result.slice(0, result.length - 1);
+            const data_key = display(seq);
+            if (data[data_key] === undefined) data[data_key] = [];
+            else if (data[data_key][index] !== undefined) return data[data_key][index];
+            return (data[data_key][index] = expand_longer(seq, index));
         },
         FS_short: (seq: T[], index: number): T[] => {
             if (is_infinity(seq)) return infinity_FS(index);
@@ -31,15 +31,15 @@ export function Y_FS_variants<T>(
             if (!is_limit(seq)) return seq.slice(0, seq.length - 1);
             if (index === 0) return seq.slice(0, seq.length - 1);
             if (index === 1) {
-                const result = core.FS(seq, 1);
+                const result = core.FS_alter(seq, 1);
                 return result.slice(0, seq.length);
             }
             const data_key = display(seq);
             const d = data_short[data_key];
             if (d === undefined) {
-                data_short[data_key] = core.FS_alter(seq, 1).length !== seq.length;
+                data_short[data_key] = core.FS(seq, 1).length !== seq.length;
             }
-            return core.FS_alter(seq, index - (data_short[data_key] ? 1 : 0));
+            return core.FS(seq, index - (data_short[data_key] ? 1 : 0));
         },
     };
     return core;
@@ -104,7 +104,7 @@ export function sequence_FS_variants<T>(
             const data_key = display(seq);
             if (data[data_key] === undefined) data[data_key] = [];
             else if (data[data_key][index] !== undefined) return data[data_key][index];
-            return (data[data_key][index] = expand(seq, index, false));
+            return (data[data_key][index] = expand(seq, index, true));
         },
         FS_alter: (seq: T[], index: number): T[] => {
             if (is_infinity(seq)) return infinity_FS(index);
@@ -113,7 +113,7 @@ export function sequence_FS_variants<T>(
             const data_key = display(seq);
             if (data_alter[data_key] === undefined) data_alter[data_key] = [];
             else if (data_alter[data_key][index] !== undefined) return data_alter[data_key][index];
-            return (data_alter[data_key][index] = expand(seq, index, true));
+            return (data_alter[data_key][index] = expand(seq, index, false));
         },
         FS_short: (seq: T[], index: number): T[] => {
             if (is_infinity(seq)) return infinity_FS(index);
@@ -121,15 +121,15 @@ export function sequence_FS_variants<T>(
             if (!is_limit(seq)) return seq.slice(0, seq.length - 1);
             if (index === 0) return seq.slice(0, seq.length - 1);
             if (index === 1) {
-                const result = core.FS(seq, 1);
+                const result = core.FS_alter(seq, 1);
                 return result.slice(0, seq.length);
             }
             const data_key = display(seq);
             let d = data_short[data_key];
             if (d === undefined) {
-                d = data_short[data_key] = core.FS_alter(seq, 1).length !== seq.length;
+                d = data_short[data_key] = core.FS(seq, 1).length !== seq.length;
             }
-            return core.FS_alter(seq, index - (d ? 1 : 0));
+            return core.FS(seq, index - (d ? 1 : 0));
         },
     };
     return core;
@@ -154,7 +154,7 @@ export function MN_FS_variants<T>(
             const data_key = display(seq);
             if (data[data_key] === undefined) data[data_key] = [];
             else if (data[data_key][index] !== undefined) return data[data_key][index];
-            return (data[data_key][index] = expand(seq, index, false));
+            return (data[data_key][index] = expand(seq, index, true));
         },
         FS_alter: (seq: T[][], index: number): T[][] => {
             if (is_infinity(seq)) return infinity_FS(index);
@@ -163,7 +163,7 @@ export function MN_FS_variants<T>(
             const data_key = display(seq);
             if (data_alter[data_key] === undefined) data_alter[data_key] = [];
             else if (data_alter[data_key][index] !== undefined) return data_alter[data_key][index];
-            return (data_alter[data_key][index] = expand(seq, index, true));
+            return (data_alter[data_key][index] = expand(seq, index, false));
         },
         FS_short: (seq: T[][], index: number): T[][] => {
             if (is_infinity(seq)) return infinity_FS(index);
@@ -173,7 +173,7 @@ export function MN_FS_variants<T>(
             const data_key = display(seq);
             let d = data_short[data_key];
             if (d === undefined) {
-                let target = core.FS_alter(seq, 1);
+                let target = core.FS(seq, 1);
                 d = data_short[data_key] = [
                     target[seq.length - 1].length !== seq[seq.length - 1].length - 1,
                     target.length !== seq.length,
@@ -190,10 +190,10 @@ export function MN_FS_variants<T>(
             }
             if (d[1]) {
                 if (index === current) {
-                    return core.FS_alter(seq, 1).slice(0, seq.length);
+                    return core.FS(seq, 1).slice(0, seq.length);
                 } else current++;
             }
-            return core.FS_alter(seq, 1 + index - current);
+            return core.FS(seq, 1 + index - current);
         },
     };
     return core;

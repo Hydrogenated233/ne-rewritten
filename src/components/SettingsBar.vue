@@ -244,9 +244,9 @@ function on_find_keydown(e: KeyboardEvent) {
                                 }
                             "
                         >
-                            <option value="">{{ t('equiv.default') }}</option>
+                            <option value="">(None)</option>
                             <option v-for="k in equiv_options" :key="k.id" :value="k.id">
-                                {{ k.label }}
+                                {{ k.id }}
                             </option>
                         </select>
                     </label>
@@ -265,14 +265,10 @@ function on_find_keydown(e: KeyboardEvent) {
                         />
                         {{ t('equiv.hide-original') }}
                     </label>
-                    <button
-                        v-if="equiv_options.length > 0"
-                        style="margin-left: 8px"
-                        class="toggle-btn"
-                        @mousedown="show_equiv_config = true"
-                    >
-                        额外显示: 配置
-                    </button>
+                    <span style="margin-left: 8px" v-if="equiv_options.length > 0">
+                        额外显示:
+                        <button class="toggle-btn" @mousedown="show_equiv_config = true">配置</button>
+                    </span>
                 </span>
             </div>
             <div class="toolbar-row">
@@ -371,11 +367,7 @@ function on_find_keydown(e: KeyboardEvent) {
     </div>
     <ModalDialog :show="show_equiv_config" title="额外显示设置" @close="show_equiv_config = false">
         <div class="equiv-config-list">
-            <label
-                v-for="opt in equiv_options"
-                :key="opt.id"
-                class="equiv-config-row"
-            >
+            <label v-for="opt in equiv_options" :key="opt.id" class="equiv-config-row">
                 <input
                     type="checkbox"
                     :checked="settings.shown_equiv[settings.current_notation_id]?.[opt.id] ?? false"

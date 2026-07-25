@@ -1,8 +1,9 @@
 import { boolean_compare, index_of_last, lex_compare, number_compare } from '@/utils.ts';
 import type { Diagram } from '@/core/diagram_types.ts';
-import { Y_FS_variants } from '@/notations/notation_utils.ts';
+import { sequence_FS_variants } from '@/notations/notation_utils.ts';
 import { draw_mountain_diagram, type MountainDiagramData } from '@/notations/draw_mountain_util.ts';
 import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
+import { BM_to_triangular, triangular_to_BM } from '@/notations/BM-like/BM_converter.ts';
 
 export type Expr = number[][];
 
@@ -109,9 +110,9 @@ export function normalize(m: Expr): Expr {
     return m.map(normalize_col);
 }
 
-export function standardize(m: Expr): Expr {
+export function standardize(m: Expr, min = 0): Expr {
     if (m.length === 0) return m;
-    const H = Math.max(...m.map((col) => col.length));
+    const H = Math.max(...m.map((col) => col.length), min);
     return m.map((col) => [...col, ...Array.from({ length: H - col.length }, () => 0)]);
 }
 
@@ -153,7 +154,7 @@ function ascending_threshold(P: number[][], r: number, j_max: number): number[] 
     return result;
 }
 
-function expand(m: Expr, index: number): Expr {
+function expand(m: Expr, index: number, shorter: boolean): Expr {
     if (m.length === 0) return m;
 
     const rightmost = m.length - 1;
@@ -172,7 +173,8 @@ function expand(m: Expr, index: number): Expr {
     const col_r = m[r];
     const offset = Array.from({ length: topmost }, (_, j) => col_last[j] - (col_r[j] ?? 0));
 
-    for (let w = 1; w <= index; ++w) {
+    for (let w = 1; w <= index + 1; ++w) {
+        if (shorter && w === index + 1) break;
         for (let i = r; i < rightmost; ++i) {
             result.push(
                 Array.from({ length: Math.max(m[i].length, A[i]) }, (_, y) => {
@@ -180,6 +182,7 @@ function expand(m: Expr, index: number): Expr {
                     return y < A[i] ? val + offset[y] * w : val;
                 }),
             );
+            if (w === index + 1) break;
         }
     }
 
@@ -188,6 +191,14 @@ function expand(m: Expr, index: number): Expr {
 
 export function infinity_FS(n: number): Expr {
     return [[], Array.from({ length: n + 1 }, () => 1)];
+}
+
+export function triangular_infinity_FS(n: number): Expr {
+    let result: Expr = [[]];
+    for (let i = 1; i <= n; i++) {
+        result.push(Array.from({ length: i }, (_, j) => i - j));
+    }
+    return result;
 }
 
 interface MountainData {
@@ -436,17 +447,74 @@ export const BM4: NotationDefinition<Expr> = {
             from_display: from_display_simple,
             name_id: 'display.simple',
         },
+        'tri BMS': {
+            plain: (e) => display(BM_to_triangular(e)),
+            from_display: (str) => triangular_to_BM(from_display(str)),
+            name_id: 'display.triangular-bms',
+        },
+        '1Y': {
+            plain: (e) => display_as_0Y(BM_to_triangular(e)),
+            from_display: (str) => triangular_to_BM(from_display_as_0Y(str)),
+        },
+        'tri simple': {
+            plain: (e) => display_simple(BM_to_triangular(e)),
+            from_display: (str) => triangular_to_BM(from_display_simple(str)),
+            name_id: 'display.triangular-bms-simple',
+        },
     },
     is_limit: is_limit,
     compare,
     draw_diagram: draw_diagram_control_BM,
 
-    ...Y_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
+    ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
 
     credit_text_id: 'credit.bashicu',
     init: () => [INFINITY(), []],
 
-    debug: { compute_0Y_mountain },
+    debug: { compute_0Y_mountain, BM_to_triangular, triangular_to_BM },
+};
+
+export const TriangularBM4: NotationDefinition<Expr> = {
+    id: 'tri-bm4',
+    name: 'Triangular BMS',
+    simple_name: '1Y-BMS',
+    category_id: 'category-bm-like',
+    display: { plain: display, from_display },
+    display_equiv: {
+        '1Y': {
+            plain: display_as_0Y,
+            from_display: from_display_as_0Y,
+        },
+        simple: {
+            plain: display_simple,
+            from_display: from_display_simple,
+            name_id: 'display.simple',
+        },
+        'nt BMS': {
+            plain: (e) => display(triangular_to_BM(e)),
+            from_display: (str) => BM_to_triangular(from_display(str)),
+            name_id: 'display.non-triangular-bms',
+        },
+        '0Y': {
+            plain: (e) => display_as_0Y(triangular_to_BM(e)),
+            from_display: (str) => BM_to_triangular(from_display_as_0Y(str)),
+        },
+        'nt simple': {
+            plain: (e) => display_simple(triangular_to_BM(e)),
+            from_display: (str) => BM_to_triangular(from_display_simple(str)),
+            name_id: 'display.non-triangular-bms-simple',
+        },
+    },
+    is_limit: is_limit,
+    compare,
+    draw_diagram: draw_diagram_control_BM,
+
+    ...sequence_FS_variants(expand, is_infinity, triangular_infinity_FS, is_limit, display),
+
+    credit_text_id: 'credit.bashicu',
+    init: () => [INFINITY(), []],
+
+    debug: { compute_0Y_mountain, BM_to_triangular, triangular_to_BM },
 };
 
 export const seq_0Y: NotationDefinition<Expr> = {
@@ -460,12 +528,20 @@ export const seq_0Y: NotationDefinition<Expr> = {
             plain: display,
             from_display,
         },
+        '1Y': {
+            plain: (e) => display_as_0Y(BM_to_triangular(e)),
+            from_display: (str) => triangular_to_BM(from_display_as_0Y(str)),
+        },
+        'tri BMS': {
+            plain: (e) => display(BM_to_triangular(e)),
+            from_display: (str) => triangular_to_BM(from_display(str)),
+        },
     },
     is_limit: is_limit,
     compare,
     draw_diagram: draw_diagram_control_0Y,
 
-    ...Y_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
+    ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
 
     credit_text_id: 'credit.yukito',
     init: () => [INFINITY(), []],

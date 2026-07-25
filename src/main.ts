@@ -1,6 +1,6 @@
 import { createApp, reactive, watch } from 'vue';
 import App from '@/App.vue';
-import { BM4, seq_0Y } from '@/notations/BM-like/BM.ts';
+import { BM4, seq_0Y, TriangularBM4 } from '@/notations/BM-like/BM.ts';
 import { omega } from '@/notations/Misc/Omega.ts';
 import { TBM } from '@/notations/BM-like/TBM.ts';
 import { Y_seq } from '@/notations/Y/Y.ts';
@@ -150,6 +150,7 @@ register_notation(omega_Y_medium);
 register_notation(omega_Y_strong);
 register_category(category_bm_like);
 register_notation(BM4);
+register_notation(TriangularBM4);
 register_notation(TBM);
 register_notation(CMS);
 register_notation(BHM);

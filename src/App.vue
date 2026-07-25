@@ -380,7 +380,7 @@ function debug_compare_order(notation_id?: string) {
     background-color: var(--color-selected-hover) !important;
 }
 
-.shown-item > span:empty::before {
+.equiv-row .expr-display:empty::before {
     content: '(empty)';
     color: var(--color-text-muted);
 }
