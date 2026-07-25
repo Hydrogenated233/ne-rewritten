@@ -107,6 +107,7 @@ const messages: Record<Language, Record<string, string>> = {
         'credit.asan': '由 Aarex 定义; 展开器来自原 NE 项目.',
         'credit.community_y': '由社区定义.',
         'credit.asheep': '由 Asheep233 给出粗略定义, 由 笑姐姐 基于此给出展开器.',
+        'credit.asheep-v2v3': '由 笑姐姐 基于 v1 修改, 给出定义和展开器.',
         'credit.bocf': '由 Buchholz 给出最初定义; 由社区完善.',
         'credit.mocf': '由 Madore 给出最初定义.',
         'credit.nocf': '由社区定义.',
@@ -299,6 +300,7 @@ const messages: Record<Language, Record<string, string>> = {
         'credit.asan': 'Defined by Aarex; expander from the original NE project.',
         'credit.community_y': 'Defined by the community.',
         'credit.asheep': 'Rough definition by Asheep233; expander by 笑姐姐 (Smile Lee) based on it.',
+        'credit.asheep-v2v3': 'Modified by 笑姐姐 (Smile Lee) based on v1, providing definitions and expanders.',
         'credit.btbm':
             'Originally conceived by Bubby3, refined by the community. Expander by 笑姐姐 (Smile Lee) based on discussions with Asheep233.',
         'credit.bocf': 'Initially defined by Buchholz; refined by the community.',
