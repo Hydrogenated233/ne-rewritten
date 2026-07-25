@@ -80,10 +80,11 @@ import { category_ocf, category_ocn } from '@/notations/OCN/categories.ts';
 import { finite_Mahlo_OCF } from '@/notations/OCN/finite_Mahlo_OCF.ts';
 import { cOCF } from '@/notations/OCN/cOCF.ts';
 import { n_shifted_psi } from '@/notations/OCN/n_shifted_psi.ts';
-import { category_bm_bt_star_minus1_y_nss1 } from "@/notations/BM-like/Minus1_Y_nSS-series/BT_star_Minus1_Y_nSS'.ts";
 import { BTBM } from '@/notations/BM-like/BTBM.ts';
 import { WSMv1_4_1 } from '@/notations/BM-like/WSM.ts';
 import { GMS_categories, GMS_notations } from '@/notations/BM-like/GMS.ts';
+import { category_bm_bt_star_minus1_y_nss_v2 } from '@/notations/BM-like/Minus1_Y_nSS-series/BT_star_Minus1_Y_nSS-v2.ts';
+import { category_bm_bt_star_minus1_y_nss_v3 } from '@/notations/BM-like/Minus1_Y_nSS-series/BT_star_Minus1_Y_nSS-v3.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -171,8 +172,10 @@ register_category(category_bm_bt_minus1_y_nss);
 init_generator(category_bm_bt_minus1_y_nss);
 register_category(category_bm_bt_star_minus1_y_nss);
 init_generator(category_bm_bt_star_minus1_y_nss);
-register_category(category_bm_bt_star_minus1_y_nss1);
-init_generator(category_bm_bt_star_minus1_y_nss1);
+register_category(category_bm_bt_star_minus1_y_nss_v2);
+init_generator(category_bm_bt_star_minus1_y_nss_v2);
+register_category(category_bm_bt_star_minus1_y_nss_v3);
+init_generator(category_bm_bt_star_minus1_y_nss_v3);
 register_category(category_bm_btl_minus1_y_nss);
 init_generator(category_bm_btl_minus1_y_nss);
 register_notation(BTBM);
