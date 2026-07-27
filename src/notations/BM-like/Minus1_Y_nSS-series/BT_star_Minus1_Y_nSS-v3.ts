@@ -433,7 +433,7 @@ function ascend_replace(
     return result;
 }
 
-function FS(e: Expr, index: number, n: number): Expr {
+function expand(e: Expr, index: number, n: number, lnz_m1: boolean): Expr {
     if (is_infinity(e)) return infinity_FS(index, n);
     if (e.length === 0) return e;
     if (!is_limit(e)) return e.slice(0, -1);
@@ -455,6 +455,51 @@ function FS(e: Expr, index: number, n: number): Expr {
     const critical_vert = compute_vertical(tail, n).slice(0, -1);
 
     let result: Expr = [];
+
+    if (lnz_m1 && index > 0) {
+        // 1: cut tail; 2: lnz-1; 3+: normal expansion.
+        const skip_2: boolean = copy_part.length === 1 || (copy_part.length === 2 && r_layer === t_layer);
+        // if copy part is a single column, then [2] = [3], so skip [2].
+        let skip_1: boolean;
+        if (b === n) skip_1 = true;
+        else {
+            const root_column = copy_part[0];
+            if (b === n - 1) skip_1 = root_column.higher.length === 0;
+            else skip_1 = root_column.lower[b + 1] === 0;
+        }
+        // if ascended root column coincides with stripped tail, e.g. (1,1)(2,2), [1] = [2].
+
+        if (!skip_1 && index > 0) {
+            if (index === 1) {
+                if (b === n) {
+                    result = [
+                        {
+                            lower: tail.lower,
+                            higher: tail.higher.slice(0, -1),
+                        },
+                    ];
+                } else {
+                    result = [
+                        {
+                            lower: tail.lower.map((x, ix) => (ix === b ? x - 1 : x)),
+                            higher: [],
+                        },
+                    ];
+                }
+            }
+            index--;
+        }
+        if (!skip_2 && index > 0) {
+            if (index === 1) {
+                result = ascend_replace([copy_part[0]], [], undefined, [copy_part_A[0]], V, 1, []);
+                if (b === n) {
+                    result[0].higher = critical_vert.map((x) => from_height(result[0].lower, x, n));
+                }
+            }
+            index--;
+        }
+    }
+
     for (let w = index; w > 0; w--) {
         result = ascend_replace(copy_part, result, t_layer - r_layer, copy_part_A, V, w, critical_vert);
         if (b === n) {
@@ -463,6 +508,14 @@ function FS(e: Expr, index: number, n: number): Expr {
     }
     result = ascend_replace(e, result, t_layer, A, V, 0, []);
     return result;
+}
+
+function FS(n: number): (e: Expr, index: number) => Expr {
+    return (e, index) => expand(e, index, n, false);
+}
+
+function FS_short(n: number): (e: Expr, index: number) => Expr {
+    return (e, index) => expand(e, index, n, true);
 }
 
 function from_display(s: string, n: number): Expr {
@@ -576,7 +629,8 @@ export function BT_star_Minus1_Y_nSS_v3(n: number): NotationDefinition<Expr> {
         },
         is_limit: (e) => is_limit(e),
         compare,
-        FS: (e, index) => FS(e, index, n),
+        FS: FS(n),
+        FS_short: FS_short(n),
 
         credit_text_id: 'credit.asheep-v2v3',
 
