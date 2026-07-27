@@ -12,7 +12,7 @@ import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { use_latex } from '@/composables/use_latex.ts';
 import { use_multi_select } from '@/composables/use_multi_select.ts';
 import RenderLatex from '@/components/RenderLatex.vue';
-import { NotationDefinition, ResolvedDisplaySpec, resolve_display } from '@/notation-definition.ts';
+import { NotationDefinition, resolve_display, ResolvedDisplaySpec } from '@/notation-definition.ts';
 
 const props = defineProps<{
     node: TreeNode<T>;
