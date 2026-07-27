@@ -299,8 +299,8 @@ function compute_root_layer(e: Expr, r: number): [r_layer: number, r_index: numb
     let current = e;
     while (len + current.length <= r) {
         layer++;
-        current = next_layer(current);
         len += current.length;
+        current = next_layer(current);
     }
     return [layer, r - len];
 }
@@ -557,8 +557,8 @@ function from_display(s: string, n: number): Expr {
 
 export const category_bm_bt_star_minus1_y_nss_v3: NotationCategoryDefinition = {
     id: 'category-bm-bt-star-minus1-y-nss-v3',
-    name: 'Branching Transfinite* -1Y-nSS-v3',
-    simple_name: 'BT*(-1)Y-nSS-v3',
+    name: "Bubby3's Transfinite* -1Y-nSS v3",
+    simple_name: 'BT*(-1)Y-nSS v3',
     parent_id: 'category-minus1-y-nss-series',
     generator: { start: 1, initial: 3, create: (n) => BT_star_Minus1_Y_nSS_v3(n) },
 };
