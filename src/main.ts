@@ -85,6 +85,7 @@ import { WSMv1_4_1 } from '@/notations/BM-like/WSM.ts';
 import { GMS_categories, GMS_notations } from '@/notations/BM-like/GMS.ts';
 import { category_bm_bt_star_minus1_y_nss_v2 } from '@/notations/BM-like/Minus1_Y_nSS-series/BT_star_Minus1_Y_nSS-v2.ts';
 import { category_bm_bt_star_minus1_y_nss_v3 } from '@/notations/BM-like/Minus1_Y_nSS-series/BT_star_Minus1_Y_nSS-v3.ts';
+import { BTBM_weak } from '@/notations/BM-like/BTBM-weak.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -182,6 +183,7 @@ init_generator(category_bm_bt_star_minus1_y_nss_v3);
 register_category(category_bm_btl_minus1_y_nss);
 init_generator(category_bm_btl_minus1_y_nss);
 register_notation(BTBM);
+register_notation(BTBM_weak);
 for (const cat of GMS_categories) {
     register_category(cat);
     if (cat.generator) init_generator(cat);

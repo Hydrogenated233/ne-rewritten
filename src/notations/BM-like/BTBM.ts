@@ -9,25 +9,25 @@ import {
 } from '@/utils.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
 
-type Expr = Column[];
-type Column = Entry[];
-type Entry = { value: number; height: Expr };
+export type Expr = Column[];
+export type Column = Entry[];
+export type Entry = { value: number; height: Expr };
 
-type ExprData<T extends object> = ColumnData<T>[];
-type ColumnData<T extends object> = EntryData<T>[];
-type EntryData<T extends object> = T & { height: ExprData<T> };
+export type ExprData<T extends object> = ColumnData<T>[];
+export type ColumnData<T extends object> = EntryData<T>[];
+export type EntryData<T extends object> = T & { height: ExprData<T> };
 
-type Height = ExprData<{ value: number; mark: boolean }>;
-type Vertical = Height[];
+export type Height = ExprData<{ value: number; mark: boolean }>;
+export type Vertical = Height[];
 
-const INFINITY: Expr = Infinity as any;
-const INFINITY_height: Height = INFINITY as any;
+export const INFINITY: Expr = Infinity as any;
+export const INFINITY_height: Height = Infinity as any;
 
-function is_infinity(e: Expr | Height): boolean {
+export function is_infinity(e: Expr | Height): boolean {
     return e === INFINITY;
 }
 
-function infinity_FS(index: number): Expr {
+export function infinity_FS(index: number): Expr {
     if (index === 0) return [[]];
     let col: Column = [{ value: index - 1, height: [] }];
     for (let i = index - 1; i > 0; i--) {
@@ -36,7 +36,7 @@ function infinity_FS(index: number): Expr {
     return [[], col];
 }
 
-function to_height(e: Expr, r: number): Height {
+export function to_height(e: Expr, r: number): Height {
     const result: Height = [];
 
     for (let i = 0; i < e.length; i++) {
@@ -65,7 +65,7 @@ function to_height(e: Expr, r: number): Height {
     return result;
 }
 
-function from_height(h: Height, r: number): Expr {
+export function from_height(h: Height, r: number): Expr {
     const result: Expr = [];
 
     for (let i = 0; i < h.length; i++) {
@@ -87,7 +87,7 @@ function from_height(h: Height, r: number): Expr {
     return result;
 }
 
-function height_compare(a: Height, b: Height): number {
+export function height_compare(a: Height, b: Height): number {
     if (is_infinity(a) || is_infinity(b)) return boolean_compare(is_infinity(a), is_infinity(b));
     return lex_compare(a, b, lex_compare_by(height_entry_comparator));
 }
@@ -97,30 +97,34 @@ const height_entry_comparator = object_lex_compare_by(
     ['mark', 'value', 'height'],
 );
 
-function has_next_layer<T extends object>(expr: ExprData<T>): boolean {
+export function vertical_compare(a: Vertical, b: Vertical): number {
+    return lex_compare(a, b, height_compare);
+}
+
+export function has_next_layer<T extends object>(expr: ExprData<T>): boolean {
     const right = expr.length - 1;
     if (right === -1) return false;
     const top = expr[right].length - 1;
     return top !== -1;
 }
 
-function next_layer<T extends object>(expr: ExprData<T>): ExprData<T> {
+export function next_layer<T extends object>(expr: ExprData<T>): ExprData<T> {
     const right = expr.length - 1;
     const top = expr[right].length - 1;
     return expr[right][top].height;
 }
 
-function skip_layers<T extends object>(expr: ExprData<T>, l: number): ExprData<T> {
+export function skip_layers<T extends object>(expr: ExprData<T>, l: number): ExprData<T> {
     for (let i = 0; i < l; i++) expr = next_layer(expr);
     return expr;
 }
 
-function tail_layer(expr: Expr): number {
+export function tail_layer(expr: Expr): number {
     if (!has_next_layer(expr)) return -1;
     return 1 + tail_layer(next_layer(expr));
 }
 
-function tail(expr: Expr, t_layer: number): number {
+export function tail(expr: Expr, t_layer: number): number {
     let current_left = 0;
     let current = expr;
     for (let i = 0; i < t_layer; i++) {
@@ -130,12 +134,12 @@ function tail(expr: Expr, t_layer: number): number {
     return current_left + current.length - 1;
 }
 
-function root(expr: Expr, t_layer: number): number {
+export function root(expr: Expr, t_layer: number): number {
     const current = skip_layers(expr, t_layer);
     return current[current.length - 1][current[current.length - 1].length - 1].value;
 }
 
-function root_layer(expr: Expr, r: number): [l: number, ri: number] {
+export function root_layer(expr: Expr, r: number): [l: number, ri: number] {
     let current = expr;
     let current_left = 0;
     let current_layer = 0;
@@ -174,7 +178,7 @@ function ascend_replace(expr: Expr, r: number, diff: number, t_layer: number | u
     return result;
 }
 
-function is_special(expr: Expr, t_layer: number): boolean {
+export function is_special(expr: Expr, t_layer: number): boolean {
     if (t_layer === 0) return false;
     let current = expr;
     let current_left = 0;
@@ -187,7 +191,7 @@ function is_special(expr: Expr, t_layer: number): boolean {
     return entry.height.length === 0 && entry.value === current_left - 1;
 }
 
-function expand_special(expr: Expr, t_layer: number, index: number): Expr {
+export function expand_special(expr: Expr, t_layer: number, index: number): Expr {
     let result = expr.slice(0, -1);
     let col = expr[expr.length - 1];
     let result_col = col.slice(0, -1);
@@ -209,7 +213,7 @@ function expand_special(expr: Expr, t_layer: number, index: number): Expr {
     return result;
 }
 
-function root_appending_start(col_root: Column, r: number, col_tail: Column, t: number): number {
+export function root_appending_start(col_root: Column, r: number, col_tail: Column, t: number): number {
     let heights_root = col_root.map(({ height }) => to_height(height, r));
     let heights_tail = col_tail.slice(0, -1).map(({ height }) => to_height(height, t));
     let ir = 0,
@@ -222,7 +226,7 @@ function root_appending_start(col_root: Column, r: number, col_tail: Column, t: 
     return ir;
 }
 
-function is_limit(expr: Expr): boolean {
+export function is_limit(expr: Expr): boolean {
     return is_infinity(expr) || (expr.length > 0 && expr[expr.length - 1].length > 0);
 }
 
@@ -282,21 +286,36 @@ function FS(expr: Expr, index: number): Expr {
     return ascend_replace(expr, 0, 0, t_layer, new_tail);
 }
 
-function display(expr: Expr, html: boolean): string {
-    if (is_infinity(expr)) return 'Limit';
+type DisplayType = 'plain' | 'html' | 'latex';
 
-    return expr.map(bind2(display_column, html)).join('');
+export function display(expr: Expr, type: DisplayType): string {
+    if (is_infinity(expr)) return type === 'latex' ? '\\mathrm{Limit}' : 'Limit';
+
+    return expr.map(bind2(display_column, type)).join('');
 }
 
-function display_column(col: Column, html: boolean) {
+function display_column(col: Column, type: DisplayType) {
     if (col.length === 0) return '(0)';
-    return '(' + col.map(bind2(display_entry, html)).join(',') + ')';
+    return '(' + col.map(bind2(display_entry, type)).join(',') + ')';
 }
 
-type DMT = 'plain' | 'html' | 'latex';
+function display_entry(entry: Entry, type: DisplayType): string {
+    const v_display = '' + (entry.value + 1);
+    if (entry.height.length === 0) return v_display;
+    const h_display = display(entry.height, type);
+    switch (type) {
+        case 'plain':
+            return v_display + '^' + h_display;
+        case 'html':
+            return v_display + '<sup>' + h_display + '</sup>';
+        case 'latex':
+            return v_display + '^{' + h_display + '}';
+    }
+}
 
-function display_marked(expr: Expr, type: DMT, start_index: number = 1): string {
-    if (is_infinity(expr)) return 'Limit';
+export function display_marked(expr: Expr, type: DisplayType, start_index: number = 1): string {
+    if (is_infinity(expr)) return type === 'latex' ? '\\mathrm{Limit}' : 'Limit';
+
     let idx = start_index;
     const parts: string[] = [];
     for (const col of expr) {
@@ -306,7 +325,7 @@ function display_marked(expr: Expr, type: DMT, start_index: number = 1): string 
     return parts.join('');
 }
 
-function display_column_marked(col: Column, type: DMT, index: number): string {
+function display_column_marked(col: Column, type: DisplayType, index: number): string {
     if (col.length === 0) {
         if (type === 'plain') return '(:' + index + ')';
         if (type === 'html') return "(0)<sub><span style='color:#888'>" + index + '</span></sub>';
@@ -318,7 +337,7 @@ function display_column_marked(col: Column, type: DMT, index: number): string {
     return '(' + content + ')_{\\color{gray}' + index + '}';
 }
 
-function display_entry_marked(entry: Entry, type: DMT, col_index: number): string {
+function display_entry_marked(entry: Entry, type: DisplayType, col_index: number): string {
     const v_display = '' + (entry.value + 1);
     if (entry.height.length === 0) return v_display;
     const h_display = display_marked(entry.height, type, col_index + 1);
@@ -327,14 +346,7 @@ function display_entry_marked(entry: Entry, type: DMT, col_index: number): strin
     return v_display + '^' + h_display;
 }
 
-function display_entry(entry: Entry, html: boolean): string {
-    const v_display = '' + (entry.value + 1);
-    if (entry.height.length === 0) return v_display;
-    const h_display = display(entry.height, html);
-    return html ? v_display + '<sup>' + h_display + '</sup>' : v_display + '^' + h_display;
-}
-
-function from_display(s: string): Expr {
+export function from_display(s: string): Expr {
     let i = 0;
 
     function error(): never {
@@ -424,7 +436,7 @@ function from_display(s: string): Expr {
     return result;
 }
 
-function compare(a: Expr, b: Expr): number {
+export function compare(a: Expr, b: Expr): number {
     return lex_compare(a, b, lex_compare_by(entry_comparator));
 }
 
@@ -438,7 +450,7 @@ const entry_comparator: Comparator<Entry> = object_lex_compare_by(
 
 type LayerColumn = { value: number; parent: number; height: Height }[];
 
-function vertical_increase(vert: Vertical, h_diff: Height): Vertical {
+export function vertical_increase(vert: Vertical, h_diff: Height): Vertical {
     const result = [...vert];
     while (result.length > 0 && height_compare(result[result.length - 1], h_diff) < 0) {
         result.pop();
@@ -447,7 +459,13 @@ function vertical_increase(vert: Vertical, h_diff: Height): Vertical {
     return result;
 }
 
-function convert_to_layer(e: Expr, parsed_stack: LayerColumn[] = []): Expr {
+export function vertical_diff(v1: Vertical, v2: Vertical): Vertical {
+    let i = 0;
+    while (i < v1.length && i < v2.length && height_compare(v1[i], v2[i]) === 0) i++;
+    return v1.slice(i);
+}
+
+export function convert_to_layer(e: Expr, parsed_stack: LayerColumn[] = []): Expr {
     if (is_infinity(e)) return e;
 
     const lS = parsed_stack.length;
@@ -537,7 +555,7 @@ function parent_info(
     return { lower_parent, higher_value: parsed[ip]?.value ?? -1 };
 }
 
-function convert_from_layer(e: Expr, parsed_stack: LayerColumn[] = []): Expr {
+export function convert_from_layer(e: Expr, parsed_stack: LayerColumn[] = []): Expr {
     if (is_infinity(e)) return e;
 
     const lS = parsed_stack.length;
@@ -599,15 +617,17 @@ export const BTBM: NotationDefinition<Expr> = {
     simple_name: 'BTBMS',
     category_id: 'category-bm-like',
     display: {
-        plain: bind2(display, false),
-        html: bind2(display, true),
+        plain: bind2(display, 'plain'),
+        html: bind2(display, 'html'),
+        latex: bind2(display, 'latex'),
         from_display,
         name_id: 'display.index',
     },
     display_equiv: {
         layer: {
-            plain: (e) => display(convert_to_layer(e), false),
-            html: (e) => display(convert_to_layer(e), true),
+            plain: (e) => display(convert_to_layer(e), 'plain'),
+            html: (e) => display(convert_to_layer(e), 'html'),
+            latex: (e) => display(convert_to_layer(e), 'latex'),
             from_display: (str) => convert_from_layer(from_display(str)),
             name_id: 'display.layer',
         },
