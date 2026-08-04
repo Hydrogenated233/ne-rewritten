@@ -1,5 +1,14 @@
 import { type NotationDefinition } from '@/notation-definition.ts';
-import { compare, display, from_display, is_limit, normalize, standardize } from '@/notations/BM-like/BM.ts';
+import {
+    compare,
+    display,
+    display_simple,
+    from_display,
+    from_display_simple,
+    is_limit,
+    normalize,
+    standardize,
+} from '@/notations/BM-like/BM.ts';
 
 export const BLM: NotationDefinition<any> = {
     id: 'blm',
@@ -9,6 +18,13 @@ export const BLM: NotationDefinition<any> = {
     display: {
         plain: display,
         from_display,
+    },
+    display_equiv: {
+        simple: {
+            plain: display_simple,
+            from_display: from_display_simple,
+            name_id: 'display.simple',
+        },
     },
     is_limit,
     compare,

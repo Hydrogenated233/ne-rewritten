@@ -1,9 +1,11 @@
 import {
     compare,
     display,
+    display_simple,
     expand as BM_expand,
     Expr,
     from_display,
+    from_display_simple,
     INFINITY,
     infinity_FS,
     is_infinity,
@@ -100,7 +102,17 @@ export const BHM: NotationDefinition<Expr> = {
     name: 'Bashicu hyper matrix',
     simple_name: 'BHM',
     category_id: 'category-bm-like',
-    display: { plain: display, from_display },
+    display: {
+        plain: display,
+        from_display,
+    },
+    display_equiv: {
+        simple: {
+            plain: display_simple,
+            from_display: from_display_simple,
+            name_id: 'display.simple',
+        },
+    },
     is_limit: is_limit,
     compare: compare,
     ...sequence_FS_variants(BHM_expand, is_infinity, infinity_FS, is_limit, display),
@@ -125,7 +137,17 @@ export function BM_BHM(n: number): NotationDefinition<Expr> {
         name: 'BMS(' + n + ' rows) + BHM',
         simple_name: n + 'BM-BHM',
         category_id: 'category-bm-bhm',
-        display: { plain: display, from_display },
+        display: {
+            plain: display,
+            from_display,
+        },
+        display_equiv: {
+            simple: {
+                plain: display_simple,
+                from_display: from_display_simple,
+                name_id: 'display.simple',
+            },
+        },
         is_limit: is_limit,
         compare: compare,
         ...sequence_FS_variants(bind3(BM_BHM_expand, n), is_infinity, infinity_FS, is_limit, display),

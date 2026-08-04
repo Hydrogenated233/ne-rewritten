@@ -1,8 +1,10 @@
 import {
     compare,
     display,
+    display_simple,
     Expr,
     from_display as from_display_BM,
+    from_display_simple,
     INFINITY,
     is_infinity,
     is_limit,
@@ -111,7 +113,17 @@ export const BSM: NotationDefinition<Expr> = {
     name: 'Bashicu sudden matrix',
     simple_name: 'BSM',
     category_id: 'category-bm-like',
-    display: { plain: display, from_display },
+    display: {
+        plain: display,
+        from_display,
+    },
+    display_equiv: {
+        simple: {
+            plain: display_simple,
+            from_display: from_display_simple,
+            name_id: 'display.simple',
+        },
+    },
     is_limit: is_limit,
     compare: compare,
     FS: (m: Expr, index: number) => {
