@@ -610,8 +610,8 @@ function from_display(s: string, n: number): Expr {
 
 export const category_bm_bt_star_minus1_y_nss_v3: NotationCategoryDefinition = {
     id: 'category-bm-bt-star-minus1-y-nss-v3',
-    name: "Bubby3's Transfinite* -1Y-nSS v3",
-    simple_name: 'BT*(-1)Y-nSS v3',
+    name: "weak Bubby3's Transfinite* -1Y-nSS (v3)",
+    simple_name: 'weak BT*(-1)Y-nSS',
     parent_id: 'category-minus1-y-nss-series',
     generator: { start: 1, initial: 3, create: (n) => BT_star_Minus1_Y_nSS_v3(n) },
 };
@@ -620,7 +620,7 @@ export function BT_star_Minus1_Y_nSS_v3(n: number): NotationDefinition<Expr> {
     return {
         id: 'bt*--1y-' + (n + 1) + 'ss-v3',
         category_id: 'category-bm-bt-star-minus1-y-nss-v3',
-        name: 'BT*(-1)Y-' + (n + 1) + 'SS v3',
+        name: 'weak BT*(-1)Y-' + (n + 1) + 'SS',
 
         display: {
             plain: (e) => display(e, false),
