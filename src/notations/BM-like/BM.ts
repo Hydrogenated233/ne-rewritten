@@ -99,7 +99,7 @@ export function from_display(s: string, std: boolean = false): Expr {
 }
 
 export function is_limit(a: Expr): boolean {
-    return is_infinity(a) || (a.length > 0 && a[a.length - 1][0] > 0);
+    return is_infinity(a) || (a.length > 0 && a[a.length - 1].length > 0 && a[a.length - 1][0] > 0);
 }
 
 export function normalize_col(col: number[]): number[] {
@@ -154,7 +154,7 @@ function ascending_threshold(P: number[][], r: number, j_max: number): number[] 
     return result;
 }
 
-function expand(m: Expr, index: number, shorter: boolean): Expr {
+export function expand(m: Expr, index: number, shorter: boolean): Expr {
     if (m.length === 0) return m;
 
     const rightmost = m.length - 1;

@@ -13,7 +13,7 @@ import {
 } from '@/notations/Y/Omega_Y.ts';
 import { omega_MN } from '@/notations/MN/Omega_MN.ts';
 import { T_omega_MN } from '@/notations/MN/T_omega_MN.ts';
-import { BHM } from '@/notations/BM-like/BHM.ts';
+import { BHM, category_BM_BHM } from '@/notations/BM-like/BHM.ts';
 import { BSM } from '@/notations/BM-like/BSM.ts';
 import { DEN } from '@/notations/DEN/DEN.ts';
 import { DEN2 } from '@/notations/DEN/DEN2.ts';
@@ -154,6 +154,8 @@ register_notation(TriangularBM4);
 register_notation(TBM);
 register_notation(CMS);
 register_notation(BHM);
+register_category(category_BM_BHM);
+init_generator(category_BM_BHM);
 register_notation(BSM);
 register_notation(BLM);
 register_notation(UPMS);

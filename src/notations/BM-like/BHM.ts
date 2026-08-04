@@ -1,101 +1,98 @@
 import {
     compare,
     display,
+    expand as BM_expand,
     Expr,
-    from_display as from_display_BM,
+    from_display,
     INFINITY,
+    infinity_FS,
     is_infinity,
     is_limit,
+    parents,
 } from '@/notations/BM-like/BM.ts';
 
 import { NotationDefinition } from '@/notation-definition.ts';
+import { sequence_FS_variants } from '@/notations/notation_utils.ts';
+import type { NotationCategoryDefinition } from '@/core/notation_category.ts';
+import { bind3 } from '@/utils.ts';
 
-const data: Record<string, Expr[]> = {};
+function ascension_thresholds(P: number[][], r: number, roots: number[], b: number): number[] {
+    const result = Array<number>(P.length).fill(0);
 
-function expand(m: Expr, index: number): Expr {
-    function parent(x: number, y: number, cache: Record<string, number>): number {
-        const str = x + ',' + y;
-        if (cache[str] !== undefined) return cache[str];
-        let p: number;
-        for (p = x; (p = y ? parent(p, y - 1, cache) : p - 1) >= 0;) {
-            if (m[p][y] < m[x][y]) break;
+    result[r] = b;
+    for (let i = r + 1; i < P.length; i++) {
+        if (roots.includes(i)) {
+            result[i] = b;
+        } else {
+            let threshold = 0;
+            while (threshold < P[i].length && threshold < b && threshold < result[P[i][threshold]]) threshold++;
+            result[i] = threshold;
         }
-        return (cache[str] = p);
     }
 
-    function ascending(r: number, x: number, y: number, cache: Record<string, boolean>, roots: number[]): boolean {
-        const str = r + ',' + x + ',' + y;
-        if (cache[str] !== undefined) return cache[str];
-        return (cache[str] =
-            r <= x && (roots.includes(x) || ascending(r, parent(x, y, parent_cache), y, cache, roots)));
-    }
+    return result;
+}
 
-    function delta(r: number, LNZ: number) {
-        return m[r].map((value, y) => (y < LNZ ? child[y] - value : 0));
-    }
+function ascension_vector(m: Expr, r: number, b: number): number[] {
+    const right = m.length - 1;
+    return Array.from({ length: b }, (_, i) => m[right][i] - (m[r][i] ?? 0));
+}
 
-    function expansion(
-        r: number,
-        n: number,
-        LNZ: number,
-        parent_cache: Record<string, number>,
-        ascend_cache: Record<string, boolean>,
-        roots: number[],
-    ) {
-        const ss = m.slice(0, end_col);
-        const del_r = delta(r, LNZ);
-        for (let a = 1; a <= n; ++a) {
-            for (let x = r; x < end_col; ++x) {
-                ss.push(
-                    ss[x].map((value, y) => value + a * del_r[y] * (ascending(r, x, y, ascend_cache, roots) ? 1 : 0)),
-                );
-            }
+function ascend_vector(col: number[], V: number[], A: number, w: number): number[] {
+    return Array.from({ length: Math.max(col.length, A) }, (_, j) => (col[j] ?? 0) + w * (V[j] ?? 0) * (j < A ? 1 : 0));
+}
+
+function compute_expansion(m: Expr, r: number, V: number[], A: number[], index: number, shorter: boolean): Expr {
+    const right = m.length - 1;
+
+    const result = m.slice(0, right);
+    for (let w = 1; w <= index + 1; ++w) {
+        if (shorter && w > index) break;
+        for (let i = r; i < right; ++i) {
+            result.push(ascend_vector(m[i], V, A[i], w));
+            if (w > index) break;
         }
-        return ss;
     }
+    return result;
+}
 
-    function expansion_append(
-        r: number,
-        LNZ: number,
-        parent_cache: Record<string, number>,
-        ascend_cache: Record<string, boolean>,
-        roots: number[],
-    ) {
-        const del_r = delta(r, LNZ);
-        const res = expansion(r, 1, LNZ, parent_cache, ascend_cache, roots);
-        res.push(
-            m[end_col].map((value, y) => value + del_r[y] * (ascending(r, end_col, y, ascend_cache, roots) ? 1 : 0)),
-        );
-        return res;
-    }
+function extend(m: Expr, r: number, V: number[], A: number[]): Expr {
+    const right = m.length - 1;
 
-    const end_col = m.length - 1;
-    const result = m.slice(0, end_col);
-    const child = m[end_col];
-    const y_max = child.length - 1;
-    let LNZ = y_max;
-    for (; LNZ >= 0; --LNZ) {
-        if (child[LNZ] > 0) break;
-    }
-    if (LNZ < 0) return result;
-
-    const parent_cache: Record<string, number> = {};
-    const ascend_cache: Record<string, boolean> = {};
-    const special_root = parent(parent(end_col, LNZ, parent_cache), LNZ, parent_cache);
-    const roots: number[] = [];
-    for (let n = end_col; (n = LNZ ? parent(n, LNZ - 1, parent_cache) : n - 1) > special_root;) {
-        if (parent(n, LNZ, parent_cache) === special_root) roots.push(n);
-    }
-    const threshold = expansion_append(roots[0], LNZ, parent_cache, ascend_cache, roots);
-    let n = roots.findIndex((r) => compare(expansion_append(r, LNZ, parent_cache, ascend_cache, roots), threshold) < 0);
-    if (n === -1) n = roots.length;
-    let res = expansion(roots[n - 1], index, LNZ, parent_cache, ascend_cache, roots);
-    if (y_max > 0 && res.every((col) => col[y_max] === 0)) res = res.map((col) => col.slice(0, y_max));
+    const res = compute_expansion(m, r, V, A, 1, true);
+    res.push(ascend_vector(m[right], V, A[right], 1));
     return res;
 }
 
-function from_display(str: string): Expr {
-    return from_display_BM(str, true);
+function BHM_expand(m: Expr, index: number, shorter: boolean): Expr {
+    const right = m.length - 1;
+    if (right < 0) return [];
+    const top = m[right].length - 1;
+    if (top < 0) return m.slice(0, -1);
+
+    const P = parents(m);
+
+    const special_root = P[P[right][top]][top] ?? -1;
+    const roots: number[] = [];
+    for (let i = right; (i = top > 0 ? P[i][top - 1] : i - 1) > special_root;) {
+        if ((P[i][top] ?? -1) === special_root) roots.push(i);
+    }
+
+    const A: number[][] = [];
+    for (let r of roots) {
+        A[r] = ascension_thresholds(P, r, roots, top);
+    }
+
+    const V: number[][] = [];
+    for (let r of roots) {
+        V[r] = ascension_vector(m, r, top);
+    }
+
+    const threshold = extend(m, roots[0], V[roots[0]], A[roots[0]]);
+    let ri = roots.findIndex((r) => compare(extend(m, r, V[r], A[r]), threshold) < 0);
+    if (ri === -1) ri = roots.length;
+    let r_actual = roots[ri - 1];
+    return compute_expansion(m, r_actual, V[r_actual], A[r_actual], index, shorter);
 }
 
 export const BHM: NotationDefinition<Expr> = {
@@ -106,15 +103,42 @@ export const BHM: NotationDefinition<Expr> = {
     display: { plain: display, from_display },
     is_limit: is_limit,
     compare: compare,
-    FS: (m: Expr, index: number) => {
-        if (is_infinity(m)) return [Array(index + 1).fill(0), Array(index + 1).fill(1)];
-        if (m.length === 0) return [];
-        const key = display(m);
-        if (!data[key]) data[key] = [];
-        else if (data[key][index] !== undefined) return data[key][index];
-        return (data[key][index] = expand(m, index));
-    },
+    ...sequence_FS_variants(BHM_expand, is_infinity, infinity_FS, is_limit, display),
     credit_text_id: 'credit.bashicu',
 
     init: () => [INFINITY(), []],
+};
+
+function BM_BHM_expand(m: Expr, index: number, n: number, shorter: boolean): Expr {
+    const right = m.length - 1;
+    if (right < 0) return [];
+    const top = m[right].length - 1;
+    if (top < 0) return m.slice(0, -1);
+
+    if (top < n) return BM_expand(m, index, shorter);
+    return BHM_expand(m, index, shorter);
+}
+
+export function BM_BHM(n: number): NotationDefinition<Expr> {
+    return {
+        id: n + '-bm-bhm',
+        name: 'BMS(' + n + ' rows) + BHM',
+        simple_name: n + 'BM-BHM',
+        category_id: 'category-bm-bhm',
+        display: { plain: display, from_display },
+        is_limit: is_limit,
+        compare: compare,
+        ...sequence_FS_variants(bind3(BM_BHM_expand, n), is_infinity, infinity_FS, is_limit, display),
+        credit_text_id: 'credit.bashicu',
+
+        init: () => [INFINITY(), [[], Array<number>(n + 2).fill(1)], []],
+    };
+}
+
+export const category_BM_BHM: NotationCategoryDefinition = {
+    id: 'category-bm-bhm',
+    name: 'BMS(n rows) + BHM',
+    simple_name: 'nBM-BHM',
+    parent_id: 'category-bm-like',
+    generator: { start: 1, initial: 3, create: BM_BHM },
 };
