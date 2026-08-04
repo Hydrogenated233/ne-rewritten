@@ -20,7 +20,7 @@ type EntryData<T extends object> = T & { height: ExprData<T> };
 type Height = ExprData<{ value: number; mark: boolean }>;
 type Vertical = Height[];
 
-const INFINITY: Expr = Symbol('infinity') as any;
+const INFINITY: Expr = Infinity as any;
 const INFINITY_height: Height = INFINITY as any;
 
 function is_infinity(e: Expr | Height): boolean {

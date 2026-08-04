@@ -10,6 +10,27 @@ export interface AnalysisEntry<T> {
     analysis: string[];
 }
 
+/** Infinity 的 JSON 序列化哨兵。JSON 不支持 Infinity, 会静默转成 null。 */
+const INFINITY_MARKER = { $infinity: true as const };
+
+/** 将 AnalysisEntry[] 序列化为 JSON, 其中 Infinity 转为哨兵对象。 */
+export function stringify_analysis_entries<T>(entries: AnalysisEntry<T>[]): string {
+    return JSON.stringify(entries, (_key, value) => {
+        if (value === Infinity) return INFINITY_MARKER;
+        return value;
+    });
+}
+
+/** 将 JSON 文本反序列化为 AnalysisEntry[], 恢复哨兵对象为 Infinity。 */
+export function parse_analysis_entries<T>(text: string): AnalysisEntry<T>[] {
+    return JSON.parse(text, (_key, value) => {
+        if (value !== null && typeof value === 'object' && (value as { $infinity?: unknown }).$infinity === true) {
+            return Infinity;
+        }
+        return value;
+    });
+}
+
 /**
  * 先根遍历树（递增序），收集所有有 analysis 内容的节点。
  */

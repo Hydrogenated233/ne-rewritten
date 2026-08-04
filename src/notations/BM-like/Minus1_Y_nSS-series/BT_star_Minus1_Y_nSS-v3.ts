@@ -17,7 +17,7 @@ export type ColumnData<Data extends object> = Data & { higher: ExprData<Data>[] 
 export type Expr = ExprData<{ lower: number[] }>;
 export type Column = ColumnData<{ lower: number[] }>;
 
-const INFINITY: Expr = Symbol('infinity') as any;
+const INFINITY: Expr = Infinity as any;
 
 function ZERO_COLUMN(n: number): Column {
     return { lower: Array.from({ length: n }, () => 0), higher: [] };

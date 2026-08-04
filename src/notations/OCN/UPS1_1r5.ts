@@ -15,7 +15,7 @@ export type Expr = Entry[];
 type Range = { start: number; end: number };
 type IndexedRange = Range & { index: number };
 
-export const INFINITY: Expr = Symbol('infinity') as any;
+export const INFINITY: Expr = Infinity as any;
 
 export function is_infinity(e: Expr): boolean {
     return e === INFINITY;

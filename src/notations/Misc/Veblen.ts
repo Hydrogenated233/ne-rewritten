@@ -8,7 +8,7 @@ type VeblenList = [VeblenList, Expr][];
 // 2: φ
 type Expr = [0] | [1, Expr[]] | [2, VeblenList, Expr];
 
-const INFINITY: Expr = Symbol('infinity') as any;
+const INFINITY: Expr = Infinity as any;
 
 function is_infinity(e: Expr) {
     return e === INFINITY;

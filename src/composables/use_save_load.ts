@@ -2,7 +2,12 @@ import type { Ref } from 'vue';
 import { computed, inject, type InjectionKey, reactive, ref, watch } from 'vue';
 import { get_notation } from '@/core/registry.ts';
 import { init_dataset, type TreeNode } from '@/core/tree.ts';
-import { export_analysis, import_analysis } from '@/core/analysis.ts';
+import {
+    export_analysis,
+    import_analysis,
+    parse_analysis_entries,
+    stringify_analysis_entries,
+} from '@/core/analysis.ts';
 import type { NotationDefinition } from '@/notation-definition.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { download_buffer, export_to_xlsx, import_from_xlsx } from '@/core/xlsx_io.ts';
@@ -63,7 +68,7 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
         const r = root.value;
         if (!n || !r) return;
         const entries = export_analysis(r);
-        localStorage.setItem(ANALYSIS_STORAGE_PREFIX + n.id, JSON.stringify(entries));
+        localStorage.setItem(ANALYSIS_STORAGE_PREFIX + n.id, stringify_analysis_entries(entries));
         last_save_time.value = Date.now();
         update_save_indicator();
     }
@@ -74,7 +79,7 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
         const raw = localStorage.getItem(ANALYSIS_STORAGE_PREFIX + id);
         if (!raw) return;
         try {
-            const entries: any[] = JSON.parse(raw);
+            const entries: any[] = parse_analysis_entries(raw);
             import_analysis(r, entries, n, settings.variant, settings.max_find_fs);
         } catch {
             /* ignore corrupt data */
