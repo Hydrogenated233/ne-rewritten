@@ -1,3 +1,5 @@
+import { NameSpec, NotationDisplaySpec } from '@/notation-definition.ts';
+
 export type DisplayType = 'plain' | 'html' | 'latex';
 
 // ========== OCNDisplay AST ==========
@@ -158,14 +160,11 @@ export function display_OCN_IR(e: OCNDisplayIR, type: DisplayType): string {
 }
 
 /** 辅助函数：传入 to_OCN_display 转换函数，返回 DisplaySpec 对象 */
-export function make_OCN_display<T>(to_ir: (e: T) => OCNDisplayIR): {
-    plain: (e: T) => string;
-    html: (e: T) => string;
-    latex: (e: T) => string;
-} {
+export function make_OCN_display<T>(to_ir: (e: T) => OCNDisplayIR, name?: NameSpec): NotationDisplaySpec<T> {
     return {
         plain: (e) => display_OCN_IR(to_ir(e), 'plain'),
         html: (e) => display_OCN_IR(to_ir(e), 'html'),
         latex: (e) => display_OCN_IR(to_ir(e), 'latex'),
+        name,
     };
 }

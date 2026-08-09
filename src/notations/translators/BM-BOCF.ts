@@ -1,4 +1,4 @@
-import { NotationDefinition } from '@/notation-definition.ts';
+import { NameSpec, NotationDefinition, NotationDisplaySpec } from '@/notation-definition.ts';
 import { BM4, Expr, standardize } from '@/notations/BM-like/BM.ts';
 import { make_OCN_display, merge_sum, type OCNDisplayIR } from '@/notations/OCN/OCN_utils.ts';
 import { deepcopy, lex_compare, number_compare } from '@/utils.ts';
@@ -69,7 +69,8 @@ function s(a: OCF, b: OCF): [OCF, OCF] {
     if (lt([a[0], a[1], []], b)) {
         return [[], a];
     }
-    return [[a[0], a[1], s(a[2], b)[0]], s(a[2], b)[1]];
+    let s1 = s(a[2], b);
+    return [[a[0], a[1], s1[0]], s1[1]];
 }
 
 function l(a: OCF): OCF {
@@ -271,6 +272,13 @@ function to_nat(q: OCF): number {
     throw new Error('not a natural number');
 }
 
+function getCoef(x: [OCF, OCF, OCF]): number {
+    if (iz(x[2])) {
+        return 1;
+    }
+    return getCoef(x[2]) + 1;
+}
+
 function to_IR(q: OCF): OCNDisplayIR {
     if (iz(q)) {
         return { type: 'number', value: 0 };
@@ -295,15 +303,6 @@ function to_IR(q: OCF): OCNDisplayIR {
     } else if (!eq(log([a[0], a[1], []]), [a[0], a[1], []])) {
         m = { type: 'omega', sup: to_IR(log(a)) };
     }
-    //  else if(!le(l(a[1]),[suc(a[0]),[],[]])&&le(l(a[1]),[suc(a[0]),[suc(a[0]),[],[]],[]])){
-    //    let [f,g]=s(a[1],[suc(a[0]),[suc(a[0]),[],[]],[]]);
-    //  }
-    function getCoef(x: [OCF, OCF, OCF]): number {
-        if (iz(x[2])) {
-            return 1;
-        }
-        return getCoef(x[2]) + 1;
-    }
 
     if (getCoef(a) > 1) {
         m = { type: 'mul_nat', value: m, coe: getCoef(a) };
@@ -314,6 +313,28 @@ function to_IR(q: OCF): OCNDisplayIR {
     }
     return m;
 }
+
+function to_IR_full(q: OCF): OCNDisplayIR {
+    if (iz(q)) {
+        return { type: 'number', value: 0 };
+    }
+    if (iz(q[0]) && iz(q[1])) {
+        return { type: 'number', value: to_nat(q) };
+    }
+    let [a, b] = s(q, [q[0], q[1], []]);
+    if (iz(a)) throw new Error('Illegal state');
+    let m: OCNDisplayIR = { type: 'psi', sub: to_IR_full(a[0]), arg: to_IR_full(a[1]) };
+
+    if (getCoef(a) > 1) {
+        m = { type: 'mul_nat', value: m, coe: getCoef(a) };
+    }
+    if (!iz(b)) {
+        const b_ir = to_IR_full(b);
+        m = b_ir.type === 'sum' ? merge_sum([m, ...b_ir.terms]) : merge_sum([m, b_ir]);
+    }
+    return m;
+}
+
 //
 // function calculate() {
 //     let M = document.getElementById('input').value;
@@ -394,6 +415,17 @@ const EBO_IR: OCNDisplayIR = { type: 'constant', display: 'EBO', display_latex: 
 
 export const LIMIT: Expr = [[], [1, 1, 1], [2, 1, 1], [3, 1], [2]];
 
+function make_display(
+    to_ocf: (e: Expr) => OCF,
+    to_ir: (q: OCF) => OCNDisplayIR,
+    name?: NameSpec,
+): NotationDisplaySpec<Expr> {
+    return make_OCN_display(
+        (e: Expr) => (BM4.compare(e, LIMIT) === 0 ? EBO_IR : to_ir(to_ocf(standardize(e, 3)))),
+        name,
+    );
+}
+
 export const Translator_BM_BOCF: NotationDefinition<Expr> = {
     id: 'translator-bm-bocf',
     name: 'BMS-BOCF (EBO)',
@@ -409,9 +441,9 @@ export const Translator_BM_BOCF: NotationDefinition<Expr> = {
     init: () => [deepcopy(LIMIT), []],
 
     display_equiv: {
-        OCF: make_OCN_display((e: Expr) => (BM4.compare(e, LIMIT) === 0 ? EBO_IR : to_IR(_o(standardize(e, 3))))),
-        'n.s. OCF': make_OCN_display((e: Expr) =>
-            BM4.compare(e, LIMIT) === 0 ? EBO_IR : to_IR(NS(standardize(e, 3))),
-        ),
+        OCF: make_display(_o, to_IR),
+        'OCF full': make_display(_o, to_IR_full),
+        'n.s. OCF': make_display(NS, to_IR),
+        'n.s. OCF full': make_display(NS, to_IR_full),
     },
 };
