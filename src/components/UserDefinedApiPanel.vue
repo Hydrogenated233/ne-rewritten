@@ -115,7 +115,11 @@ function download() {
 </script>
 
 <template>
-    <ModalDialog :show="ui.show_api_doc.value" title="API 文档" @close="ui.show_api_doc.value = false">
+    <ModalDialog
+        :show="ui.show_api_doc.value"
+        :title="t('user-defined.api-doc')"
+        @close="ui.show_api_doc.value = false"
+    >
         <div class="api-tabs">
             <button
                 class="api-tab"
@@ -135,7 +139,7 @@ function download() {
         <div v-if="active_tab === 'md'" class="api-content" v-html="html" />
         <div v-else ref="editor_ref" class="api-editor"></div>
         <button class="api-download" @mousedown="download">
-            {{ active_tab === 'md' ? '下载 api.md' : '下载 api.ts' }}
+            {{ t('user-defined.download') }} {{ active_tab === 'md' ? 'api.md' : 'api.ts' }}
         </button>
     </ModalDialog>
 </template>

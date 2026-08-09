@@ -266,8 +266,10 @@ function on_find_keydown(e: KeyboardEvent) {
                         {{ t('equiv.hide-original') }}
                     </label>
                     <span style="margin-left: 8px" v-if="equiv_options.length > 0">
-                        额外显示:
-                        <button class="toggle-btn" @mousedown="show_equiv_config = true">配置</button>
+                        {{ t('equiv.extra') }}
+                        <button class="toggle-btn" @mousedown="show_equiv_config = true">
+                            {{ t('equiv.extra-configure') }}
+                        </button>
                     </span>
                 </span>
             </div>
@@ -365,7 +367,7 @@ function on_find_keydown(e: KeyboardEvent) {
             {{ settings_collapsed ? t('settings.more') : t('settings.less') }}
         </button>
     </div>
-    <ModalDialog :show="show_equiv_config" title="额外显示设置" @close="show_equiv_config = false">
+    <ModalDialog :show="show_equiv_config" :title="t('equiv.extra-title')" @close="show_equiv_config = false">
         <div class="equiv-config-list">
             <label v-for="opt in equiv_options" :key="opt.id" class="equiv-config-row">
                 <input
