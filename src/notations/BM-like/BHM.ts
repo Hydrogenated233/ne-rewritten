@@ -13,9 +13,8 @@ import {
     parents,
 } from '@/notations/BM-like/BM.ts';
 
-import { NotationDefinition } from '@/notation-definition.ts';
+import { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 import { sequence_FS_variants } from '@/notations/notation_utils.ts';
-import type { NotationCategoryDefinition } from '@/core/notation_category.ts';
 import { bind3 } from '@/utils.ts';
 
 function ascension_thresholds(P: number[][], r: number, roots: number[], b: number): number[] {

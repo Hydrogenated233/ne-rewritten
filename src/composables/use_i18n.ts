@@ -78,6 +78,7 @@ const messages: Record<Language, Record<string, string>> = {
         'font.label': '字体:',
         'font.system-default': '系统默认字体',
         'language.label': '语言:',
+        'category-name.translators': '互译器',
         'settings.more': '▼ 展开',
         'settings.less': '▲ 收起',
         'notation-tree.empty': '未选择记号',
@@ -114,6 +115,7 @@ const messages: Record<Language, Record<string, string>> = {
         'credit.asheep': '由 Asheep233 给出粗略定义, 由 笑姐姐 基于此给出展开器.',
         'credit.asheep-v2v3': '由 笑姐姐 基于 v1 修改, 给出定义和展开器.',
         'credit.bocf': '由 Buchholz 给出最初定义; 由社区完善.',
+        'credit.solarzone': '此转换器由 SolarZone 构造并给出程序实现.',
         'credit.mocf': '由 Madore 给出最初定义.',
         'credit.nocf': '由社区定义.',
         'credit.ups1_1r5': '由 Optimism 最初创作, Alice 完善. 由 Alice 给出展开器与可视化方案.',
@@ -258,6 +260,7 @@ const messages: Record<Language, Record<string, string>> = {
         'font.label': 'Font:',
         'font.system-default': 'System Default',
         'language.label': 'Language:',
+        'category-name.translators': 'Translators',
         'settings.more': '▼ More',
         'settings.less': '▲ Less',
         'notation-tree.empty': 'No notation selected',
@@ -314,6 +317,8 @@ const messages: Record<Language, Record<string, string>> = {
         'credit.btbm':
             'Originally conceived by Bubby3, refined by the community. Expander by 笑姐姐 (Smile Lee) based on discussions with Asheep233.',
         'credit.bocf': 'Initially defined by Buchholz; refined by the community.',
+        'credit.solarzone':
+            'This converter was constructed by SolarZone, who also provided the program implementation.',
         'credit.mocf': 'Initially defined by Madore.',
         'credit.nocf': 'Defined by the community.',
         'credit.ups1_1r5': 'Originally created by Optimism, refined by Alice. Expander and visualization by Alice.',

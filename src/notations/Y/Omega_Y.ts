@@ -1,8 +1,7 @@
 import { DisplayMap, DisplaySet, lex_compare, number_compare } from '@/utils.ts';
 import { Y_FS_variants } from '@/notations/notation_utils.ts';
 import { draw_mountain_diagram, type MountainDiagramData } from '@/notations/draw_mountain_util.ts';
-import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
-import type { NotationCategoryDefinition } from '@/core/notation_category.ts';
+import { DiagramControl, NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 
 type Expr = number[];
 type Vertical = number[];

@@ -3,7 +3,7 @@ import { get_notation, list_notations } from '@/core/registry.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import type { ExpandSettings, Variant } from '@/core/settings.ts';
 import { focus_node, get_last_focus } from '@/composables/use_focus_tracker.ts';
-import { resolve_display } from '@/notation-definition.ts';
+import { resolve_display, resolve_name } from '@/notation-definition.ts';
 
 const visible = ref(false);
 const input_text = ref('');
@@ -41,7 +41,7 @@ function run_core() {
 
     if (!display_spec.from_display) {
         preview_status.value = 'error-no-from-display';
-        preview.value = n.name;
+        preview.value = resolve_name(n.name) ?? n.id;
         return;
     }
 

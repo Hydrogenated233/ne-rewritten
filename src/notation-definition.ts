@@ -47,6 +47,15 @@ export function html_to_latex(html: string): string {
     return read();
 }
 
+export type NameSpec = string | { id: string };
+
+/** 解析 NameSpec: string 作为纯文本, { id } 按 i18n id 翻译。无 translate 时退回显示 id。 */
+export function resolve_name(spec: NameSpec | undefined, translate?: (id: string) => string): string | undefined {
+    if (spec === undefined) return undefined;
+    if (typeof spec === 'string') return spec;
+    return translate ? translate(spec.id) : spec.id;
+}
+
 export type NotationDisplaySpec<T> =
     | NotationDisplay<T>
     | {
@@ -54,6 +63,7 @@ export type NotationDisplaySpec<T> =
           html?: NotationDisplay<T>;
           latex?: NotationDisplay<T>;
           from_display?: (str: string) => T;
+          name?: NameSpec;
           name_id?: string;
       };
 
@@ -62,7 +72,7 @@ export interface ResolvedDisplaySpec<T> {
     html: NotationDisplay<T>;
     latex: NotationDisplay<T>;
     from_display?: (str: string) => T;
-    name_id?: string;
+    name?: NameSpec;
 }
 
 export function resolve_display<T>(spec: NotationDisplaySpec<T>): ResolvedDisplaySpec<T> {
@@ -73,12 +83,16 @@ export function resolve_display<T>(spec: NotationDisplaySpec<T>): ResolvedDispla
     }
     const html_fn = spec.html ?? spec.plain;
     const latex_fn = spec.latex ?? ((a: T) => html_to_latex(html_fn(a)));
+
+    let name = spec.name;
+    if (!name && spec.name_id) name = { id: spec.name_id };
+
     return {
         plain: spec.plain,
         html: html_fn,
         latex: latex_fn,
         from_display: spec.from_display,
-        name_id: spec.name_id,
+        name,
     };
 }
 
@@ -96,8 +110,8 @@ export interface DiagramControl<T, DataType> {
 
 export interface NotationDefinition<T> {
     id: string;
-    name: string;
-    simple_name?: string;
+    name: NameSpec;
+    simple_name?: NameSpec;
     category_id?: string;
     display: NotationDisplaySpec<T>;
     display_equiv?: Record<string, NotationDisplaySpec<T>>;
@@ -114,4 +128,18 @@ export interface NotationDefinition<T> {
 
     /** Debug helpers — not consumed by the app but accessible at runtime. */
     debug?: Record<string, any>;
+}
+
+export interface NotationCategoryGenerator {
+    start: number;
+    initial: number;
+    create: (n: number) => NotationDefinition<any>;
+}
+
+export interface NotationCategoryDefinition {
+    id: string;
+    name: NameSpec;
+    simple_name?: NameSpec;
+    parent_id?: string;
+    generator?: NotationCategoryGenerator;
 }

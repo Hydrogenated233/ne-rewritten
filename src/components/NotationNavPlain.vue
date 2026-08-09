@@ -3,6 +3,7 @@ import { computed, inject } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
+import { resolve_name } from '@/notation-definition.ts';
 import { get_notation, is_extra_generated, list_notations } from '@/core/registry.ts';
 
 const settings = inject(SETTINGS_KEY)!;
@@ -17,8 +18,8 @@ const all = computed(() => {
 });
 
 function get_name(n: (typeof all.value)[number]): string {
-    if (settings.notation_name_mode === 'simple' && n.simple_name) return n.simple_name;
-    return n.name;
+    if (settings.notation_name_mode === 'simple' && n.simple_name) return resolve_name(n.simple_name, t)!;
+    return resolve_name(n.name, t)!;
 }
 
 function toggle_hidden(id: string) {
@@ -81,8 +82,12 @@ function set_equiv(name: string | undefined) {
                 />
             </label>
             <span v-if="settings.notation_name_mode === 'full' && n.simple_name" class="nav-btn-stack">
-                <span :class="{ active: !ui.is_flashing.value || !ui.flash_show_simple.value }">{{ n.name }}</span>
-                <span :class="{ active: ui.is_flashing.value && ui.flash_show_simple.value }">{{ n.simple_name }}</span>
+                <span :class="{ active: !ui.is_flashing.value || !ui.flash_show_simple.value }">{{
+                    resolve_name(n.name, t)
+                }}</span>
+                <span :class="{ active: ui.is_flashing.value && ui.flash_show_simple.value }">{{
+                    resolve_name(n.simple_name, t)
+                }}</span>
             </span>
             <span v-else>{{ get_name(n) }}</span>
         </button>

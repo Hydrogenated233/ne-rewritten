@@ -4,6 +4,7 @@ import ModalDialog from './ModalDialog.vue';
 import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
+import { resolve_name } from '@/notation-definition.ts';
 import type { Settings } from '@/core/settings.ts';
 
 defineProps<{ show: boolean }>();
@@ -49,7 +50,7 @@ function on_fill() {
                     >{{ t('expand.notation') }}
                     <select v-model="ed.notation_id.value">
                         <option v-for="n in ed.notation_options.value" :key="n.id" :value="n.id">
-                            {{ n.simple_name ?? n.name }}
+                            {{ resolve_name(n.simple_name ?? n.name, t) }}
                         </option>
                     </select>
                 </label>

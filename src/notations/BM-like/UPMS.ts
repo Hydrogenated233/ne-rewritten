@@ -16,9 +16,8 @@ import {
     standardize,
 } from '@/notations/BM-like/BM.ts';
 import { sequence_FS_variants0 } from '@/notations/notation_utils.ts';
-import { NotationDefinition } from '@/notation-definition.ts';
+import { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 import { bind3, boolean_compare, lex_compare, lex_compare_by, number_compare, tuple_lex_compare_by } from '@/utils.ts';
-import type { NotationCategoryDefinition } from '@/core/notation_category.ts';
 
 interface Context {
     m: Expr;

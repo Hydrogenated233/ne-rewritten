@@ -9,8 +9,7 @@ import {
     tuple_lex_compare,
     tuple_lex_compare_by,
 } from '@/utils.ts';
-import type { NotationCategoryDefinition } from '@/core/notation_category.ts';
-import { NotationDefinition } from '@/notation-definition.ts';
+import { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 
 export type ExprData<Data extends object> = ColumnData<Data>[];
 export type ColumnData<Data extends object> = Data & { higher: ExprData<Data>[] };

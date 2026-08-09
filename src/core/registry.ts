@@ -1,5 +1,4 @@
-import { NotationCategoryDefinition } from '@/core/notation_category.ts';
-import { NotationDefinition } from '@/notation-definition.ts';
+import { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 import { index_of_first } from '@/utils.ts';
 
 // ========== RegisterError ==========

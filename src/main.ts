@@ -86,6 +86,8 @@ import { GMS_categories, GMS_notations } from '@/notations/BM-like/GMS.ts';
 import { category_bm_bt_star_minus1_y_nss_v2 } from '@/notations/BM-like/Minus1_Y_nSS-series/BT_star_Minus1_Y_nSS-v2.ts';
 import { category_bm_bt_star_minus1_y_nss_v3 } from '@/notations/BM-like/Minus1_Y_nSS-series/BT_star_Minus1_Y_nSS-v3.ts';
 import { BTBM_weak } from '@/notations/BM-like/BTBM-weak.ts';
+import { category_translators } from '@/notations/translators/categories.ts';
+import { Translator_BM_BOCF } from '@/notations/translators/BM-BOCF.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -228,6 +230,8 @@ register_notation(aSAN);
 register_notation(aSAN2);
 register_notation(aSAN3);
 register_notation(aSAN_tilde3plus);
+register_category(category_translators);
+register_notation(Translator_BM_BOCF);
 
 window.notations ??= {};
 for (let notation of list_notations()) {

@@ -1,5 +1,4 @@
-import type { NotationDefinition } from '@/notation-definition.ts';
-import type { NotationCategoryDefinition } from '@/core/notation_category.ts';
+import type { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 import {
     get_category_children,
     init_generator,

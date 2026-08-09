@@ -3,6 +3,7 @@ import { computed, inject, onMounted, ref, watch } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
+import { resolve_name } from '@/notation-definition.ts';
 import {
     generator_can_decrement,
     generator_can_increment,
@@ -57,18 +58,18 @@ function get_name(id: string): string {
     const notation = get_notation(id);
     if (notation) {
         if (settings.notation_name_mode === 'simple' && notation.simple_name) {
-            return notation.simple_name;
+            return resolve_name(notation.simple_name, t)!;
         }
-        return notation.name;
+        return resolve_name(notation.name, t)!;
     }
     const cat = get_category(id);
     if (!cat) return id;
-    if (settings.notation_name_mode === 'simple' && cat.simple_name) return cat.simple_name;
-    return cat.name;
+    if (settings.notation_name_mode === 'simple' && cat.simple_name) return resolve_name(cat.simple_name, t)!;
+    return resolve_name(cat.name, t)!;
 }
 
 function get_simple_name(id: string): string | undefined {
-    return get_notation(id)?.simple_name ?? get_category(id)?.simple_name;
+    return resolve_name(get_notation(id)?.simple_name, t) ?? resolve_name(get_category(id)?.simple_name, t);
 }
 
 function toggle_hidden(id: string) {

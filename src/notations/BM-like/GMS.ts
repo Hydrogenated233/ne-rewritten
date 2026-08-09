@@ -1,5 +1,4 @@
-import type { NotationCategoryDefinition } from '@/core/notation_category.ts';
-import type { NotationDefinition } from '@/notation-definition.ts';
+import type { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 import { bind1 } from '@/utils.ts';
 import { column_display, from_display, normalize_col } from '@/notations/BM-like/BM.ts';
 

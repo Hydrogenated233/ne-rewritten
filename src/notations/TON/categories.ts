@@ -1,4 +1,4 @@
-import { NotationCategoryDefinition } from '@/core/notation_category.ts';
+import { NotationCategoryDefinition } from '@/notation-definition.ts';
 
 export const category_ton: NotationCategoryDefinition = {
     id: 'category-ton',
