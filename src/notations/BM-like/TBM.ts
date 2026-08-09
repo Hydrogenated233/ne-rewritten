@@ -6,11 +6,11 @@ export type Column = Entry[];
 export type Expr = Column[];
 export type Vertical = Expr[];
 
-function entry_compare(e1: Entry, e2: Entry): number {
+export function entry_compare(e1: Entry, e2: Entry): number {
     return tuple_lex_compare(e1, e2, [number_compare, compare]);
 }
 
-function column_compare(c1: Column, c2: Column): number {
+export function column_compare(c1: Column, c2: Column): number {
     return lex_compare(c1, c2, entry_compare);
 }
 
@@ -18,25 +18,25 @@ export function compare(a: Expr, b: Expr): number {
     return lex_compare(a, b, column_compare);
 }
 
-function vertical_compare(v1: Vertical, v2: Vertical): number {
+export function vertical_compare(v1: Vertical, v2: Vertical): number {
     return lex_compare(v1, v2, compare);
 }
 
-function index_after(V: Vertical[], pos: Vertical): number {
+export function index_after(V: Vertical[], pos: Vertical): number {
     for (let k = 0; k < V.length; k++) {
         if (vertical_compare(V[k], pos) > 0) return k;
     }
     return V.length;
 }
 
-function vertical_parent(v: Vertical, Pi: [number, number][], Vi: Vertical[]): [number, number] | undefined {
+export function vertical_parent(v: Vertical, Pi: [number, number][], Vi: Vertical[]): [number, number] | undefined {
     for (let k = 0; k < Vi.length; k++) {
         if (vertical_compare(Vi[k], v) >= 0) return Pi[k];
     }
     return undefined;
 }
 
-function vertical_add(v1: Vertical, v2: Vertical): Vertical {
+export function vertical_add(v1: Vertical, v2: Vertical): Vertical {
     if (v1.length === 0) return v2.slice();
     if (v2.length === 0) return v1.slice();
     const first2 = v2[0];
@@ -96,11 +96,11 @@ export function column_verticals(col: Column): Vertical[] {
     return result;
 }
 
-function is_one(expr: Expr): boolean {
+export function is_one(expr: Expr): boolean {
     return expr.length === 1 && expr[0].length === 0;
 }
 
-function to_vertical(m: Expr): Vertical {
+export function to_vertical(m: Expr): Vertical {
     const v: Vertical = [];
     let prev = 0;
     for (let i = 1; i <= m.length; i++) {
@@ -112,8 +112,9 @@ function to_vertical(m: Expr): Vertical {
     return v;
 }
 
-function expand_limit(m: Expr, index: number, N: number): Expr {
-    const col = m[N];
+export function expand_limit(m: Expr, index: number): Expr {
+    const right = m.length - 1;
+    const col = m[right];
     const last_idx = col.length - 1;
     const [v, h] = col[last_idx];
     const new_h = TBM.FS(h, index);
@@ -121,7 +122,7 @@ function expand_limit(m: Expr, index: number, N: number): Expr {
     const result = m.slice();
     const new_entries: Entry[] = col.slice(0, last_idx);
     for (const seg of segs) new_entries.push([v, seg]);
-    result[N] = new_entries;
+    result[right] = new_entries;
     return result;
 }
 
@@ -134,9 +135,9 @@ function expand_successor(m: Expr, index: number): Expr {
 
     const j_max: Vertical = m[N].length > 1 ? V[N][m[N].length - 2] : [];
 
-    const offset: Column = compute_offset(m, V, N, r);
+    const offset: Column = ascension_vector(m, V, N, r);
 
-    const A = ascending_threshold(V, P, r, j_max);
+    const A = ascension_threshold(V, P, r, j_max);
 
     for (let w = 1; w <= index; w++) {
         for (let i = r; i < N; i++) {
@@ -146,7 +147,7 @@ function expand_successor(m: Expr, index: number): Expr {
     return result;
 }
 
-function compute_offset(m: Expr, V: Vertical[][], N: number, r: number): Column {
+export function ascension_vector(m: Expr, V: Vertical[][], N: number, r: number): Column {
     const off: Column = [];
     for (let j = 0; j < m[N].length; j++) {
         const pos: Vertical = j === 0 ? [] : V[N][j - 1];
@@ -157,7 +158,7 @@ function compute_offset(m: Expr, V: Vertical[][], N: number, r: number): Column 
     return off;
 }
 
-export function ascending_threshold(V: Vertical[][], P: [number, number][][], r: number, j_max: Vertical): Vertical[] {
+export function ascension_threshold(V: Vertical[][], P: [number, number][][], r: number, j_max: Vertical): Vertical[] {
     const A: Vertical[] = [];
     for (let i = 0; i < V.length; i++) {
         if (i < r) {
@@ -248,7 +249,7 @@ export function expand(m: Expr, index: number): Expr {
     if (is_one(last_height)) {
         return expand_successor(m, index);
     } else {
-        return expand_limit(m, index, N);
+        return expand_limit(m, index);
     }
 }
 

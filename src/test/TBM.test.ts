@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-    ascending_threshold,
+    ascension_threshold,
     Column,
     column_add,
     column_truncate,
@@ -452,7 +452,7 @@ describe('parents', () => {
         ];
         const V = e.map(column_verticals);
         const P = parents(e, V);
-        const A = ascending_threshold(V, P, 1, [E1, E1, E1]);
+        const A = ascension_threshold(V, P, 1, [E1, E1, E1]);
         expect(A.map((v) => v.map((e) => display(e)))).toEqual(
             [[], [E1, E1, E1], [E1, E1, E1], [E1, E1], [E1, E1], [E1, E1, E1], [E1, E1, E1]].map((v) =>
                 v.map((e) => display(e)),
@@ -536,7 +536,7 @@ describe('parents', () => {
         ];
         const V = e.map(column_verticals);
         const P = parents(e, V);
-        const A = ascending_threshold(V, P, 0, [Ew, Ew]);
+        const A = ascension_threshold(V, P, 0, [Ew, Ew]);
         expect(A.map((v) => v.map((e) => display(e)))).toEqual(
             [
                 [Ew, Ew],
