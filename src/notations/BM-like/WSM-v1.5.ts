@@ -94,10 +94,7 @@ class WSM {
                 }
             }
             aux.push(auxNext);
-
-            if (auxNext.every((v) => v === 1)) {
-                break;
-            }
+            if (auxNext.every((v) => v === 1)) break;
 
             const nextRow: number[] = [];
             for (let c = 0; c < n; c++) {
@@ -168,33 +165,13 @@ class WSM {
     }
 
     static getGenerationColumn(colIdx: number, lnzRow: number, parentMat: number[][], lastColIdx: number): number[] {
-        return parentMat[lastColIdx].map((v, r) => {
-            if (r >= lnzRow) {
-                return parentMat[colIdx][r];
-            }
-            return v;
-        });
-    }
-
-    static copyColumns(
-        parentMat: number[][],
-        refCol: number,
-        start: number,
-        end: number,
-        shiftAmount: number,
-    ): number[][] {
-        const result: number[][] = [];
-        for (let c = start; c <= end; c++) {
-            const newCol: number[] = [];
-            for (let r = 0; r < parentMat[c].length; r++) {
-                const p = parentMat[c][r];
-                if (p === -1) {
-                    newCol.push(-1);
-                } else {
-                    newCol.push(p < refCol ? p : p + shiftAmount);
-                }
-            }
-            result.push(newCol);
+        const result = [...parentMat[lastColIdx]];
+        const p = parentMat[lastColIdx][lnzRow];
+        if (p !== -1) {
+            result[lnzRow] = parentMat[p][lnzRow];
+        }
+        for (let r = lnzRow + 1; r < result.length; r++) {
+            result[r] = parentMat[colIdx][r];
         }
         return result;
     }
@@ -209,18 +186,49 @@ class WSM {
         return ancestors;
     }
 
-    trialExpand(refCol: number, lnzRowVal: number, lastColIdx: number, genColToUse: number[]): number[][] {
-        const newMat = WSM.clone(this.parent);
-        if (refCol + 1 <= lastColIdx) {
-            const shiftAmount = lastColIdx - refCol;
-            const copied = WSM.copyColumns(this.parent, refCol, refCol + 1, lastColIdx, shiftAmount);
-            for (const col of copied) {
-                newMat.push(col);
-            }
-        }
-        for (let r = 0; r < newMat[lastColIdx].length; r++) {
-            if (r >= lnzRowVal) {
-                newMat[lastColIdx][r] = genColToUse[r];
+    // 试展开：增加了 lastColAllowableRows 参数
+    trialExpand(
+        refCol: number,
+        lnzRowVal: number,
+        lastColIdx: number,
+        genColToUse: number[],
+        lastColAllowableRows: Set<number>[],
+    ): number[][] {
+        const parent = this.parent;
+        const rows = parent[0].length;
+
+        const newMat = WSM.clone(parent);
+        newMat.pop();
+        const genCol = genColToUse;
+        const copyWidth = lastColIdx - refCol;
+
+        if (refCol <= lastColIdx) {
+            for (let c = refCol; c <= lastColIdx; c++) {
+                const sourceCol = parent[c];
+                const newCol: number[] = [];
+                for (let r = 0; r < sourceCol.length; r++) {
+                    const p = sourceCol[r];
+                    let useGenCol = false;
+                    if (r <= lnzRowVal) {
+                        useGenCol = p === parent[refCol][r] && lastColAllowableRows[r].has(c);
+                    } else {
+                        useGenCol = c === refCol;
+                    }
+                    if (useGenCol) {
+                        if (genCol[r] >= refCol) {
+                            newCol.push(genCol[r]);
+                        } else {
+                            newCol.push(genCol[r]);
+                        }
+                    } else {
+                        if (p >= refCol) {
+                            newCol.push(p + copyWidth);
+                        } else {
+                            newCol.push(p);
+                        }
+                    }
+                }
+                newMat.push(newCol);
             }
         }
         return newMat;
@@ -257,6 +265,7 @@ class WSM {
         genCol: number[];
         smallerRoots: number[];
         pendingRoots: number[];
+        usedTrialLogic: boolean;
     } {
         const parent = this.parent;
         const cols = parent.length;
@@ -272,12 +281,14 @@ class WSM {
                 genCol: [],
                 smallerRoots: [],
                 pendingRoots: [],
+                usedTrialLogic: false,
             };
         }
 
         const rows = parent[0].length;
         const lastCol = cols - 1;
 
+        // 1. 找 LNZ 行
         let lnzRow = -1;
         for (let r = rows - 1; r >= 0; r--) {
             if (parent[lastCol][r] !== -1) {
@@ -298,6 +309,7 @@ class WSM {
                 genCol: [],
                 smallerRoots: [],
                 pendingRoots: [],
+                usedTrialLogic: false,
             };
         }
 
@@ -314,9 +326,11 @@ class WSM {
                 genCol: [],
                 smallerRoots: [],
                 pendingRoots: [],
+                usedTrialLogic: false,
             };
         }
 
+        // 2. 确定原始元素行
         let origElemRow = -1;
         for (let r = rows - 1; r >= 0; r--) {
             if (parent[originalRoot][r] !== -1) {
@@ -328,72 +342,124 @@ class WSM {
             origElemRow = lnzRow;
         }
 
-        const genCol = WSM.getGenerationColumn(originalRoot, lnzRow, parent, lastCol);
-
-        const origRootTrial = this.trialExpand(originalRoot, lnzRow, lastCol, genCol);
-
+        let badRoot = originalRoot;
         let candidateRoots: number[] = [];
-        let pendingRoots: number[] = [];
         let trialResults: { [key: string]: number[][] } = {};
         let smallerRoots: number[] = [];
-        let smallRoot = -1;
-        let badRoot = originalRoot;
+        let pendingRoots: number[] = [];
 
-        pendingRoots = [originalRoot];
-        let p = parent[originalRoot][origElemRow];
-        while (p !== -1) {
-            pendingRoots.push(p);
-            p = parent[p][origElemRow];
-        }
-
-        let cond1Cols: number[] = [];
-        if (lnzRow > 0) {
-            cond1Cols = this.getAncestorsAt(lastCol, lnzRow - 1);
-        } else {
-            let temp = lastCol;
-            const vp = Array(cols).fill(-1);
-            for (let c = 1; c < cols; c++) vp[c] = c - 1;
-            while (temp !== -1) {
-                cond1Cols.push(temp);
-                temp = vp[temp];
+        // ---- 计算每项的容许列矩阵 (allowableMatrix) ----
+        const computeS = (c: number, r: number): Set<number> => {
+            const ancestors: number[] = [];
+            let p = parent[c][r];
+            while (p !== -1) {
+                ancestors.push(p);
+                p = parent[p][r];
             }
-            cond1Cols = cond1Cols.filter((c) => c !== lastCol);
+            if (ancestors.length === 0 && parent[c][r] === -1) {
+                return new Set();
+            }
+            const S = new Set<number>();
+            for (const a of ancestors) {
+                S.add(a);
+            }
+            const directParent = ancestors.length > 0 ? ancestors[0] : -1;
+            for (const a of ancestors) {
+                if (a === directParent) continue;
+                for (let col = 0; col < cols; col++) {
+                    if (parent[col][r] === a) {
+                        S.add(col);
+                    }
+                }
+            }
+            for (let col = 0; col < cols; col++) {
+                if (parent[col][r] === -1) {
+                    S.add(col);
+                }
+            }
+            return S;
+        };
+
+        // 对于 r >= 1，候选列必须是 c 在 r-1 行的祖先
+        const allowableMatrix: Set<number>[][] = Array.from({ length: cols }, () => Array(rows));
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+                if (parent[c][r] === -1) {
+                    allowableMatrix[c][r] = new Set();
+                } else {
+                    const S = computeS(c, r);
+                    if (r === 0) {
+                        allowableMatrix[c][r] = S;
+                    } else {
+                        const ancestors = this.getAncestorsAt(c, r - 1);
+                        const intersect = new Set<number>();
+                        for (const item of S) {
+                            if (ancestors.includes(item)) {
+                                intersect.add(item);
+                            }
+                        }
+                        allowableMatrix[c][r] = intersect;
+                    }
+                }
+            }
         }
 
+        // 提取每行末列的容许列
+        const lastColAllowableRows: Set<number>[] = [];
+        for (let r = 0; r < rows; r++) {
+            lastColAllowableRows[r] = new Set(allowableMatrix[lastCol][r]);
+        }
+
+        // ---- 提前计算 genCol（用于条件3） ----
+        const genCol = WSM.getGenerationColumn(originalRoot, lnzRow, parent, lastCol);
+
+        // ---- 试展开 ----
+        const origRootTrial = this.trialExpand(originalRoot, lnzRow, lastCol, genCol, lastColAllowableRows);
+
+        // ---- 条件1：末列在 lnzRow-1 行的祖先列 ----
+        const cond1Set = new Set<number>();
+        if (lnzRow > 0) {
+            const ancestors = this.getAncestorsAt(lastCol, lnzRow - 1);
+            for (const a of ancestors) cond1Set.add(a);
+        } else {
+            // lnzRow === 0：所有小于 lastCol 的列（虚拟父链上的祖先）
+            for (let c = 0; c < lastCol; c++) cond1Set.add(c);
+        }
+
+        // ---- 条件2：原始元素的祖先及其子项所在列 ----
         const ancestorsSet = new Set<number>();
         let q = parent[originalRoot][origElemRow];
         while (q !== -1) {
             ancestorsSet.add(q);
             q = parent[q][origElemRow];
         }
-        const cond2Cols = new Set<number>();
+        const cond2Set = new Set<number>();
         for (const anc of ancestorsSet) {
-            cond2Cols.add(anc);
+            cond2Set.add(anc);
             for (let c = 0; c < cols; c++) {
                 if (parent[c][origElemRow] === anc) {
-                    cond2Cols.add(c);
+                    cond2Set.add(c);
                 }
             }
         }
 
+        // ---- 条件3：列本身的包含关系 ----
         const cond3Cols: number[] = [];
         for (let c = 0; c < cols; c++) {
             if (c === lastCol) continue;
-            const genColC = WSM.getGenerationColumn(c, lnzRow, parent, lastCol);
             let contains = true;
             for (let r = 0; r < rows; r++) {
-                const a = genColC[r];
-                const b = genCol[r];
-                if (a === -1) continue;
-                if (a === b) continue;
+                const pC = parent[c][r];
+                const pRoot = parent[originalRoot][r];
+                if (pC === -1) continue;
                 let isAncestor = false;
-                let pp = b;
+                let pp = pRoot;
                 while (pp !== -1) {
-                    pp = parent[pp][r];
-                    if (pp === a) {
+                    if (pp === pC) {
                         isAncestor = true;
                         break;
                     }
+                    pp = parent[pp][r];
                 }
                 if (!isAncestor) {
                     contains = false;
@@ -402,26 +468,39 @@ class WSM {
             }
             if (contains) cond3Cols.push(c);
         }
+        const cond3Set = new Set(cond3Cols);
 
-        const set1 = new Set(cond1Cols);
-        const set2 = cond2Cols;
-        const set3 = new Set(cond3Cols);
-        for (const c of set1) {
-            if (set2.has(c) && set3.has(c)) {
-                candidateRoots.push(c);
+        // 候选根 = cond1Set ∩ cond2Set ∩ cond3Set，强制加入 originalRoot
+        const candidateSet = new Set<number>();
+        for (const c of cond1Set) {
+            if (cond2Set.has(c) && cond3Set.has(c)) {
+                candidateSet.add(c);
             }
         }
-        candidateRoots.sort((a, b) => a - b);
-        if (!candidateRoots.includes(originalRoot)) {
-            candidateRoots.push(originalRoot);
-            candidateRoots.sort((a, b) => a - b);
-        }
-        pendingRoots = pendingRoots.filter((root) => candidateRoots.includes(root));
+        candidateSet.add(originalRoot);
+        candidateRoots = Array.from(candidateSet).sort((a, b) => a - b);
 
+        // ---- 待定根：原始元素的所有祖先所在列（且必须是候选根） ----
+        const pendingSet = new Set<number>();
+        let p = originalRoot;
+        while (p !== -1) {
+            pendingSet.add(p);
+            p = parent[p][origElemRow];
+        }
+        const candidateSetForPending = new Set(candidateRoots);
+        const finalPending = new Set<number>();
+        for (const c of pendingSet) {
+            if (candidateSetForPending.has(c)) {
+                finalPending.add(c);
+            }
+        }
+        pendingRoots = Array.from(finalPending).sort((a, b) => a - b);
+
+        // ---- 计算小根和坏根 ----
         trialResults[originalRoot] = origRootTrial;
         for (const cr of candidateRoots) {
             if (cr === originalRoot) continue;
-            trialResults[cr] = this.trialExpand(cr, lnzRow, lastCol, genCol);
+            trialResults[cr] = this.trialExpand(cr, lnzRow, lastCol, genCol, lastColAllowableRows);
             const cmp = WSM.compareParentMatrices(trialResults[cr], origRootTrial);
             if (cmp < 0) {
                 smallerRoots.push(cr);
@@ -429,6 +508,7 @@ class WSM {
         }
 
         const sortedCandidates = [...candidateRoots].sort((a, b) => a - b);
+        let smallRoot = -1;
         for (let i = sortedCandidates.length - 1; i >= 0; i--) {
             const cr = sortedCandidates[i];
             if (cr === originalRoot) continue;
@@ -458,25 +538,44 @@ class WSM {
             badRoot = originalRoot;
         }
 
-        let newParent = WSM.clone(parent);
-        for (let r = 0; r < newParent[lastCol].length; r++) {
-            if (r >= lnzRow) {
-                newParent[lastCol][r] = genCol[r];
-            }
-        }
+        const finalGenCol = genCol;
 
-        if (badRoot + 1 <= lastCol) {
-            const copyWidth = lastCol - badRoot;
-            for (let k = 1; k <= times; k++) {
-                const shiftAmount = k * copyWidth;
-                const copied = WSM.copyColumns(newParent, badRoot, badRoot + 1, lastCol, shiftAmount);
-                for (const col of copied) {
-                    newParent.push(col);
+        // 正式展开
+        let newParent = WSM.clone(parent);
+        newParent.pop();
+        const copyWidth = lastCol - badRoot;
+
+        if (badRoot <= lastCol - 1) {
+            for (let t = 1; t <= times; t++) {
+                for (let c = badRoot; c <= lastCol - 1; c++) {
+                    const sourceCol = parent[c];
+                    const newCol: number[] = [];
+                    for (let r = 0; r < sourceCol.length; r++) {
+                        const p = sourceCol[r];
+                        let useGenCol = false;
+                        if (r <= lnzRow) {
+                            useGenCol = p === parent[badRoot][r] && lastColAllowableRows[r].has(c);
+                        } else {
+                            useGenCol = c === badRoot;
+                        }
+                        if (useGenCol) {
+                            if (finalGenCol[r] >= badRoot) {
+                                newCol.push(finalGenCol[r] + (t - 1) * copyWidth);
+                            } else {
+                                newCol.push(finalGenCol[r]);
+                            }
+                        } else {
+                            if (p >= badRoot) {
+                                newCol.push(p + t * copyWidth);
+                            } else {
+                                newCol.push(p);
+                            }
+                        }
+                    }
+                    newParent.push(newCol);
                 }
             }
         }
-
-        newParent.pop();
 
         return {
             wsm: new WSM(newParent),
@@ -486,9 +585,10 @@ class WSM {
             originalRoot: originalRoot,
             lnzRow: lnzRow,
             lastCol: lastCol,
-            genCol: genCol,
+            genCol: finalGenCol,
             smallerRoots: smallerRoots,
             pendingRoots: pendingRoots,
+            usedTrialLogic: true,
         };
     }
 
@@ -519,7 +619,6 @@ class WSM {
         if (cols === 0) return [];
         const rows = parent[0].length;
         const val = Array.from({ length: cols }, () => Array(rows).fill(0));
-
         const rTop = rows - 1;
         for (let c = 0; c < cols; c++) {
             const p = parent[c][rTop];
@@ -529,7 +628,6 @@ class WSM {
                 val[c][rTop] = val[p][rTop] + 1;
             }
         }
-
         for (let r = rows - 2; r >= 0; r--) {
             for (let c = 0; c < cols; c++) {
                 const p = parent[c][r];
@@ -540,7 +638,6 @@ class WSM {
                 }
             }
         }
-
         const worm: number[] = [];
         for (let c = 0; c < cols; c++) {
             worm.push(val[c][0]);
@@ -549,9 +646,9 @@ class WSM {
     }
 }
 
-export const WSMv1_4_1: NotationDefinition<string> = {
-    id: 'WSMv1.4.1',
-    name: 'WSM v1.4.1',
+export const WSMv1_5: NotationDefinition<string> = {
+    id: 'WSMv1.5',
+    name: 'WSM v1.5',
     simple_name: 'WSM',
 
     category_id: 'category-bm-like',
@@ -567,7 +664,6 @@ export const WSMv1_4_1: NotationDefinition<string> = {
         worm: {
             plain: (a) => {
                 if (is_infinity(a)) return 'Limit';
-                // a 是字符串，解析为 WSM 并转 worm
                 const wsm = WSM.fromString(a);
                 return wsm.toWorm().join(',');
             },
@@ -581,25 +677,27 @@ export const WSMv1_4_1: NotationDefinition<string> = {
 
     is_limit: (a) => {
         if (is_infinity(a)) return true;
-        try {
-            const wsm = WSM.fromString(a);
-            const parent = wsm.parent;
-            if (parent.length === 0) return false;
-            const lastCol = parent.length - 1;
-            for (let r = 0; r < parent[lastCol].length; r++) {
-                if (parent[lastCol][r] !== -1) return true;
+        if (typeof a === 'string') {
+            try {
+                const wsm = WSM.fromString(a);
+                const parent = wsm.parent;
+                if (parent.length === 0) return false;
+                const lastCol = parent.length - 1;
+                for (let r = 0; r < parent[lastCol].length; r++) {
+                    if (parent[lastCol][r] !== -1) return true;
+                }
+                return false;
+            } catch {
+                return false;
             }
-            return false;
-        } catch {
-            return false;
         }
+        return false;
     },
 
     compare: (a, b) => {
         if (is_infinity(a) && is_infinity(b)) return 0;
         if (is_infinity(a)) return 1;
         if (is_infinity(b)) return -1;
-        // 两者都是字符串
         try {
             const wsmA = WSM.fromString(a);
             const wsmB = WSM.fromString(b);
@@ -611,11 +709,9 @@ export const WSMv1_4_1: NotationDefinition<string> = {
 
     FS: (a, i) => {
         if (is_infinity(a)) {
-            // 构造特殊矩阵
-            if (i === 0) return '';
             const parent: number[][] = [];
-            const col0 = Array(i).fill(-1);
-            const col1 = Array(i).fill(0);
+            const col0 = Array(i + 1).fill(-1);
+            const col1 = Array(i + 1).fill(0);
             parent.push(col0);
             parent.push(col1);
             const wsm = new WSM(parent);

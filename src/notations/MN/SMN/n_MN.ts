@@ -29,11 +29,11 @@ export function is_limit(m: Mountain) {
     return is_infinity(m) || (m.length > 0 && m[m.length - 1].length > 0);
 }
 
-function to_data_key(m: Mountain): string {
+export function to_data_key(m: Mountain): string {
     return mountain_display(m, true);
 }
 
-function mountain_display(m: Mountain, simple: boolean): string {
+export function mountain_display(m: Mountain, simple: boolean): string {
     if (is_infinity(m)) return 'Limit';
     return m.map((col) => column_display(col, simple)).join(simple ? ' ' : '');
 }
@@ -62,7 +62,7 @@ function vertical_display(v: Vertical): string {
 
 type MarkSpec = 'label' | 'sub';
 
-function mountain_display_marked(m: Mountain, type: MarkSpec): string {
+export function mountain_display_marked(m: Mountain, type: MarkSpec): string {
     if (is_infinity(m)) return 'Limit';
     return m.map((col, i) => column_display_marked(col, type, i + 1)).join('');
 }
@@ -75,7 +75,7 @@ function column_display_marked(c: Column, type: MarkSpec, index: number): string
     return result;
 }
 
-function from_display(str: string): Mountain {
+export function from_display(str: string): Mountain {
     if (str === 'Limit') return INFINITY();
 
     let i = 0;
@@ -174,7 +174,7 @@ function from_display(str: string): Mountain {
     return result;
 }
 
-function from_display_simple(s: string): Mountain {
+export function from_display_simple(s: string): Mountain {
     let i = 0;
 
     function error(): never {
@@ -263,7 +263,7 @@ function entry_compare(e1: Entry, e2: Entry): number {
     return tuple_lex_compare(e1, e2, [number_compare, number_compare]);
 }
 
-function column_compare(c1: Column, c2: Column): number {
+export function column_compare(c1: Column, c2: Column): number {
     return lex_compare(c1, c2, entry_compare);
 }
 
@@ -278,7 +278,7 @@ export function compare(a: Mountain, b: Mountain): number {
     return mountain_compare(a, b);
 }
 
-function vertical_diff(v1: Vertical, v2: Vertical): Sep {
+export function vertical_diff(v1: Vertical, v2: Vertical): Sep {
     let i = 0;
     while (i < v2.length && v1[i] === v2[i]) i++;
     return v1[i];
@@ -357,7 +357,7 @@ export function magma_indices(m: Mountain, V: Vertical[][], [Ri, Rj]: Position, 
     return result;
 }
 
-function fill_ghost(m0: Mountain): Mountain {
+export function fill_ghost(m0: Mountain): Mountain {
     const m = deepcopy(m0);
     const V = m.map(column_verticals);
 
@@ -378,7 +378,7 @@ function fill_ghost(m0: Mountain): Mountain {
     return m;
 }
 
-function clear_ghost(m: Mountain): Mountain {
+export function clear_ghost(m: Mountain): Mountain {
     return m.map((c) => c.filter((e) => e[0] !== 0));
 }
 
@@ -465,16 +465,12 @@ export function extend(m0: Mountain): Mountain {
     return m;
 }
 
-export function Limit(index: number): Mountain {
-    return [[], [[1, index]]];
-}
-
 export function NT_infinity_FS(n: number): (index: number) => Mountain {
     return (index) => [[], Array.from({ length: index }, () => [1, n - 1])];
 }
 
 export function expand(m: Mountain, index: number, shorter: boolean = false): Mountain {
-    if (is_infinity(m)) return Limit(index);
+    if (is_infinity(m)) throw new Error('Illegal state');
     if (m.length === 0) return m;
     if (m[m.length - 1].length === 0) return m.slice(0, m.length - 1);
     let current = fill_ghost(m);
@@ -498,7 +494,7 @@ function calc_ancestor_depths(m: Mountain): number[][] {
     return depthMap;
 }
 
-function convert_to_layer(om: Mountain): Mountain {
+export function convert_to_layer(om: Mountain): Mountain {
     if (is_infinity(om)) return om;
 
     const depthMap = calc_ancestor_depths(om);
@@ -513,7 +509,7 @@ function convert_to_layer(om: Mountain): Mountain {
     return dm;
 }
 
-function convert_from_layer(dm: Mountain): Mountain {
+export function convert_from_layer(dm: Mountain): Mountain {
     if (is_infinity(dm)) return dm;
 
     const om = deepcopy(dm);
@@ -606,7 +602,7 @@ function compute_mountain_diagram(expr: Mountain, current_equiv?: string): Mount
     return { sorted_verticals, heights, line_heights, entries, left_legs };
 }
 
-const draw_diagram_control: DiagramControl<Mountain, DiagramData> = {
+export const draw_diagram_control: DiagramControl<Mountain, DiagramData> = {
     default_data: { current_equiv: undefined, invert_vertical: undefined },
     draw_diagram: (_expr, _data) => {
         const mountain = compute_mountain_diagram(_expr, _data.current_equiv);
