@@ -3,8 +3,8 @@ import { Y_FS_variants } from '@/notations/notation_utils.ts';
 import { draw_mountain_diagram, type MountainDiagramData } from '@/notations/draw_mountain_util.ts';
 import { DiagramControl, NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 
-type Expr = number[];
-type Vertical = number[];
+export type Expr = number[];
+export type Vertical = number[];
 
 interface Entry {
     value: number;
@@ -18,11 +18,11 @@ interface Entry {
 
 type Mountain = Entry[][];
 
-function INFINITY(): number[] {
+export function INFINITY(): number[] {
     return [Infinity];
 }
 
-function is_infinity(expr: number[]) {
+export function is_infinity(expr: number[]) {
     return '' + expr === 'Infinity';
 }
 
@@ -41,7 +41,7 @@ export const sequence_from_display = (str: string): Expr => {
     return result;
 };
 
-function seq_compare(a: Expr, b: Expr): number {
+export function seq_compare(a: Expr, b: Expr): number {
     return lex_compare(a, b, number_compare);
 }
 
@@ -243,7 +243,7 @@ function copy_single_edge(
     mountain[source_entry.x + x_offset].push(new_entry);
 }
 
-function expand_weak_magma(seq: Expr, index: number) {
+export function expand_weak_magma(seq: Expr, index: number) {
     const mountain = draw_mountain(from_sequence(seq));
     const child = mountain[mountain.length - 1];
     let BR = child[0].left_down!;
@@ -528,7 +528,7 @@ function draw_dbms_mountain(m: Mountain, Asheep: boolean): DBMS_Mountain {
     return mountain;
 }
 
-function to_dbms_display(seq: Expr, type: DBMSType): string {
+export function to_dbms_display(seq: Expr, type: DBMSType): string {
     if ('' + seq === 'Infinity') return 'Limit';
     let mountain = draw_dbms_mountain(draw_mountain(from_sequence(seq)), type === 'ADBMS');
 
@@ -638,7 +638,7 @@ function compute_y_mountain_diagram(seq: Expr, current_equiv: string | undefined
     return { sorted_verticals: vertical_names, heights, line_heights, entries, left_legs };
 }
 
-const y_diagram_control: DiagramControl<Expr, YDiagramData> = {
+export const y_diagram_control: DiagramControl<Expr, YDiagramData> = {
     default_data: { current_equiv: undefined, invert_vertical: undefined },
     draw_diagram: (seq, data) => {
         const mountain = compute_y_mountain_diagram(seq, data.current_equiv);
@@ -684,7 +684,7 @@ function create_magma_notation(type: string, magma: (seq: Expr, index: number) =
         ...Y_FS_variants(magma, is_infinity, (index) => [1, index + 1], is_limit, sequence_display),
         credit_text_id: 'credit.yukito',
 
-        init: () => [[Infinity], [1], []],
+        init: () => [INFINITY(), [1], []],
     };
 }
 

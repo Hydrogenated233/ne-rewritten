@@ -75,7 +75,7 @@ import { category_ton } from '@/notations/TON/categories.ts';
 import { category_asan } from '@/notations/aSAN/categories.ts';
 import { category_den } from '@/notations/DEN/categories.ts';
 import { category_bm_like, category_minus1_y_nss_series } from '@/notations/BM-like/categories.ts';
-import { category_y } from '@/notations/Y/categories.ts';
+import { category_y, category_y_variants } from '@/notations/Y/categories.ts';
 import { category_ocf, category_ocn } from '@/notations/OCN/categories.ts';
 // import { finite_Mahlo_OCF } from '@/notations/OCN/finite_Mahlo_OCF.ts';
 import { cOCF } from '@/notations/OCN/cOCF.ts';
@@ -89,6 +89,7 @@ import { category_bm_bt_star_minus1_y_nss_v3 } from '@/notations/BM-like/Minus1_
 import { BTBM_weak } from '@/notations/BM-like/BTBM-weak.ts';
 import { category_translators } from '@/notations/translators/categories.ts';
 import { Translator_BM_BOCF } from '@/notations/translators/BM-BOCF.ts';
+import { omega_Y_1257omega, omega_Y_12omega } from '@/notations/Y/variants.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -152,6 +153,9 @@ register_notation(omega_Y_weak);
 register_notation(omega_Y_actual);
 register_notation(omega_Y_medium);
 register_notation(omega_Y_strong);
+register_category(category_y_variants);
+register_notation(omega_Y_12omega);
+register_notation(omega_Y_1257omega);
 register_category(category_bm_like);
 register_notation(BM4);
 register_notation(TriangularBM4);

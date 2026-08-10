@@ -5,3 +5,9 @@ export const category_y: NotationCategoryDefinition = {
     name: 'Y sequence',
     simple_name: 'Y',
 };
+
+export const category_y_variants: NotationCategoryDefinition = {
+    id: 'category-y-variants',
+    parent_id: 'category-y',
+    name: 'Limit Variants',
+};
