@@ -23,16 +23,17 @@ const ui = use_ui_states();
 // 当前导航路径（category id 列表，从根到当前层）
 const nav_path = ref<string[]>([]);
 
-onMounted(() => {
+function update_nav_path(): void {
     const notation = get_notation(settings.current_notation_id);
     nav_path.value = notation?.category_id ? get_category_ancestors(notation.category_id) : [];
-});
+}
+
+onMounted(update_nav_path);
 
 watch(
     () => settings.current_notation_id,
-    (id) => {
-        const notation = get_notation(id);
-        nav_path.value = notation?.category_id ? get_category_ancestors(notation.category_id) : [];
+    () => {
+        update_nav_path();
     },
 );
 
@@ -85,6 +86,7 @@ const rev = ref(0);
 watch(
     () => ui.registry_notifier.listen(),
     () => {
+        update_nav_path();
         rev.value++;
     },
 );

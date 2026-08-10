@@ -19,6 +19,8 @@ const show_tips = ref(false);
 const show_color_theme = ref(false);
 const show_reset = ref(false);
 const show_user_defined = ref(false);
+const show_user_defined_nav = ref(false);
+const user_defined_active_tab = ref(0);
 const show_latex_analysis = ref(false);
 const show_api_doc = ref(false);
 
@@ -62,6 +64,8 @@ export function use_ui_states() {
         show_color_theme,
         show_reset,
         show_user_defined,
+        show_user_defined_nav,
+        user_defined_active_tab,
         show_latex_analysis,
         show_api_doc,
         registry_notifier,

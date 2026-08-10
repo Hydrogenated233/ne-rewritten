@@ -26,7 +26,7 @@ const settings = inject(SETTINGS_KEY)!;
 const ui = use_ui_states();
 
 const scripts = computed(() => settings.user_scripts);
-const active_tab = ref(0);
+const active_tab = ui.user_defined_active_tab;
 const is_renaming = ref(false);
 const rename_input = ref('');
 const editor_ref = ref<HTMLDivElement | null>(null);
@@ -146,6 +146,11 @@ function toggle_enable(): void {
     sc.enabled = !sc.enabled;
     save_scripts();
     reload_all(settings.user_scripts);
+}
+
+function open_nav_panel(): void {
+    sync_editor();
+    ui.show_user_defined_nav.value = true;
 }
 
 function move_tab(from: number, to: number): void {
@@ -391,6 +396,9 @@ watch(warnings, (w) => {
                 </button>
                 <button class="ud-btn" @mousedown.prevent="ui.show_api_doc.value = true">
                     {{ t('user-defined.view-api-doc') }}
+                </button>
+                <button class="ud-btn" :disabled="!current_script?.enabled" @mousedown.prevent="open_nav_panel">
+                    {{ t('user-defined.nav-to-notation') }}
                 </button>
             </div>
         </div>

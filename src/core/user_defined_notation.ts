@@ -18,6 +18,7 @@ type CollectedItem =
 
 const user_registered_ids: Set<string> = new Set();
 const script_warnings: Map<string, string[]> = new Map(); // file_name → failed_ids
+const script_notation_ids: Map<number, string[]> = new Map(); // user_scripts 下标 → 该脚本注册的记号 id
 
 // ============ Collect (dry-run register) ============
 
@@ -106,19 +107,23 @@ export function reload_all(scripts: UserScript[]): ReloadResult {
     }
     user_registered_ids.clear();
     script_warnings.clear();
+    script_notation_ids.clear();
 
     // 2. Collect from all enabled scripts in order
     const all_collected: CollectedItem[] = [];
     const source_map = new Map<CollectedItem, string>(); // item → file_name
+    const source_index = new Map<CollectedItem, number>(); // item → user_scripts 下标
     const per_script_failures = new Map<string, string[]>();
 
-    for (const script of scripts) {
+    for (let i = 0; i < scripts.length; i++) {
+        const script = scripts[i];
         if (!script.enabled) continue;
         try {
             const items = collect_from(script.code);
             for (const item of items) {
                 all_collected.push(item);
                 source_map.set(item, script.file_name);
+                source_index.set(item, i);
             }
         } catch (e: any) {
             const failures = per_script_failures.get(script.file_name) ?? [];
@@ -141,11 +146,13 @@ export function reload_all(scripts: UserScript[]): ReloadResult {
                     init_generator(item.def);
                     for (const child of get_category_children(item.def.id)) {
                         user_registered_ids.add(child.id);
+                        add_script_notation(source_index.get(item), child.id);
                     }
                 }
             } else {
                 register_notation(item.def);
                 user_registered_ids.add(item.def.id);
+                add_script_notation(source_index.get(item), item.def.id);
             }
         } catch (e: any) {
             const file_name = source_map.get(item) ?? 'unknown';
@@ -168,4 +175,15 @@ export function reload_all(scripts: UserScript[]): ReloadResult {
 
 export function get_script_warnings(): Map<string, string[]> {
     return new Map(script_warnings);
+}
+
+function add_script_notation(index: number | undefined, id: string): void {
+    if (index === undefined) return;
+    const list = script_notation_ids.get(index) ?? [];
+    list.push(id);
+    script_notation_ids.set(index, list);
+}
+
+export function get_script_notation_ids(index: number): string[] {
+    return script_notation_ids.get(index) ?? [];
 }
