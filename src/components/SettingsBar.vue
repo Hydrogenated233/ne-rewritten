@@ -220,6 +220,12 @@ function on_find_keydown(e: KeyboardEvent) {
                 </label>
             </div>
             <div class="toolbar-row">
+                <span style="margin-right: 8px">
+                    {{ t('display.label') }}
+                    <button class="toggle-btn" @mousedown="toggle_display_mode">
+                        {{ t('display.' + settings.display_mode) }}
+                    </button>
+                </span>
                 <label>
                     {{ t('fs-variant.label') }}
                     <select v-model="settings.variant" @mousedown.stop>
@@ -293,14 +299,18 @@ function on_find_keydown(e: KeyboardEvent) {
                 <button class="toolbar-btn-tips" @mousedown="ui.show_tips.value = true">{{ t('toolbar.tips') }}</button>
                 <button @mousedown="ui.show_color_theme.value = true">{{ t('toolbar.theme') }}</button>
             </div>
+            <div class="toolbar-row">
+                <span>{{ t('user-defined.label') }}</span>
+                <template v-if="has_pending_scripts">
+                    <button @mousedown="resume_scripts">{{ t('user-defined.resume') }}</button>
+                    <button @mousedown="disable_all">{{ t('user-defined.disable-all') }}</button>
+                </template>
+                <template v-else>
+                    <button @mousedown="ui.show_user_defined.value = true">{{ t('user-defined.configure') }}</button>
+                </template>
+            </div>
             <hr v-if="!settings_collapsed" class="toolbar-separator" />
             <div v-if="!settings_collapsed" class="toolbar-row">
-                <span style="margin-right: 8px">
-                    {{ t('display.label') }}
-                    <button class="toggle-btn" @mousedown="toggle_display_mode">
-                        {{ t('display.' + settings.display_mode) }}
-                    </button>
-                </span>
                 <span>
                     {{ t('tier.label') }}
                     <button class="tier-btn" @mousedown="settings.tier = Math.max(settings.tier - 1, 0)">
@@ -351,16 +361,6 @@ function on_find_keydown(e: KeyboardEvent) {
                         <option value="en">English</option>
                     </select>
                 </label>
-            </div>
-            <div v-if="!settings_collapsed" class="toolbar-row">
-                <span>{{ t('user-defined.label') }}</span>
-                <template v-if="has_pending_scripts">
-                    <button @mousedown="resume_scripts">{{ t('user-defined.resume') }}</button>
-                    <button @mousedown="disable_all">{{ t('user-defined.disable-all') }}</button>
-                </template>
-                <template v-else>
-                    <button @mousedown="ui.show_user_defined.value = true">{{ t('user-defined.configure') }}</button>
-                </template>
             </div>
         </div>
         <button class="collapse-btn" @mousedown="settings_collapsed = !settings_collapsed">
