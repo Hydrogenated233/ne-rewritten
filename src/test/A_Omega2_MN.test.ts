@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { extend, Mountain } from '@/notations/SMN/SA_omega2_MN.ts';
+import { extend, Mountain } from '@/notations/MN/SMN/SA_omega2_MN.ts';
 
 describe('A omega2 MN', () => {
     it('0 ;1', () => {
