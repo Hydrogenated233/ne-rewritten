@@ -1,21 +1,9 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, watch } from 'vue';
-import {
-    drawSelection,
-    EditorView,
-    highlightActiveLine,
-    highlightActiveLineGutter,
-    keymap,
-    lineNumbers,
-} from '@codemirror/view';
-import { Compartment, EditorState } from '@codemirror/state';
-import { bracketMatching, defaultHighlightStyle, indentOnInput, syntaxHighlighting } from '@codemirror/language';
-import { defaultKeymap, history } from '@codemirror/commands';
-import { closeBrackets } from '@codemirror/autocomplete';
-import { javascript } from '@codemirror/lang-javascript';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
+import { get_codemirror, load_codemirror } from '@/composables/use_codemirror.ts';
 import { get_script_warnings, reload_all } from '@/core/user_defined_notation.ts';
 import type { UserScript } from '@/core/settings.ts';
 import ModalDialog from './ModalDialog.vue';
@@ -34,9 +22,28 @@ const show_delete_confirm = ref(false);
 const delete_target_idx = ref(0);
 const show_new_dialog = ref(false);
 const new_script_name = ref('');
-let editor_view: EditorView | null = null;
+let editor_view: import('@codemirror/view').EditorView | null = null;
 
 const current_script = computed<UserScript | undefined>(() => scripts.value[active_tab.value]);
+
+// CodeMirror 按需加载: 未加载时用只读 pre 展示代码
+const cm_ready = ref(false);
+const cm_loading = ref(false);
+
+const code_lines = computed(() => (current_script.value?.code ?? '').split('\n'));
+
+async function load_cm_editor(): Promise<void> {
+    if (cm_ready.value) return;
+    cm_loading.value = true;
+    try {
+        await load_codemirror();
+        cm_ready.value = true;
+        await nextTick();
+        init_editor();
+    } finally {
+        cm_loading.value = false;
+    }
+}
 
 const warnings = computed(() => {
     ui.registry_notifier.listen();
@@ -213,11 +220,30 @@ function init_editor(): void {
 }
 
 function init_editor_inner(editable: boolean): void {
-    if (!editor_ref.value) return;
+    const cm = get_codemirror();
+    if (!cm || !editor_ref.value) return;
     if (editor_view) {
         editor_view.destroy();
         editor_view = null;
     }
+    const {
+        EditorView,
+        EditorState,
+        Compartment,
+        keymap,
+        lineNumbers,
+        drawSelection,
+        highlightActiveLine,
+        highlightActiveLineGutter,
+        defaultHighlightStyle,
+        syntaxHighlighting,
+        bracketMatching,
+        indentOnInput,
+        defaultKeymap,
+        history,
+        closeBrackets,
+        javascript,
+    } = cm;
 
     const doc_code = current_script.value?.code ?? '';
 
@@ -369,7 +395,14 @@ watch(warnings, (w) => {
                         @blur="finish_rename"
                     />
                 </div>
-                <div v-if="scripts.length > 0" ref="editor_ref" class="ud-cm-editor"></div>
+                <div v-if="scripts.length > 0">
+                    <div v-if="cm_ready" ref="editor_ref" class="ud-cm-editor"></div>
+                    <pre v-else class="ud-code-fallback"><code><span
+                        v-for="(line, i) in code_lines"
+                        :key="i"
+                        class="ud-code-line"
+                    >{{ line }}</span></code></pre>
+                </div>
                 <div v-else class="ud-editor-empty">{{ t('user-defined.no-script') }}</div>
             </div>
 
@@ -399,6 +432,9 @@ watch(warnings, (w) => {
                 </button>
                 <button class="ud-btn" :disabled="!current_script?.enabled" @mousedown.prevent="open_nav_panel">
                     {{ t('user-defined.nav-to-notation') }}
+                </button>
+                <button v-if="!cm_ready" class="ud-btn" :disabled="cm_loading" @mousedown.prevent="load_cm_editor">
+                    {{ cm_loading ? t('user-defined.editor-loading') : t('user-defined.editor-load') }}
                 </button>
             </div>
         </div>
@@ -634,6 +670,43 @@ watch(warnings, (w) => {
     border-radius: 4px;
     color: var(--color-text-muted);
     font-size: 14px;
+}
+
+/* CodeMirror 未加载时的只读代码展示 (仿 CodeMirror 观感) */
+.ud-code-fallback {
+    flex: 1;
+    margin: 0;
+    box-sizing: border-box;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow: auto;
+    padding: 6px 0;
+    counter-reset: line;
+}
+
+.ud-code-fallback .ud-code-line {
+    display: block;
+    padding-right: 12px;
+    white-space: pre;
+    counter-increment: line;
+}
+
+.ud-code-fallback .ud-code-line::before {
+    content: counter(line);
+    display: inline-block;
+    width: 3em;
+    margin-right: 1em;
+    padding-right: 0.5em;
+    text-align: right;
+    color: var(--color-text-secondary);
+    border-right: 1px solid var(--color-border);
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 .ud-cm-editor :deep(.cm-editor) {

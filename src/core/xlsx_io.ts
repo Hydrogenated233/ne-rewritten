@@ -1,56 +1,53 @@
-import Excel from 'exceljs';
 import type { AnalysisEntry } from '@/core/analysis.ts';
 
 export async function export_to_xlsx<T>(
     entries: AnalysisEntry<T>[],
     display: (expr: T) => string,
 ): Promise<ArrayBuffer> {
-    const workbook = new Excel.Workbook();
-    const sheet = workbook.addWorksheet('analysis');
-
-    for (const entry of entries) {
-        const row = [display(entry.expr), ...entry.analysis];
-        sheet.addRow(row);
-    }
-
-    return (await workbook.xlsx.writeBuffer()) as ArrayBuffer;
+    // excel 库按需加载: 仅在导出时动态 import
+    const { default: writeXlsxFile } = await import('write-excel-file/browser');
+    const rows = entries.map((entry) => [display(entry.expr), ...entry.analysis]);
+    const result = await writeXlsxFile(rows);
+    const blob = await result.toBlob();
+    return await blob.arrayBuffer();
 }
 
 export async function import_from_xlsx<T>(
     buffer: ArrayBuffer,
     from_display: (str: string) => T,
 ): Promise<AnalysisEntry<T>[]> {
-    const workbook = new Excel.Workbook();
-    await workbook.xlsx.load(buffer);
-    const sheet = workbook.worksheets[0];
+    // excel 库按需加载: 仅在导入时动态 import
+    const { default: readXlsxFile } = await import('read-excel-file/browser');
+    const sheets = await readXlsxFile(buffer);
+    const rows = sheets[0]?.data ?? [];
 
     const entries: AnalysisEntry<T>[] = [];
 
-    sheet.eachRow((row) => {
-        const values = row.values as (string | undefined)[];
-
-        const expr_str = values[1];
-        if (expr_str === undefined || expr_str === null || expr_str === '') return;
+    for (const values of rows) {
+        const expr_str = values[0];
+        if (expr_str === undefined || expr_str === null || expr_str === '') continue;
 
         let expr: T | undefined;
         try {
-            expr = from_display(expr_str);
+            expr = from_display(String(expr_str));
         } catch (e) {
             console.log('xlsx import: skipped row, from_display failed for "' + expr_str + '"', e);
             if (!(entries as any).skipped) (entries as any).skipped = [];
-            (entries as any).skipped.push(expr_str);
+            (entries as any).skipped.push(String(expr_str));
         }
 
-        if (expr === undefined) return;
+        if (expr === undefined) continue;
 
         const analysis: string[] = [];
-        for (let i = 2; i < values.length; i++) {
+        for (let i = 1; i < values.length; i++) {
             const v = values[i];
-            analysis.push(v ?? '');
+            analysis.push(v === null || v === undefined ? '' : String(v));
         }
+        // 读回时行被补齐到最大列宽, 修剪尾部空分析列以保持原始宽度
+        while (analysis.length > 0 && analysis[analysis.length - 1] === '') analysis.pop();
 
         entries.push({ expr, analysis });
-    });
+    }
 
     return entries;
 }

@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
+import { computed, onMounted, ref } from 'vue';
+import { get_katex, load_katex } from '@/composables/use_katex.ts';
 
 const props = defineProps<{ latex: string }>();
 
+const ready = ref(false);
+
+onMounted(() => {
+    void load_katex().then(() => {
+        ready.value = true;
+    });
+});
+
 const html = computed(() => {
+    if (!ready.value) return props.latex;
     try {
-        return katex.renderToString(props.latex, { throwOnError: false, displayMode: false });
+        return get_katex()!.renderToString(props.latex, { throwOnError: false, displayMode: false });
     } catch {
         return props.latex;
     }

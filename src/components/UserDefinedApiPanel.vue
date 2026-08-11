@@ -1,13 +1,6 @@
 <script setup lang="ts">
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
-import { marked } from 'marked';
-import katex from 'katex';
-import 'katex/dist/katex.min.css';
-import { EditorView, keymap, lineNumbers } from '@codemirror/view';
-import { EditorState } from '@codemirror/state';
-import { defaultHighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { defaultKeymap } from '@codemirror/commands';
-import { javascript } from '@codemirror/lang-javascript';
+import { computed, inject, ref, watch } from 'vue';
+import { get_katex, load_katex } from '@/composables/use_katex.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import ModalDialog from './ModalDialog.vue';
@@ -20,84 +13,35 @@ const ui = use_ui_states();
 type Tab = 'md' | 'ts';
 const active_tab = ref<Tab>('md');
 
+// marked / katex 按需加载: 面板打开时才动态 import
+const marked_ready = ref(false);
+let marked_module: typeof import('marked') | null = null;
+
+async function load_doc_libs(): Promise<void> {
+    if (marked_ready.value) return;
+    const [mod] = await Promise.all([import('marked'), load_katex()]);
+    marked_module = mod;
+    marked_ready.value = true;
+}
+
+watch(
+    () => ui.show_api_doc.value,
+    (show) => {
+        if (show) void load_doc_libs();
+    },
+);
+
 const html = computed(() => {
+    if (!marked_ready.value || !marked_module) return '';
+    const katex = get_katex();
+    if (!katex) return '';
     // render LaTeX math before markdown, so that math delimiters don't get mangled
     const with_math = API_MD.replace(/\$\$([\s\S]*?)\$\$/g, (_, math: string) => {
         return katex.renderToString(math.trim(), { displayMode: true, throwOnError: false });
     }).replace(/\$([^$\n]+?)\$/g, (_, math: string) => {
         return katex.renderToString(math.trim(), { displayMode: false, throwOnError: false });
     });
-    return marked(with_math);
-});
-
-let editor_view: EditorView | null = null;
-const editor_ref = ref<HTMLDivElement | null>(null);
-
-function init_editor() {
-    if (!editor_ref.value) return;
-    if (editor_view) {
-        editor_view.destroy();
-        editor_view = null;
-    }
-
-    editor_view = new EditorView({
-        state: EditorState.create({
-            doc: API_TS,
-            extensions: [
-                lineNumbers(),
-                syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-                keymap.of(defaultKeymap),
-                javascript(),
-                EditorView.editable.of(false),
-                EditorView.theme({
-                    '&': {
-                        width: '100%',
-                        height: '480px',
-                        maxWidth: '100%',
-                        minWidth: '100%',
-                        backgroundColor: 'var(--color-bg)',
-                        color: 'var(--color-text)',
-                        fontSize: '14px',
-                    },
-                    '.cm-scroller': {
-                        overflow: 'auto',
-                        width: '100%',
-                        maxWidth: '100%',
-                        minWidth: '100%',
-                    },
-                    '.cm-content': {
-                        minWidth: '0',
-                    },
-                    '.cm-gutters': {
-                        backgroundColor: 'var(--color-bg-secondary)',
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text-secondary)',
-                    },
-                }),
-            ],
-        }),
-        parent: editor_ref.value,
-    });
-}
-
-watch(active_tab, () => {
-    if (active_tab.value === 'ts') {
-        // wait for DOM update then init
-        requestAnimationFrame(() => init_editor());
-    }
-});
-
-onMounted(() => {
-    if (active_tab.value === 'ts') {
-        requestAnimationFrame(() => init_editor());
-    }
-});
-
-onUnmounted(() => {
-    if (editor_view) {
-        editor_view.destroy();
-        editor_view = null;
-    }
+    return marked_module.marked(with_math);
 });
 
 function download() {
@@ -137,7 +81,7 @@ function download() {
             </button>
         </div>
         <div v-if="active_tab === 'md'" class="api-content" v-html="html" />
-        <div v-else ref="editor_ref" class="api-editor"></div>
+        <pre v-else class="api-pre"><code>{{ API_TS }}</code></pre>
         <button class="api-download" @mousedown="download">
             {{ t('user-defined.download') }} {{ active_tab === 'md' ? 'api.md' : 'api.ts' }}
         </button>
@@ -219,9 +163,21 @@ function download() {
     overflow-x: auto;
 }
 
-.api-editor {
+/* api.ts 只读展示: 与 api.md 渲染的 markdown 代码块同款格式 */
+.api-pre {
     width: 640px;
     height: 480px;
+    margin: 0;
+    box-sizing: border-box;
+    overflow: auto;
+    background: var(--color-bg-secondary);
+    padding: 12px;
+    border-radius: 6px;
+    color: var(--color-text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    line-height: 1.6;
+    white-space: pre;
 }
 
 .api-download {
