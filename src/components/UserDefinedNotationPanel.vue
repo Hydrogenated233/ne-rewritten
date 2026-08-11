@@ -433,7 +433,7 @@ watch(warnings, (w) => {
                 <button class="ud-btn" :disabled="!current_script?.enabled" @mousedown.prevent="open_nav_panel">
                     {{ t('user-defined.nav-to-notation') }}
                 </button>
-                <button v-if="!cm_ready" class="ud-btn" :disabled="cm_loading" @mousedown.prevent="load_cm_editor">
+                <button v-if="!cm_ready" class="ud-btn ud-btn-success" :disabled="cm_loading" @mousedown.prevent="load_cm_editor">
                     {{ cm_loading ? t('user-defined.editor-loading') : t('user-defined.editor-load') }}
                 </button>
             </div>
@@ -750,6 +750,16 @@ watch(warnings, (w) => {
 
 .ud-btn-danger:hover:not(:disabled) {
     background: var(--color-danger);
+    color: var(--color-bg);
+}
+
+.ud-btn-success {
+    color: var(--color-success);
+    border-color: var(--color-success);
+}
+
+.ud-btn-success:hover:not(:disabled) {
+    background: var(--color-success);
     color: var(--color-bg);
 }
 
