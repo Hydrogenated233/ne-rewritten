@@ -1,10 +1,13 @@
 import { inject } from 'vue';
+import type { Rgba } from '@/core/diagram_types.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 
 export interface ColorTheme {
     id: string;
     label_key: string;
     vars: Record<string, string>;
+    /** type → Rgba, 供图的 ColorSpec 解析使用。 */
+    palette: Record<string, Rgba>;
 }
 
 export const themes: ColorTheme[] = [
@@ -43,6 +46,10 @@ export const themes: ColorTheme[] = [
             '--color-shadow': 'rgba(0,0,0,0.15)',
             '--color-overlay': 'rgba(0,0,0,0.35)',
         },
+        palette: {
+            text: { r: 0, g: 0, b: 0 },
+            background: { r: 255, g: 255, b: 255 },
+        },
     },
     {
         id: 'dark',
@@ -78,6 +85,10 @@ export const themes: ColorTheme[] = [
             '--color-selected-hover': '#3a6a3a',
             '--color-shadow': 'rgba(0,0,0,0.4)',
             '--color-overlay': 'rgba(0,0,0,0.6)',
+        },
+        palette: {
+            text: { r: 205, g: 214, b: 244 },
+            background: { r: 30, g: 30, b: 46 },
         },
     },
     {
@@ -115,6 +126,10 @@ export const themes: ColorTheme[] = [
             '--color-shadow': 'rgba(0,0,0,0.3)',
             '--color-overlay': 'rgba(0,0,0,0.5)',
         },
+        palette: {
+            text: { r: 0, g: 0, b: 0 },
+            background: { r: 255, g: 255, b: 255 },
+        },
     },
     {
         id: 'high-contrast-dark',
@@ -151,8 +166,18 @@ export const themes: ColorTheme[] = [
             '--color-shadow': 'rgba(0,0,0,0.5)',
             '--color-overlay': 'rgba(0,0,0,0.7)',
         },
+        palette: {
+            text: { r: 255, g: 255, b: 255 },
+            background: { r: 13, g: 13, b: 13 },
+        },
     },
 ];
+
+/** 按主题 id 取 palette (未知 id 回退默认主题)。 */
+export function theme_palette(theme_id: string | undefined): Record<string, Rgba> {
+    const theme = themes.find((t) => t.id === theme_id) ?? themes[0];
+    return theme.palette;
+}
 
 export function apply_color_theme(theme_id: string): void {
     const theme = themes.find((t) => t.id === theme_id) ?? themes[0];

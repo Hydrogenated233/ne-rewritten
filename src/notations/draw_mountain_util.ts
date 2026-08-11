@@ -1,4 +1,4 @@
-import type { Diagram, Rgba } from '@/core/diagram_types.ts';
+import type { ColorSpec, Diagram } from '@/core/diagram_types.ts';
 
 /**
  * 山脉图中间数据——计算层产出，绘制层消费。
@@ -64,8 +64,8 @@ export function draw_mountain_diagram(data: MountainDiagramData, opts?: Mountain
     const elements: Diagram['elements'] = [];
     const lines: Diagram['elements'] = [];
     const extra_text: Diagram['extra_text'] = [];
-    const black: Rgba = { r: 0, g: 0, b: 0 };
-    const gray: Rgba = { r: 200, g: 200, b: 200 };
+    const black: ColorSpec = { type: 'text' };
+    const gray: ColorSpec = { color: { r: 200, g: 200, b: 200 } };
 
     // 水平网格线
     for (const h of line_heights) {

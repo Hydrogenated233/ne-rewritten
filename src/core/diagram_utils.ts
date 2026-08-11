@@ -1,4 +1,13 @@
-import type { Rgba } from './diagram_types.ts';
+import type { ColorSpec, Rgba } from './diagram_types.ts';
+
+/** 解析 ColorSpec 为 Rgba: { color } 直接返回, { type } 从主题 palette 查表, 未知 type 回退为黑色。 */
+export function resolve_color(spec: ColorSpec | undefined, palette: Record<string, Rgba>): Rgba | undefined {
+    if (spec === undefined) return undefined;
+    if ('color' in spec) return spec.color;
+    // 兼容旧脚本直接写裸 Rgba 的情况
+    if (!('type' in spec)) return spec as Rgba;
+    return palette[spec.type] ?? { r: 0, g: 0, b: 0 };
+}
 
 /** Rgba → CSS rgba() 字符串 */
 export function css(c: Rgba): string {

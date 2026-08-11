@@ -1,5 +1,5 @@
 import { deepcopy, index_of_first, index_of_last, lex_compare, number_compare } from '@/utils.ts';
-import type { Diagram, Rgba } from '@/core/diagram_types.ts';
+import type { ColorSpec, Diagram } from '@/core/diagram_types.ts';
 import { sequence_FS_variants } from '@/notations/notation_utils.ts';
 import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
 
@@ -296,9 +296,9 @@ export const draw_diagram_control: DiagramControl<Expr, { offset: number }> = {
         const lines: Diagram['elements'] = [];
         const circles: Diagram['elements'] = [];
         const extra_text: Diagram['extra_text'] = [];
-        const black: Rgba = { r: 0, g: 0, b: 0 };
-        const white: Rgba = { r: 255, g: 255, b: 255 };
-        const red: Rgba = { r: 255, g: 0, b: 0 };
+        const black: ColorSpec = { type: 'text' };
+        const white: ColorSpec = { type: 'background' };
+        const red: ColorSpec = { color: { r: 255, g: 0, b: 0 } };
         for (let vi = 0; vi < visible; vi++) {
             const i = start + vi;
             const entries = expr[i][1];

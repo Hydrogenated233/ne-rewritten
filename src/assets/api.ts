@@ -64,6 +64,9 @@ export interface Rgba {
     a?: number;
 }
 
+/** 图的颜色规格: 直接给 Rgba, 或用 type 引用当前主题 palette 中的颜色。 */
+export type ColorSpec = { type: string } | { color: Rgba };
+
 export type Element =
     | {
           type: 'circle';
@@ -71,9 +74,9 @@ export type Element =
           y: number;
           r: number;
           stroke: boolean;
-          stroke_color?: Rgba;
+          stroke_color?: ColorSpec;
           fill: boolean;
-          fill_color?: Rgba;
+          fill_color?: ColorSpec;
           width?: number;
       }
     | {
@@ -83,7 +86,7 @@ export type Element =
           x2: number;
           y2: number;
           stroke: boolean;
-          stroke_color?: Rgba;
+          stroke_color?: ColorSpec;
           width?: number;
       }
     | {
@@ -92,7 +95,7 @@ export type Element =
           y: number;
           text: string;
           fill: boolean;
-          fill_color?: Rgba;
+          fill_color?: ColorSpec;
           size?: number;
           align?: 'left' | 'center' | 'right';
       };
@@ -102,7 +105,7 @@ export interface ExtraText {
     x: number;
     y: number;
     size?: number;
-    color?: Rgba;
+    color?: ColorSpec;
     align?: 'left' | 'center' | 'right';
     display_html?: boolean;
 }
