@@ -65,7 +65,7 @@ export function draw_mountain_diagram(data: MountainDiagramData, opts?: Mountain
     const lines: Diagram['elements'] = [];
     const extra_text: Diagram['extra_text'] = [];
     const black: ColorSpec = { type: 'text' };
-    const gray: ColorSpec = { color: { r: 200, g: 200, b: 200 } };
+    const gray: ColorSpec = { type: 'gray' };
 
     // 水平网格线
     for (const h of line_heights) {

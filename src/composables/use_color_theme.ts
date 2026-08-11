@@ -49,6 +49,8 @@ export const themes: ColorTheme[] = [
         palette: {
             text: { r: 0, g: 0, b: 0 },
             background: { r: 255, g: 255, b: 255 },
+            red: { r: 255, g: 0, b: 0 },
+            gray: { r: 200, g: 200, b: 200 },
         },
     },
     {
@@ -89,6 +91,8 @@ export const themes: ColorTheme[] = [
         palette: {
             text: { r: 205, g: 214, b: 244 },
             background: { r: 30, g: 30, b: 46 },
+            red: { r: 255, g: 107, b: 107 },
+            gray: { r: 110, g: 115, b: 134 },
         },
     },
     {
@@ -129,6 +133,8 @@ export const themes: ColorTheme[] = [
         palette: {
             text: { r: 0, g: 0, b: 0 },
             background: { r: 255, g: 255, b: 255 },
+            red: { r: 255, g: 0, b: 0 },
+            gray: { r: 200, g: 200, b: 200 },
         },
     },
     {
@@ -169,6 +175,8 @@ export const themes: ColorTheme[] = [
         palette: {
             text: { r: 255, g: 255, b: 255 },
             background: { r: 13, g: 13, b: 13 },
+            red: { r: 255, g: 68, b: 68 },
+            gray: { r: 170, g: 170, b: 170 },
         },
     },
 ];

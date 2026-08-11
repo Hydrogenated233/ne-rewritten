@@ -5,7 +5,7 @@ export interface Rgba {
     a?: number;
 }
 
-/** 图的颜色规格: 直接给 Rgba, 或用 type 引用当前主题 palette 中的颜色。 */
+/** 图的颜色规格: 直接给 Rgba, 或用 type 引用当前主题 palette 中的颜色 (如 'text' | 'background' | 'red' | 'gray')。 */
 export type ColorSpec = { type: string } | { color: Rgba };
 
 export type Element =
