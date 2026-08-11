@@ -363,9 +363,37 @@ export const DEN2: NotationDefinition<Expr> = {
     simple_name: 'IBLP',
     category_id: 'category-den',
     display: { plain: display, from_display },
-    is_limit: is_limit,
+    is_limit,
     compare,
     ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
+    draw_diagram: draw_diagram_control,
+    credit_text_id: 'credit.den23',
+
+    init: () => [[Infinity] as any, []],
+};
+
+function weak_is_limit(expr: Expr): boolean {
+    if (is_infinity(expr)) return true;
+    if (expr.length === 0) return false;
+    let active = expr[expr.length - 1];
+    if (active[1].length === 2) return false;
+    return pleasant_until(expr.slice(active[1][active[0]][0] - 1, -1), active) === -1;
+}
+
+function weak_expand(raw: Expr, index: number, shorter: boolean = true): Expr {
+    if (!weak_is_limit(raw)) return cut(raw);
+    return expand(raw, index, shorter);
+}
+
+export const weak_DEN2: NotationDefinition<Expr> = {
+    id: 'weak-den2',
+    name: 'weak IBLP',
+    simple_name: 'wIBLP',
+    category_id: 'category-den',
+    display: { plain: display, from_display },
+    is_limit: weak_is_limit,
+    compare,
+    ...sequence_FS_variants(weak_expand, is_infinity, infinity_FS, weak_is_limit, display),
     draw_diagram: draw_diagram_control,
     credit_text_id: 'credit.den23',
 
