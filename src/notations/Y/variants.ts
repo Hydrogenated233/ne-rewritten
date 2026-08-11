@@ -1,5 +1,6 @@
 import { NotationDefinition } from '@/notation-definition.ts';
 import {
+    dimension_difference,
     expand_weak_magma,
     Expr,
     INFINITY,
@@ -9,6 +10,8 @@ import {
     sequence_display,
     sequence_from_display,
     to_dbms_display,
+    Vertical,
+    vertical_increase,
     y_diagram_control,
 } from '@/notations/Y/Omega_Y.ts';
 import { Y_FS_variants } from '@/notations/notation_utils.ts';
@@ -59,4 +62,44 @@ export const omega_Y_1257omega: NotationDefinition<Expr> = create_variant_omega_
     '1257ωY',
     (index) => [1, 2, 5, 7, index + 12],
     [INFINITY(), [1, 2, 5, 7], [1], []],
+);
+
+function compute_skew_omega_y(index: number): Expr {
+    const result: Expr = [1];
+
+    let verticals: Vertical[] = [[]];
+    let values: number[] = [1];
+
+    for (let i = 0; i < index; i++) {
+        let current: Vertical = [...Array<number>(i).fill(0), 1];
+
+        const new_verticals: Vertical[] = [current];
+        const new_values: number[] = [1];
+
+        for (let j = 0; j < verticals.length; j++) {
+            const v = verticals[j];
+            const value = values[j];
+            const d = dimension_difference(current, v);
+            for (let k = d; k >= 0; k--) {
+                new_verticals.push(k === 0 ? v : vertical_increase(v, k - 1));
+                new_values.push(new_values[new_values.length - 1] + value);
+            }
+            current = v;
+        }
+
+        verticals = new_verticals;
+        values = new_values;
+
+        result.push(values[values.length - 1]);
+    }
+
+    return result;
+}
+
+export const omega_Y_skew: NotationDefinition<Expr> = create_variant_omega_y(
+    'omega-y-skew',
+    'Skew ω-Y',
+    'Skew ωY',
+    compute_skew_omega_y,
+    [INFINITY(), [1], []],
 );

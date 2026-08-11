@@ -79,14 +79,14 @@ function same_row(entry1: Entry, entry2: Entry) {
     return !vertical_compare(entry1.y, entry2.y);
 }
 
-function vertical_increase(y: Vertical, d: number) {
+export function vertical_increase(y: Vertical, d: number) {
     const c = y.slice();
     c[d] = (c[d] ?? 0) + 1;
     c.fill(0, 0, d);
     return c;
 }
 
-function dimension_difference(c1: Vertical, c2: Vertical) {
+export function dimension_difference(c1: Vertical, c2: Vertical) {
     let d = Math.max(c1.length, c2.length);
     while (d--) {
         if (c1[d] !== c2[d]) return d;

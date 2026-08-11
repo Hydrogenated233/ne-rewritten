@@ -87,7 +87,7 @@ import { category_bm_bt_star_minus1_y_nss_v3 } from '@/notations/BM-like/Minus1_
 import { BTBM_weak } from '@/notations/BM-like/BTBM-weak.ts';
 import { category_translators } from '@/notations/translators/categories.ts';
 import { Translator_BM_BOCF } from '@/notations/translators/BM-BOCF.ts';
-import { omega_Y_1257omega, omega_Y_12omega } from '@/notations/Y/variants.ts';
+import { omega_Y_1257omega, omega_Y_12omega, omega_Y_skew } from '@/notations/Y/variants.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -154,6 +154,7 @@ register_notation(omega_Y_strong);
 register_category(category_y_variants);
 register_notation(omega_Y_12omega);
 register_notation(omega_Y_1257omega);
+register_notation(omega_Y_skew);
 register_category(category_bm_like);
 register_notation(BM4);
 register_notation(TriangularBM4);
