@@ -77,6 +77,10 @@ function on_global_keydown(e: KeyboardEvent) {
     if ((e.ctrlKey || e.metaKey) && !['c', 'v', 'a', 'x', 'z', 'r'].includes(e.key.toLowerCase())) {
         e.preventDefault();
     }
+    // Ctrl+A: 若已有选区落在记号条目内, 只选中该条目的全部文本, 而非整页
+    if (e.key.toLowerCase() === 'a' && (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+        if (select_all_in_tree_item(e)) return;
+    }
     if (e.key.toLowerCase() === 'r' && e.ctrlKey && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         const path = get_last_focus();
@@ -90,6 +94,30 @@ function on_global_keydown(e: KeyboardEvent) {
         e.preventDefault();
         save_load.handle_import();
     }
+}
+
+/** Ctrl+A: 若已有选区以某个记号条目(.shown-item)内为起点, 将选区替换为该条目全部文本。 */
+function select_all_in_tree_item(e: KeyboardEvent): boolean {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return false; // 无已有选区 → 保持默认全选整页
+    const anchor = sel.anchorNode;
+    if (!anchor) return false;
+    const el = anchor.nodeType === Node.TEXT_NODE ? anchor.parentElement : (anchor as Element | null);
+    if (!el || el instanceof HTMLInputElement || el.tagName === 'TEXTAREA') return false;
+    const item = el.closest('.shown-item');
+    if (!item) return false;
+
+    const range = document.createRange();
+    const walker = document.createTreeWalker(item, NodeFilter.SHOW_TEXT);
+    const texts: Text[] = [];
+    while (walker.nextNode()) texts.push(walker.currentNode as Text);
+    if (texts.length === 0) return false;
+    range.setStart(texts[0], 0);
+    range.setEnd(texts[texts.length - 1], texts[texts.length - 1].data.length);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    e.preventDefault();
+    return true;
 }
 
 onMounted(() => {
