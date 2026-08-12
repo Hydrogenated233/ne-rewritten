@@ -10,6 +10,7 @@ import { resolve_display } from '@/notation-definition.ts';
 import { focus_node_input } from '@/composables/use_focus_tracker.ts';
 import { reload_all } from '@/core/user_defined_notation.ts';
 import ModalDialog from './ModalDialog.vue';
+import DiagramSettingsPanel from './DiagramSettingsPanel.vue';
 
 const settings = inject(SETTINGS_KEY)!;
 const t = inject(I18N_KEY)!;
@@ -21,6 +22,7 @@ const { hide, show: show_diagram, dispatch_action } = use_diagram();
 const settings_collapsed = ref(true);
 const find_input = ref<HTMLInputElement>();
 const show_equiv_config = ref(false);
+const has_diagram_settings = computed(() => (notation.value?.draw_diagram?.settings?.length ?? 0) > 0);
 const font_options = ['DEFAULT', 'Comic Sans MS', 'Consolas', 'Microsoft YaHei UI'];
 const DISPLAY_MODES = ['plain', 'html', 'latex'] as const;
 
@@ -284,6 +286,13 @@ function on_find_keydown(e: KeyboardEvent) {
                     <input type="checkbox" :checked="settings.show_diagram" @change="toggle_diagram" />
                     {{ t('diagram.show') }}
                 </label>
+                <button
+                    v-if="settings.show_diagram && has_diagram_settings"
+                    class="diagram-settings-btn"
+                    @mousedown="ui.show_diagram_settings.value = true"
+                >
+                    {{ t('diagram.settings') }}
+                </button>
                 <label>
                     <input type="checkbox" :checked="settings.show_latex" @change="toggle_latex" />
                     {{ t('latex.show') }}
@@ -389,6 +398,7 @@ function on_find_keydown(e: KeyboardEvent) {
             </label>
         </div>
     </ModalDialog>
+    <DiagramSettingsPanel :control="notation?.draw_diagram ?? null" />
 </template>
 
 <style scoped>
@@ -410,5 +420,22 @@ function on_find_keydown(e: KeyboardEvent) {
     border: none;
     border-top: 2px solid var(--color-border);
     margin: 12px 0 8px;
+}
+
+.diagram-settings-btn {
+    padding: 2px 8px;
+    border: 1px solid var(--color-success);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-success);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.diagram-settings-btn:hover {
+    background: var(--color-success);
+    color: var(--color-bg);
 }
 </style>

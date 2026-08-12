@@ -47,10 +47,10 @@ export function html_to_latex(html: string): string {
     return read();
 }
 
-export type NameSpec = string | { id: string };
+export type TextSpec = string | { id: string };
 
 /** 解析 NameSpec: string 作为纯文本, { id } 按 i18n id 翻译。无 translate 时退回显示 id。 */
-export function resolve_name(spec: NameSpec | undefined, translate?: (id: string) => string): string | undefined {
+export function resolve_name(spec: TextSpec | undefined, translate?: (id: string) => string): string | undefined {
     if (spec === undefined) return undefined;
     if (typeof spec === 'string') return spec;
     return translate ? translate(spec.id) : spec.id;
@@ -63,7 +63,7 @@ export type NotationDisplaySpec<T> =
           html?: NotationDisplay<T>;
           latex?: NotationDisplay<T>;
           from_display?: (str: string) => T;
-          name?: NameSpec;
+          name?: TextSpec;
           name_id?: string;
       };
 
@@ -72,7 +72,7 @@ export interface ResolvedDisplaySpec<T> {
     html: NotationDisplay<T>;
     latex: NotationDisplay<T>;
     from_display?: (str: string) => T;
-    name?: NameSpec;
+    name?: TextSpec;
 }
 
 export function resolve_display<T>(spec: NotationDisplaySpec<T>): ResolvedDisplaySpec<T> {
@@ -102,16 +102,35 @@ export type DiagramAction = {
     step: number;
 };
 
+export type DiagramControlSetting =
+    | {
+          type: 'boolean';
+          name: TextSpec;
+          field_name: string;
+      }
+    | {
+          type: 'number';
+          name: TextSpec;
+          min?: number;
+          max?: number;
+          field_name: string;
+      }
+    | {
+          type: 'info';
+          name: TextSpec;
+      };
+
 export interface DiagramControl<T, DataType> {
     default_data: DataType;
     draw_diagram: (expr: T, data: DataType) => Diagram | undefined;
+    settings?: DiagramControlSetting[];
     handle_action?: (data: DataType, action: DiagramAction) => DataType | null;
 }
 
 export interface NotationDefinition<T> {
     id: string;
-    name: NameSpec;
-    simple_name?: NameSpec;
+    name: TextSpec;
+    simple_name?: TextSpec;
     category_id?: string;
     display: NotationDisplaySpec<T>;
     display_equiv?: Record<string, NotationDisplaySpec<T>>;
@@ -138,8 +157,8 @@ export interface NotationCategoryGenerator {
 
 export interface NotationCategoryDefinition {
     id: string;
-    name: NameSpec;
-    simple_name?: NameSpec;
+    name: TextSpec;
+    simple_name?: TextSpec;
     parent_id?: string;
     generator?: NotationCategoryGenerator;
 }

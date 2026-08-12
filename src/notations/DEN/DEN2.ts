@@ -279,12 +279,17 @@ function infinity_FS(n: number): Expr {
     );
 }
 
-export const draw_diagram_control: DiagramControl<Expr, { offset: number }> = {
-    default_data: { offset: 0 },
-    draw_diagram: (expr: Expr, data: { offset: number }): Diagram | undefined => {
+export const draw_diagram_control: DiagramControl<Expr, { offset: number; max_display: number }> = {
+    default_data: { offset: 0, max_display: 40 },
+    settings: [
+        { type: 'number', name: { id: 'diagram.den.offset' }, field_name: 'offset', min: 0 },
+        { type: 'number', name: { id: 'diagram.den.max-display' }, field_name: 'max_display', min: 10 },
+        { type: 'info', name: { id: 'diagram.den.scroll-hint' } },
+    ],
+    draw_diagram: (expr: Expr, data: { offset: number; max_display: number }): Diagram | undefined => {
         if (is_infinity(expr) || expr.length === 0) return undefined;
         const A = 16;
-        const max_display = 40;
+        const max_display = data.max_display;
         const total = expr.length;
         const show_all = total <= max_display;
         const start = show_all ? 0 : Math.min(data.offset, total - max_display);
@@ -345,12 +350,15 @@ export const draw_diagram_control: DiagramControl<Expr, { offset: number }> = {
         elements.unshift(...lines);
         return { width, height, elements, extra_text };
     },
-    handle_action: (data: { offset: number }, action): { offset: number } | null => {
+    handle_action: (
+        data: { offset: number; max_display: number },
+        action,
+    ): { offset: number; max_display: number } | null => {
         if (action.type === 'scroll') {
             if (action.direction === 'up') {
-                return { offset: Math.max(0, data.offset - action.step) };
+                return { ...data, offset: Math.max(0, data.offset - action.step) };
             } else if (action.direction === 'down') {
-                return { offset: data.offset + action.step };
+                return { ...data, offset: data.offset + action.step };
             }
         }
         return null;

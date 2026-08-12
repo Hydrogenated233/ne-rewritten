@@ -23,6 +23,7 @@ const show_user_defined_nav = ref(false);
 const user_defined_active_tab = ref(0);
 const show_latex_analysis = ref(false);
 const show_api_doc = ref(false);
+const show_diagram_settings = ref(false);
 
 // registry 变更通知器
 const registry_notifier = new Notifier();
@@ -68,6 +69,7 @@ export function use_ui_states() {
         user_defined_active_tab,
         show_latex_analysis,
         show_api_doc,
+        show_diagram_settings,
         registry_notifier,
     };
 }

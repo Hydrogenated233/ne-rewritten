@@ -1,4 +1,4 @@
-import { NameSpec, NotationDefinition, NotationDisplaySpec } from '@/notation-definition.ts';
+import { TextSpec, NotationDefinition, NotationDisplaySpec } from '@/notation-definition.ts';
 import { BM4, Expr, standardize } from '@/notations/BM-like/BM.ts';
 import { make_OCN_display, merge_sum, type OCNDisplayIR } from '@/notations/OCN/OCN_utils.ts';
 import { deepcopy, lex_compare, number_compare } from '@/utils.ts';
@@ -418,7 +418,7 @@ export const LIMIT: Expr = [[], [1, 1, 1], [2, 1, 1], [3, 1], [2]];
 function make_display(
     to_ocf: (e: Expr) => OCF,
     to_ir: (q: OCF) => OCNDisplayIR,
-    name?: NameSpec,
+    name?: TextSpec,
 ): NotationDisplaySpec<Expr> {
     return make_OCN_display(
         (e: Expr) => (BM4.compare(e, LIMIT) === 0 ? EBO_IR : to_ir(to_ocf(standardize(e, 3)))),

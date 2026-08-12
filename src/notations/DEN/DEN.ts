@@ -248,8 +248,9 @@ function den1_to_den2(expr: Expr): DEN2_Expr {
     });
 }
 
-const diagram_control: DiagramControl<Expr, { offset: number }> = {
+const diagram_control: DiagramControl<Expr, { offset: number; max_display: number }> = {
     default_data: den2_diagram_control.default_data,
+    settings: den2_diagram_control.settings,
     draw_diagram: (expr, data) => den2_diagram_control.draw_diagram(den1_to_den2(expr) as any, data),
     handle_action: (data, action) => den2_diagram_control.handle_action!(data, action),
 };

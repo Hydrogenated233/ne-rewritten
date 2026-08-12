@@ -24,10 +24,6 @@ export interface NotationDefinition<T> {
     draw_diagram?: DiagramControl<T, any>;
     init: () => T[];
 
-    /** Key into the i18n table for credit text displayed below the notation tree. */
-    credit_text_id?: string | string[];
-
-    /** Debug helpers — not consumed by the app but accessible at runtime. */
     debug?: Record<string, any>;
 }
 
@@ -51,9 +47,28 @@ export type DiagramAction = {
     step: number;
 };
 
+export type DiagramControlSetting =
+    | {
+          type: 'boolean';
+          name: string;
+          field_name: string;
+      }
+    | {
+          type: 'number';
+          name: string;
+          min?: number;
+          max?: number;
+          field_name: string;
+      }
+    | {
+          type: 'info';
+          name: string;
+      };
+
 export interface DiagramControl<T, DataType> {
     default_data: DataType;
     draw_diagram: (expr: T, data: DataType) => Diagram | undefined;
+    settings?: DiagramControlSetting[];
     handle_action?: (data: DataType, action: DiagramAction) => DataType | null;
 }
 
