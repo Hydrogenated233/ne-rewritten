@@ -35,7 +35,12 @@ const settings = inject(SETTINGS_KEY)!;
 const t = (key: string, params?: Record<string, string>) => create_t(settings.language)(key, params);
 provide(I18N_KEY, t);
 
-const { diagram, visible, pos_x, pos_y, hide } = use_diagram();
+const { diagram, visible, pos_x, pos_y, hide, dispatch_action } = use_diagram();
+
+// 悬停在图表上滚动时: 拦截页面滚动, 改为触发图表自身的上下滚动 (等价于 Ctrl+↑/↓)
+function on_diagram_wheel(e: WheelEvent) {
+    dispatch_action({ type: 'scroll', direction: e.deltaY > 0 ? 'down' : 'up', step: 1 });
+}
 const latex_state = use_latex();
 const expand_dialog_state = use_expand_dialog();
 const multi_select = use_multi_select();
@@ -165,6 +170,7 @@ function debug_compare_order(notation_id?: string) {
             class="diagram-floating"
             :style="{ left: pos_x + 'px', top: pos_y + 'px' }"
             @mousedown.stop
+            @wheel.prevent="on_diagram_wheel"
         >
             <button class="diagram-close" @mousedown.stop="hide">✕</button>
             <DiagramViewer :diagram="diagram" />
