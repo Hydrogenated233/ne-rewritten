@@ -133,11 +133,11 @@ function expand_successor(m: Expr, index: number): Expr {
     const r = P[N][m[N].length - 1][0];
     const result = m.slice(0, N);
 
-    const j_max: Vertical = m[N].length > 1 ? V[N][m[N].length - 2] : [];
+    const b: Vertical = m[N].length > 1 ? V[N][m[N].length - 2] : [];
 
-    const offset: Column = ascension_vector(m, V, N, r);
+    const offset: Column = column_sub(m[N], m[r]);
 
-    const A = ascension_threshold(V, P, r, j_max);
+    const A = ascension_threshold(V, P, r, b);
 
     for (let w = 1; w <= index; w++) {
         for (let i = r; i < N; i++) {
@@ -147,18 +147,25 @@ function expand_successor(m: Expr, index: number): Expr {
     return result;
 }
 
-export function ascension_vector(m: Expr, V: Vertical[][], N: number, r: number): Column {
+export function column_sub(a: Column, b: Column): Column {
     const off: Column = [];
-    for (let j = 0; j < m[N].length; j++) {
-        const pos: Vertical = j === 0 ? [] : V[N][j - 1];
-        const j_r = index_after(V[r], pos);
-        const delta = m[N][j][0] - (j_r < m[r].length ? m[r][j_r][0] : 0);
-        off.push([delta, m[N][j][1]]);
+    const Va = column_verticals(a);
+    const Vb = column_verticals(b);
+    for (let j = 0; j < a.length; j++) {
+        const pos: Vertical = j === 0 ? [] : Va[j - 1];
+        const j_r = index_after(Vb, pos);
+        const delta = a[j][0] - (j_r < Vb.length ? b[j_r][0] : 0);
+        if (delta <= 0) break;
+        off.push([delta, a[j][1]]);
     }
     return off;
 }
 
-export function ascension_threshold(V: Vertical[][], P: [number, number][][], r: number, j_max: Vertical): Vertical[] {
+export function const_column(value: number, vertical: Vertical): Column {
+    return vertical.map((s) => [value, s]);
+}
+
+export function ascension_threshold(V: Vertical[][], P: [number, number][][], r: number, b: Vertical): Vertical[] {
     const A: Vertical[] = [];
     for (let i = 0; i < V.length; i++) {
         if (i < r) {
@@ -166,7 +173,7 @@ export function ascension_threshold(V: Vertical[][], P: [number, number][][], r:
             continue;
         }
         if (i === r) {
-            A.push(j_max);
+            A.push(b);
             continue;
         }
         let found: Vertical | undefined;
@@ -216,13 +223,13 @@ export function column_add(a: Column, b: Column): Column {
     return res;
 }
 
-export function column_truncate(col: Column, j_max: Vertical): Column {
+export function column_truncate(col: Column, b: Vertical): Column {
     const res: Column = [];
     let ci = 0,
         vi = 0;
-    while (ci < col.length && vi < j_max.length) {
+    while (ci < col.length && vi < b.length) {
         const e = col[ci];
-        const vh = j_max[vi];
+        const vh = b[vi];
         const cmp = compare(e[1], vh);
         const h = cmp < 0 ? e[1] : vh;
         res.push([e[0], h]);
@@ -236,7 +243,7 @@ export function column_mul(col: Column, w: number): Column {
     return col.map(([v, e]) => [v * w, e]);
 }
 
-function copy_column(col_i: Column, offset: Column, A_i: Vertical, w: number): Column {
+export function copy_column(col_i: Column, offset: Column, A_i: Vertical, w: number): Column {
     return column_add(col_i, column_mul(column_truncate(offset, A_i), w));
 }
 
@@ -257,7 +264,7 @@ export function is_infinity(a: Expr): boolean {
     return a.length > 0 && a[0].length > 0 && a[0][0][0] === Infinity;
 }
 
-function ONE(): Expr {
+export function ONE(): Expr {
     return [[]];
 }
 
@@ -265,7 +272,7 @@ function OMEGA(): Expr {
     return [[], [[1, ONE()]]];
 }
 
-function INFINITY(): Expr {
+export function INFINITY(): Expr {
     return [[[Infinity, []]]];
 }
 
@@ -380,7 +387,7 @@ export function from_display(str: string): Expr {
     return result;
 }
 
-function infinity_FS(index: number): Expr {
+export function infinity_FS(index: number): Expr {
     if (index === 0) return [[]];
     return [[], [[1, infinity_FS(index - 1)]]];
 }

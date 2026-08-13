@@ -89,6 +89,7 @@ import { category_translators } from '@/notations/translators/categories.ts';
 import { Translator_BM_BOCF } from '@/notations/translators/BM-BOCF.ts';
 import { omega_Y_1257omega, omega_Y_12omega, omega_Y_skew } from '@/notations/Y/variants.ts';
 import { weak_omega_Y } from '@/notations/Y/weak-omega-Y.ts';
+import { TUPMS } from '@/notations/BM-like/TUPMS.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -170,6 +171,7 @@ register_notation(BLM);
 register_notation(UPMS);
 register_category(category_partial_UPMS);
 init_generator(category_partial_UPMS);
+register_notation(TUPMS);
 register_notation(LPMS);
 register_notation(LPTSS);
 register_notation(wMM);
