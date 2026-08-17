@@ -27,6 +27,8 @@ function compare(expr1: Expr, expr2: Expr): number {
     return seq_seq_compare(toShort(expr1), toShort(expr2));
 }
 
+const INFINITY: Expr = [Infinity] as any;
+
 function is_infinity(expr: Row[]) {
     return '' + expr === 'Infinity';
 }
@@ -44,7 +46,7 @@ function display(expr: Expr) {
 }
 
 function from_display(str: string): Expr {
-    if (str === 'Limit') return [Infinity] as any;
+    if (str === 'Limit') return INFINITY;
     const result: Expr = [];
     const fullPattern = /^(\([^)]+\)\d+)*$/;
     if (!fullPattern.test(str)) throw new Error('illegal input string: ' + str);
@@ -365,19 +367,85 @@ export const draw_diagram_control: DiagramControl<Expr, { offset: number; max_di
     },
 };
 
+function operate(expr: Expr, index: number): Expr {
+    if (is_infinity(expr)) {
+        return infinity_FS(index + 2);
+    }
+
+    if (index === 0) return expr.slice(0, expr.length - 1);
+    if (index === 1) return expand(expr, 1, true).slice(0, expr.length);
+    return expand(expr, index - 1, true);
+}
+
+function from_operation_seq(seq: number[]): Expr {
+    let result: Expr = INFINITY;
+    for (let i of seq) result = operate(result, i);
+    return result;
+}
+
+const seq_cache: Record<string, number[]> = {};
+
+function to_operate_seq(expr: Expr): number[] {
+    if (is_infinity(expr)) return [];
+
+    const data_key = display(expr);
+    if (data_key in seq_cache) return seq_cache[data_key];
+
+    const result: number[] = [];
+
+    let current: Expr = INFINITY;
+    while (true) {
+        let i = 0,
+            cmp: number,
+            next: Expr;
+
+        while (true) {
+            next = operate(current, i);
+            cmp = compare(next, expr);
+            if (cmp >= 0) break;
+            i++;
+        }
+
+        current = next;
+        result.push(i);
+        if (cmp === 0) break;
+    }
+
+    return (seq_cache[data_key] = result);
+}
+
+function display_op_seq(expr: Expr): string {
+    return '' + to_operate_seq(expr);
+}
+
+function from_display_op_seq(str: string): Expr {
+    const seq = str.split(',').map(Number);
+    if (!seq.every((x) => !Number.isNaN(x))) throw new Error('illegal input: ' + str);
+    return from_operation_seq(seq);
+}
+
 export const DEN2: NotationDefinition<Expr> = {
     id: 'den2',
     name: 'DEN2 (IBLP)',
     simple_name: 'IBLP',
     category_id: 'category-den',
     display: { plain: display, from_display },
+    display_equiv: {
+        'op seq': {
+            plain: display_op_seq,
+            from_display: from_display_op_seq,
+            name_id: 'display.op-seq',
+        },
+    },
     is_limit,
     compare,
     ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
     draw_diagram: draw_diagram_control,
     credit_text_id: 'credit.den23',
 
-    init: () => [[Infinity] as any, []],
+    init: () => [INFINITY, []],
+
+    debug: { expand },
 };
 
 function weak_is_limit(expr: Expr): boolean {
@@ -405,5 +473,5 @@ export const weak_DEN2: NotationDefinition<Expr> = {
     draw_diagram: draw_diagram_control,
     credit_text_id: 'credit.den23',
 
-    init: () => [[Infinity] as any, []],
+    init: () => [INFINITY, []],
 };

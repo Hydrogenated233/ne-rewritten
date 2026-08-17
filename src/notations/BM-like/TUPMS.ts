@@ -319,7 +319,7 @@ export const TUPMS: NotationDefinition<Expr> = {
         return expand(m, index);
     },
 
-    credit_text_id: 'credit.upms',
+    credit_text_id: 'credit.tupms',
 
     init: (): Expr[] => {
         return [INFINITY(), []];
