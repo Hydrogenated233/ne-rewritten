@@ -114,6 +114,7 @@ const messages: Record<Language, Record<string, string>> = {
         'credit.test-alpha0': '由 test_alpha0 定义, 并给出展开器.',
         'credit.test-alpha0-ocn': '由 test_alpha0 定义, 并给出展开器. 同时提供 OCN 渲染.',
         'credit.tupms': '由 test_alpha0 定义, 由 笑姐姐 给出展开器.',
+        'credit.upmn': '由 最菜萌新 定义, 由 笑姐姐 制作展开器.',
         'credit.ton': '由 Taranosvky 定义; 展开器来自原 NE 项目.',
         'credit.asan': '由 Aarex 定义; 展开器来自原 NE 项目.',
         'credit.community_y': '由社区定义.',
@@ -334,6 +335,7 @@ const messages: Record<Language, Record<string, string>> = {
         'credit.test-alpha0-ocn':
             'Defined by test_alpha0, with expander by the same author. Also provides OCN rendering.',
         'credit.tupms': 'Defined by test_alpha0, with expander by 笑姐姐 (Smile Lee).',
+        'credit.upmn': 'Defined by 最菜萌新 (Zcmx), with expander made by 笑姐姐 (Smile Lee).',
         'credit.ton': 'Defined by Taranosvky; expander from the original NE project.',
         'credit.asan': 'Defined by Aarex; expander from the original NE project.',
         'credit.community_y': 'Defined by the community.',

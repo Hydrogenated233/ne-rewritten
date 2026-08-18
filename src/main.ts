@@ -90,6 +90,8 @@ import { Translator_BM_BOCF } from '@/notations/translators/BM-BOCF.ts';
 import { omega_Y_1257omega, omega_Y_12omega, omega_Y_skew } from '@/notations/Y/variants.ts';
 import { weak_omega_Y } from '@/notations/Y/weak-omega-Y.ts';
 import { TUPMS } from '@/notations/BM-like/TUPMS.ts';
+import { category_upmn } from '@/notations/MN/UPMN/categories.ts';
+import { UP2MN_v1a } from '@/notations/MN/UPMN/UP2MN-v1.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -212,6 +214,8 @@ register_category(category_smile_mn);
 register_notation(SA_omega2_MN);
 register_notation(S_omega2_MN);
 register_notation(S_omega_pow_omega_MN);
+register_category(category_upmn);
+register_notation(UP2MN_v1a);
 register_category(category_den);
 register_notation(DEN);
 register_notation(DEN2);
