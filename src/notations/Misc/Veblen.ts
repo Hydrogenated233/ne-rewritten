@@ -1,6 +1,6 @@
 import { bind2, boolean_compare, lex_compare, tuple_lex_compare_by } from '@/utils.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
-import { merge_sum } from '@/notations/notation_utils.ts';
+import { FS_default_LNZ_variant, merge_sum } from '@/notations/notation_utils.ts';
 
 type VeblenList = [VeblenList, Expr][];
 // 0: 0
@@ -361,7 +361,7 @@ export const VeblenPhi: NotationDefinition<Expr> = {
     name: "Extended Veblen's φ Function",
     simple_name: 'BHO φ',
     is_limit,
-    FS,
+    ...FS_default_LNZ_variant(FS, compare, is_infinity, infinity_FS, is_limit, (e) => display(e, 'plain')),
     compare,
     display: {
         plain: bind2(display, 'plain'),

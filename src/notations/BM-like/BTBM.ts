@@ -8,6 +8,7 @@ import {
     object_lex_compare_by,
 } from '@/utils.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
+import { FS_default_LNZ_variant, MN_FS_variants } from '@/notations/notation_utils.ts';
 
 export type Expr = Column[];
 export type Column = Entry[];
@@ -292,6 +293,10 @@ export function display(expr: Expr, type: DisplayType): string {
     if (is_infinity(expr)) return type === 'latex' ? '\\mathrm{Limit}' : 'Limit';
 
     return expr.map(bind2(display_column, type)).join('');
+}
+
+function data_key(expr: Expr): string {
+    return display(expr, 'plain');
 }
 
 function display_column(col: Column, type: DisplayType) {
@@ -641,7 +646,7 @@ export const BTBM: NotationDefinition<Expr> = {
     },
     is_limit,
     compare,
-    FS,
+    ...FS_default_LNZ_variant(FS, compare, is_infinity, infinity_FS, is_limit, data_key),
     init: () => [INFINITY, []],
 
     credit_text_id: 'credit.btbm',

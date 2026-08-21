@@ -51,14 +51,7 @@ function finite_height(col: Column): number {
     return has_infinite(col) ? col.length - 1 : col.length;
 }
 
-function copy_column(
-    col: Column,
-    i: number,
-    [Ri, Rj]: [number, number],
-    offset: number,
-    up: boolean,
-    y_offset: number,
-) {
+function copy_column(col: Column, [Ri, Rj]: [number, number], offset: number, up: boolean, y_offset: number) {
     const result: Column = [];
     if (col.length === 0 && Rj === 0 && up) {
         for (let k = 0; k < y_offset; k++) {
@@ -148,12 +141,10 @@ function expand_a(m: Mountain, index: number, shorter: boolean = false): Mountai
 
     up[right] = true;
 
-    console.log(up);
-
     const result: Mountain = subtract_1(m);
     for (let w = 1; w <= index; w++) {
         for (let i = Ri + 1; i <= right; i++) {
-            result.push(copy_column(result[i], i, [Ri, Rj], offset * w, up[i], y_offset * w));
+            result.push(copy_column(result[i], [Ri, Rj], offset * w, up[i], y_offset * w));
         }
     }
 

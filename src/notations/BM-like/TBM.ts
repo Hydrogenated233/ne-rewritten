@@ -1,5 +1,6 @@
 import { lex_compare, number_compare, tuple_lex_compare } from '@/utils.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
+import { FS_default_LNZ_variant } from '@/notations/notation_utils.ts';
 
 export type Entry = [number, Expr];
 export type Column = Entry[];
@@ -392,6 +393,12 @@ export function infinity_FS(index: number): Expr {
     return [[], [[1, infinity_FS(index - 1)]]];
 }
 
+function is_limit(m: Expr) {
+    if (is_infinity(m)) return true;
+    if (m.length === 0) return false;
+    return m[m.length - 1].length > 0;
+}
+
 export const TBM: NotationDefinition<Expr> = {
     id: 'tbm',
     name: 'Transfinite Bashicu matrix',
@@ -402,20 +409,10 @@ export const TBM: NotationDefinition<Expr> = {
         html: (m) => display(m, true),
         from_display,
     },
-    is_limit: (m) => {
-        if (is_infinity(m)) return true;
-        if (m.length === 0) return false;
-        return m[m.length - 1].length > 0;
-    },
+    is_limit: is_limit,
     compare,
 
-    FS: (m, index) => {
-        if (is_infinity(m)) {
-            return infinity_FS(index);
-        }
-        if (m.length === 0) return m;
-        return expand(m, index);
-    },
+    ...FS_default_LNZ_variant(expand, compare, is_infinity, infinity_FS, is_limit, display),
 
     credit_text_id: 'credit.tbm',
 

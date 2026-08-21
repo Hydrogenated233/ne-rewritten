@@ -1,3 +1,5 @@
+import { Comparator } from '@/utils.ts';
+
 export function Y_FS_variants<T>(
     expand_longer: (seq: T[], index: number) => T[],
     is_infinity: (seq: T[]) => boolean,
@@ -79,7 +81,7 @@ export function sequence_FS_variants0<T>(
             if (d === undefined) {
                 d = data_short[data_key] = core.FS(seq, 0).length !== seq.length;
             }
-            return core.FS(seq, index - (d ? 2 : 1));
+            return core.FS(seq, index - (d ? 1 : 0));
         },
     };
     return core;
@@ -216,4 +218,48 @@ export function merge_sum(terms: string[]): string {
         i = j;
     }
     return result.join('+');
+}
+
+export function FS_default_LNZ_variant<T>(
+    expand: (expr: T, index: number) => T,
+    compare: Comparator<T>,
+    is_infinity: (expr: T) => boolean,
+    infinity_FS: (index: number) => T,
+    is_limit: (expr: T) => boolean,
+    display: (expr: T) => string,
+): Record<'FS' | 'FS_short', (expr: T, index: number) => T> {
+    const data: Record<string, T[]> = {};
+    const data_short: Record<string, [boolean, T]> = {};
+    const data_lnz: Record<string, T> = {};
+
+    const core = {
+        FS: (expr: T, index: number): T => {
+            if (is_infinity(expr)) return infinity_FS(index);
+            if (!is_limit(expr)) return expand(expr, 0);
+            const data_key = display(expr);
+            if (data[data_key] === undefined) data[data_key] = [];
+            else if (data[data_key][index] !== undefined) return data[data_key][index];
+            return (data[data_key][index] = expand(expr, index));
+        },
+        FS_short: (expr: T, index: number): T => {
+            if (is_infinity(expr)) return infinity_FS(index);
+            if (!is_limit(expr) || index === 0) return expand(expr, 0);
+            const data_key = display(expr);
+            let d = data_short[data_key];
+            if (d === undefined) {
+                const truncate = core.FS(expr, 0);
+                const FS1 = core.FS(expr, 1);
+                let result = FS1;
+                while (true) {
+                    const result_truncate = core.FS(result, 0);
+                    if (compare(result_truncate, truncate) <= 0) break;
+                    result = result_truncate;
+                }
+                d = data_short[data_key] = [compare(result, FS1) !== 0, result];
+            }
+            if (index === 1) return d[1];
+            return core.FS(expr, index - (d[0] ? 1 : 0));
+        },
+    };
+    return core;
 }
