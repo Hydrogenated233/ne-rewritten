@@ -91,7 +91,7 @@ import { omega_Y_1257omega, omega_Y_12omega, omega_Y_skew } from '@/notations/Y/
 import { weak_omega_Y } from '@/notations/Y/weak-omega-Y.ts';
 import { TUPMS } from '@/notations/BM-like/TUPMS.ts';
 import { category_upmn } from '@/notations/MN/UPMN/categories.ts';
-import { UP2MN_v1a } from '@/notations/MN/UPMN/UP2MN-v1.ts';
+import { UP2MN_v1a } from '@/notations/MN/UPMN/UP2MN-v1a.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
