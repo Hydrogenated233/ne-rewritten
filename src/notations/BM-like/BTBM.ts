@@ -208,6 +208,7 @@ export function expand_special(expr: Expr, t_layer: number, index: number): Expr
             value: entry.value,
             height: entry.height.slice(0, -1),
         };
+        if (result_col.length === 0) result_col.push(new_entry);
         result_col.push(...Array<Entry>(index).fill(new_entry));
     }
     result.push(result_col);
