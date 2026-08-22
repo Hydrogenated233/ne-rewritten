@@ -156,6 +156,13 @@ export const UP2MN_v1a: NotationDefinition<Mountain> = {
     id: 'UP2MN-v1a',
     name: 'UP2MN v1A',
     category_id: 'category-upmn',
+    description: [
+        { id: 'description.UP2MN-v1a.1' },
+        { id: 'description.UP2MN-v1a.2' },
+        { id: 'description.UP2MN-v1a.3' },
+        { id: 'description.UP2MN-v1a.4' },
+        { id: 'description.UP2MN-v1a.5' },
+    ],
     display: {
         plain: (m) => mountain_display(m, false),
         from_display: from_display,

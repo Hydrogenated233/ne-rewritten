@@ -131,6 +131,7 @@ export interface NotationDefinition<T> {
     id: string;
     name: TextSpec;
     simple_name?: TextSpec;
+    description?: TextSpec | TextSpec[];
     category_id?: string;
     display: NotationDisplaySpec<T>;
     display_equiv?: Record<string, NotationDisplaySpec<T>>;

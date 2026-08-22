@@ -621,6 +621,13 @@ export const BTBM: NotationDefinition<Expr> = {
     id: 'btbm',
     name: 'Branching Transfinite BMS',
     simple_name: 'BTBMS',
+    description: [
+        { id: 'description.btbm.1' },
+        { id: 'description.btbm.2' },
+        { id: 'description.btbm.3' },
+        { id: 'description.btbm.4' },
+        { id: 'description.btbm.5' },
+    ],
     category_id: 'category-bm-like',
     display: {
         plain: bind2(display, 'plain'),

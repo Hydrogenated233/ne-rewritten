@@ -189,6 +189,14 @@ export const BTBM_weak: NotationDefinition<Expr> = {
     name: 'weak Branching Transfinite BMS (v2)',
     simple_name: 'weak BTBMS',
     category_id: 'category-bm-like',
+    description: [
+        { id: 'description.btbm-weak.1' },
+        { id: 'description.btbm-weak.2' },
+        { id: 'description.btbm-weak.3' },
+        { id: 'description.btbm-weak.4' },
+        { id: 'description.btbm-weak.5' },
+        { id: 'description.btbm-weak.6' },
+    ],
     display: {
         plain: bind2(display, 'plain'),
         html: bind2(display, 'html'),

@@ -38,6 +38,7 @@ export interface Settings {
     use_delete_to_clear: boolean;
     show_diagram: boolean;
     show_latex: boolean;
+    show_description: boolean;
     max_find_fs: number;
     equiv_active: Record<string, string | undefined>;
     equiv_hide_original: Record<string, boolean>;
@@ -64,6 +65,7 @@ export const DEFAULT_SETTINGS: Settings = {
     use_delete_to_clear: true,
     show_diagram: true,
     show_latex: false,
+    show_description: true,
     max_find_fs: 10,
     equiv_active: {},
     equiv_hide_original: {},

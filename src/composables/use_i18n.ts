@@ -129,6 +129,30 @@ const messages: Record<Language, Record<string, string>> = {
         'credit.wmm': '由社区从 Aarex 定义的 MMS 改进而来. 展开器来自原 NE 项目.',
         'diagram.show': '显示图表',
         'diagram.settings': '图表设置',
+        'description.show-default': '默认显示说明',
+        'description.show': '显示说明',
+        'description.btbm.1': '标记列标 BTBMS',
+        'description.btbm.2': "核心为高度定义, 参见群内 '标记列标 BTBM.md'. 此版本简要特征: ",
+        'description.btbm.3': '1^(2,1) 与 2^(3,1) 视为高度相同;',
+        'description.btbm.4': '()(1^(2,1),1) 展开为 ()(1^(2,1))(2^(3,2))(3^(4,3))...;',
+        'description.btbm.5': '()(1^(2,1))(2^(3,1),2) 展开为 ()(1^(2,1))(2^(3,1))(3^(4,1))....',
+        'description.btbm-weak.1': '标记列标弱 BTBMS',
+        'description.btbm-weak.2': '相比非弱版本, 区别为对于行标低于 lnz-1 的上标, 不进行 BMS 提升, 而是保持高度相同',
+        'description.btbm-weak.3': '()(1^(2,1),1) 展开为 ()(1^(2,1))(2^(3,1))(3^(4,1))...;',
+        'description.btbm-weak.4':
+            '()(1^(2,1),1^(2,1))(1^(2,1),1) 展开为 ()(1^(2,1),1^(2,1))(1^(2,1))(3^(4,1),3^(4,3))..., 第 4 列标准化为 (3^(4,3)).',
+        'description.btbm-weak.5': '注意后一例子中低行标项的上标按保持高度复制, 高行标项的上标正常受到 BMS 提升.',
+        'description.btbm-weak.6':
+            '此版本与标记层级模式更相容, 但在定义上更复杂. 预期在 ()(1^(2,2)) 前与 2MN/1Y 对应较好.',
+        'description.UP2MN-v1a.1': 'UP2MN v1a',
+        'description.UP2MN-v1a.2':
+            '类比 UPMS, 设第 b 列没有 ω 行项, 则收集形如 (,a,b,,1:X) 的列后的所有不小于 (,X,X,X,,1) 的项视为投影阶进行 UP 判定.',
+        'description.UP2MN-v1a.3':
+            '此版本为失败作. 此版本中, ()(,,1)(,2)(,3,,3)(,4,3)(,3,,3) 不受到 BMS 提升, 从而存在非预期弱化.',
+        'description.UP2MN-v1a.4':
+            '例子 ()(,,1)(,2,,1)(,3)(,4,,4)(,5,5,,4)(,6,,4)(,7,4)(,4,,4)(,9,9,,4) 中, UP 条件要求 (,6,,4) 的复制不提升,',
+        'description.UP2MN-v1a.5':
+            '进而 ,,4 的复制不变. 从而 (,7,4) 中的 ,4 也不能提升. 因此, 也不能简单添加所有 BMS 提升.',
         'diagram.den.offset': '起始偏移',
         'diagram.den.max-display': '最大显示行数',
         'diagram.den.scroll-hint': '快捷键: Ctrl+方向键滚动窗口',
@@ -302,6 +326,33 @@ const messages: Record<Language, Record<string, string>> = {
         'import.error': 'Errors occurred, please check the console (F12).',
         'diagram.show': 'Show diagram',
         'diagram.settings': 'Diagram settings',
+        'description.show-default': 'Show description by default',
+        'description.show': 'Show description',
+        'description.btbm.1': 'Indexed BTBMS',
+        'description.btbm.2':
+            "The core is height definitions; see '标记列标 BTBM.md' in the QQ group. Brief features of this version: ",
+        'description.btbm.3': '1^(2,1) and 2^(3,1) are treated as the same height;',
+        'description.btbm.4': '()(1^(2,1),1) expands to ()(1^(2,1))(2^(3,2))(3^(4,3))...;',
+        'description.btbm.5': '()(1^(2,1))(2^(3,1),2) expands to ()(1^(2,1))(2^(3,1))(3^(4,1))....',
+        'description.btbm-weak.1': 'Indexed weak BTBMS',
+        'description.btbm-weak.2':
+            'Compared to the non-weak version, the difference is that superscripts whose row index is below lnz-1 are not BMS-elevated but keep the same height',
+        'description.btbm-weak.3': '()(1^(2,1),1) expands to ()(1^(2,1))(2^(3,1))(3^(4,1))...;',
+        'description.btbm-weak.4':
+            '()(1^(2,1),1^(2,1))(1^(2,1),1) expands to ()(1^(2,1),1^(2,1))(1^(2,1))(3^(4,1),3^(4,3))..., with the 4th column normalized to (3^(4,3)).',
+        'description.btbm-weak.5':
+            'Note that in the latter example, the superscripts of low-row entries are copied keeping the same height, while those of high-row entries undergo normal BMS elevation.',
+        'description.btbm-weak.6':
+            'This version is more compatible with the layered mode, but more complex in definition. It is expected to correspond well with 2MN/1Y below ()(1^(2,2)).',
+        'description.UP2MN-v1a.1': 'UP2MN v1a',
+        'description.UP2MN-v1a.2':
+            'Analogous to UPMS: suppose column b has no ω-row entry; then all entries after a column of the form (,a,b,,1:X) that are not smaller than (,X,X,X,,1) are collected and treated as projection rows for the UP decision.',
+        'description.UP2MN-v1a.3':
+            'This version is a failed attempt. In this version, ()(,,1)(,2)(,3,,3)(,4,3)(,3,,3) does not undergo BMS elevation, resulting in unintended weakening.',
+        'description.UP2MN-v1a.4':
+            'In the example ()(,,1)(,2,,1)(,3)(,4,,4)(,5,5,,4)(,6,,4)(,7,4)(,4,,4)(,9,9,,4), the UP condition requires that the copy of (,6,,4) is not elevated,',
+        'description.UP2MN-v1a.5':
+            'and hence the copy of ,,4 remains unchanged. Thus ,4 in (,7,4) cannot be elevated either. Therefore, one cannot simply add all BMS elevations.',
         'diagram.den.offset': 'Start offset',
         'diagram.den.max-display': 'Max display rows',
         'diagram.den.scroll-hint': 'Shortcut: Ctrl+arrow keys to scroll',

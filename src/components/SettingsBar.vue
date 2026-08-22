@@ -74,6 +74,12 @@ function toggle_diagram() {
     if (settings.show_diagram) settings.show_latex = false;
 }
 
+function on_show_description_change(e: Event) {
+    const checked = (e.target as HTMLInputElement).checked;
+    settings.show_description = checked;
+    ui.description_visible.value = checked;
+}
+
 function toggle_latex() {
     settings.show_latex = !settings.show_latex;
     if (settings.show_latex) settings.show_diagram = false;
@@ -280,6 +286,10 @@ function on_find_keydown(e: KeyboardEvent) {
                         </button>
                     </span>
                 </span>
+                <label>
+                    <input type="checkbox" :checked="settings.show_description" @change="on_show_description_change" />
+                    {{ t('description.show-default') }}
+                </label>
             </div>
             <div class="toolbar-row">
                 <label v-if="notation?.draw_diagram">

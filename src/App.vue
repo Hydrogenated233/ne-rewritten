@@ -2,6 +2,7 @@
 import { inject, onMounted, onUnmounted, provide, reactive, watch } from 'vue';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { get_notation } from '@/core/registry.ts';
+import { resolve_name } from '@/notation-definition.ts';
 import type { TreeNode } from '@/core/tree.ts';
 import { focus_node, get_last_focus } from '@/composables/use_focus_tracker.ts';
 import NotationTree from '@/components/NotationTree.vue';
@@ -41,6 +42,15 @@ const { diagram, visible, pos_x, pos_y, hide, dispatch_action } = use_diagram();
 function on_diagram_wheel(e: WheelEvent) {
     dispatch_action({ type: 'scroll', direction: e.deltaY > 0 ? 'down' : 'up', step: 1 });
 }
+
+// 说明显示/隐藏切换: 与记号条目相同的逻辑, 选中文本时不触发
+function on_description_mousedown(e: MouseEvent) {
+    if (e.detail > 1) e.preventDefault();
+}
+function on_description_click() {
+    if (window.getSelection()?.toString()) return;
+    ui.description_visible.value = !ui.description_visible.value;
+}
 const latex_state = use_latex();
 const expand_dialog_state = use_expand_dialog();
 const multi_select = use_multi_select();
@@ -70,6 +80,8 @@ watch(
     () => settings.current_notation_id,
     () => {
         multi_select.clear();
+        // 切换记号时, 说明显示状态恢复为持久化的默认值
+        ui.description_visible.value = settings.show_description;
     },
 );
 
@@ -129,6 +141,8 @@ onMounted(() => {
     document.addEventListener('keydown', on_global_keydown);
     save_load.init();
     (window as any).debug_compare_order = debug_compare_order;
+    // 说明显示状态: 以持久化的"默认显示说明"为初值 (会话内点击可临时切换)
+    ui.description_visible.value = settings.show_description;
 });
 onUnmounted(() => {
     document.removeEventListener('keydown', on_global_keydown);
@@ -187,6 +201,30 @@ function debug_compare_order(notation_id?: string) {
         <NotationNavPlain v-else />
 
         <SettingsBar />
+
+        <template v-if="notation?.description">
+            <div
+                v-if="ui.description_visible.value"
+                class="description-line"
+                @mousedown="on_description_mousedown"
+                @click="on_description_click"
+                @dblclick.prevent
+            >
+                <template v-if="Array.isArray(notation.description)">
+                    <div v-for="(d, i) in notation.description" :key="i">{{ resolve_name(d, t) }}</div>
+                </template>
+                <template v-else>{{ resolve_name(notation.description, t) }}</template>
+            </div>
+            <div
+                v-else
+                class="description-line"
+                @mousedown="on_description_mousedown"
+                @click="on_description_click"
+                @dblclick.prevent
+            >
+                {{ t('description.show') }}
+            </div>
+        </template>
 
         <div v-if="root && notation" class="preview-container">
             <NotationTree :root="root" :notation="notation" :tier="settings.tier" />
@@ -396,6 +434,15 @@ function debug_compare_order(notation_id?: string) {
 .credit-line {
     text-align: center;
     margin-top: 1.5em;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+
+.description-line {
+    text-align: center;
+    margin: 0.5em auto 0;
+    max-width: 60em;
+    padding: 0 1em;
     color: var(--color-text-secondary);
     font-size: 13px;
 }
