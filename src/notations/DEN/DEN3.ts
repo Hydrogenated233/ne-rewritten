@@ -1,5 +1,9 @@
 import { lex_compare, number_compare } from '@/utils.ts';
-import { draw_diagram_control as den2_diagram_control, type Expr as DEN2_Expr } from './DEN2.ts';
+import {
+    draw_diagram_control as den2_diagram_control,
+    type Expr as DEN2_Expr,
+    type DiagramData,
+} from './DEN2.ts';
 import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
 
 const data: any = {};
@@ -245,7 +249,7 @@ function den3_to_den2(expr: any[][]): DEN2_Expr {
     return expr.map((row) => [row[0], row.slice(1)]) as unknown as DEN2_Expr;
 }
 
-const diagram_control: DiagramControl<any, { offset: number; max_display: number }> = {
+const diagram_control: DiagramControl<any, DiagramData> = {
     default_data: den2_diagram_control.default_data,
     settings: den2_diagram_control.settings,
     draw_diagram: (expr, data) => den2_diagram_control.draw_diagram(den3_to_den2(expr), data),

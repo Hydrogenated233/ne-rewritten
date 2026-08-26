@@ -154,6 +154,7 @@ const messages: Record<Language, Record<string, string>> = {
         'description.UP2MN-v1a.5':
             '进而 ,,4 的复制不变. 从而 (,7,4) 中的 ,4 也不能提升. 因此, 也不能简单添加所有 BMS 提升.',
         'diagram.den.offset': '起始偏移',
+        'diagram.den.offset-x': '横向偏移',
         'diagram.den.max-display': '最大显示行数',
         'diagram.den.scroll-hint': '快捷键: Ctrl+方向键滚动窗口',
         'latex.show': '显示分析 LaTeX',
@@ -354,6 +355,7 @@ const messages: Record<Language, Record<string, string>> = {
         'description.UP2MN-v1a.5':
             'and hence the copy of ,,4 remains unchanged. Thus ,4 in (,7,4) cannot be elevated either. Therefore, one cannot simply add all BMS elevations.',
         'diagram.den.offset': 'Start offset',
+        'diagram.den.offset-x': 'Horizontal offset',
         'diagram.den.max-display': 'Max display rows',
         'diagram.den.scroll-hint': 'Shortcut: Ctrl+arrow keys to scroll',
         'latex.show': 'Show LaTeX',

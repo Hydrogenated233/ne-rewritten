@@ -281,14 +281,17 @@ function infinity_FS(n: number): Expr {
     );
 }
 
-export const draw_diagram_control: DiagramControl<Expr, { offset: number; max_display: number }> = {
-    default_data: { offset: 0, max_display: 40 },
+export type DiagramData = { offset: number; offset_x: number; max_display: number };
+
+export const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
+    default_data: { offset: 0, offset_x: 0, max_display: 40 },
     settings: [
         { type: 'number', name: { id: 'diagram.den.offset' }, field_name: 'offset', min: 0 },
+        { type: 'number', name: { id: 'diagram.den.offset-x' }, field_name: 'offset_x', min: 0 },
         { type: 'number', name: { id: 'diagram.den.max-display' }, field_name: 'max_display', min: 10 },
         { type: 'info', name: { id: 'diagram.den.scroll-hint' } },
     ],
-    draw_diagram: (expr: Expr, data: { offset: number; max_display: number }): Diagram | undefined => {
+    draw_diagram: (expr: Expr, data: DiagramData): Diagram | undefined => {
         if (is_infinity(expr) || expr.length === 0) return undefined;
         const A = 16;
         const max_display = data.max_display;
@@ -297,7 +300,8 @@ export const draw_diagram_control: DiagramControl<Expr, { offset: number; max_di
         const start = show_all ? 0 : Math.min(data.offset, total - max_display);
         const end = Math.min(start + max_display, total);
         const visible = end - start;
-        const width = end * A + A;
+        const offset_x = Math.min(data.offset_x, end - 1);
+        const width = (end - offset_x) * A + A;
         const height = visible * A + A / 2;
         const elements: Diagram['elements'] = [];
         const lines: Diagram['elements'] = [];
@@ -310,12 +314,12 @@ export const draw_diagram_control: DiagramControl<Expr, { offset: number; max_di
             const i = start + vi;
             const entries = expr[i][1];
             const step = expr[i][0];
-            const rightmost = entries.length > 0 ? entries[0][0] : 0;
+            const rightmost = entries[0][0] - offset_x;
             let prev: number | undefined;
             for (let j = 0; j < entries.length; j++) {
-                const pos = entries[j][0];
+                const pos = entries[j][0] - offset_x;
                 const mark = entries[j][1];
-                if (prev !== undefined) {
+                if (prev !== undefined && prev >= 0) {
                     lines.push({
                         type: 'line',
                         x1: prev * A + A / 2,
@@ -327,40 +331,45 @@ export const draw_diagram_control: DiagramControl<Expr, { offset: number; max_di
                         width: 1,
                     });
                 }
-                circles.push({
-                    type: 'circle',
-                    x: pos * A + A / 2,
-                    y: vi * A + A / 2,
-                    r: A / 4,
-                    stroke: true,
-                    stroke_color: j === step ? red : black,
-                    fill: true,
-                    fill_color: mark ? black : white,
-                    width: 1,
-                });
+                if (pos >= 0) {
+                    circles.push({
+                        type: 'circle',
+                        x: pos * A + A / 2,
+                        y: vi * A + A / 2,
+                        r: A / 4,
+                        stroke: true,
+                        stroke_color: j === step ? red : black,
+                        fill: true,
+                        fill_color: mark ? black : white,
+                        width: 1,
+                    });
+                }
                 prev = pos;
             }
-            extra_text.push({
-                text: '' + step,
-                x: rightmost * A + A,
-                y: vi * A + A / 2,
-                size: 10,
-                color: black,
-            });
+            if (rightmost >= 0) {
+                extra_text.push({
+                    text: '' + step,
+                    x: rightmost * A + A,
+                    y: vi * A + A / 2,
+                    size: 10,
+                    color: black,
+                });
+            }
         }
         elements.unshift(...circles);
         elements.unshift(...lines);
         return { width, height, elements, extra_text };
     },
-    handle_action: (
-        data: { offset: number; max_display: number },
-        action,
-    ): { offset: number; max_display: number } | null => {
+    handle_action: (data: DiagramData, action): DiagramData | null => {
         if (action.type === 'scroll') {
             if (action.direction === 'up') {
                 return { ...data, offset: Math.max(0, data.offset - action.step) };
             } else if (action.direction === 'down') {
                 return { ...data, offset: data.offset + action.step };
+            } else if (action.direction === 'left') {
+                return { ...data, offset_x: Math.max(0, data.offset_x - action.step) };
+            } else if (action.direction === 'right') {
+                return { ...data, offset_x: data.offset_x + action.step };
             }
         }
         return null;
