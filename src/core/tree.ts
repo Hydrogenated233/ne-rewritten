@@ -5,6 +5,13 @@ export interface FsState {
     index: number;
 }
 
+/** 挂载在节点上的待导入条目。值位于该节点的区间 (左邻, expr) 内, 按 expr 递增有序。 */
+export interface PendingItem<T> {
+    expr: T;
+    /** analysis 等具体内容, 属于 extraData 而非树结构。 */
+    extraData: Record<string, unknown>;
+}
+
 export interface TreeNode<T> {
     expr: T;
     children: TreeNode<T>[];
@@ -15,6 +22,8 @@ export interface TreeNode<T> {
     path?: string;
     /** 附加数据（analysis 等），不被核心逻辑引用。 */
     extraData?: Record<string, unknown>;
+    /** 挂载的待导入条目（树结构的一部分，具体内容在条目的 extraData 中）。 */
+    pending_items?: PendingItem<T>[];
 }
 
 function array_pos<T>(node: TreeNode<T>): number {

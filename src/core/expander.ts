@@ -47,12 +47,15 @@ function generate_fs<T>(
     }
 }
 
-function expand_tier_impl<T>(
+/**
+ * 只展开一层: 计算 node 越过 bound 的下一个 FS 项并插入 (作为子节点或兄弟)。
+ * 返回新创建的节点, 无法展开 (非 limit 且后继不在区间内) 时返回 undefined。
+ */
+function expand_single<T>(
     node: TreeNode<T>,
     notation: NotationDefinition<T>,
     fs: (expr: T, i: number) => T,
     variant: string,
-    tier: number,
     to_parent: boolean,
     max_fs?: number,
 ): TreeNode<T> | undefined {
@@ -67,12 +70,64 @@ function expand_tier_impl<T>(
         if (bound !== undefined && notation.compare(result_expr, bound) <= 0) return;
     }
 
-    let new_node: TreeNode<T>;
-    if (to_parent) {
-        new_node = append_sibling(node, result_expr);
-    } else {
-        new_node = prepend_child(node, result_expr);
+    const new_node = to_parent ? append_sibling(node, result_expr) : prepend_child(node, result_expr);
+    dispatch_pending(node, new_node, result_expr, notation);
+    return new_node;
+}
+
+/**
+ * 把 node 的挂载条目 (pending_items) 按新节点值 v 分派：
+ * - x < v  → 移给 new_node（其区间下段）
+ * - x == v → 写入 new_node 的 analysis（重复值沿用覆盖语义）
+ * - x > v  → 留在 node（区间上段）
+ * pending_items 按 expr 递增有序。
+ */
+function dispatch_pending<T>(node: TreeNode<T>, new_node: TreeNode<T>, v: T, notation: NotationDefinition<T>): void {
+    const pend = node.pending_items;
+    if (!pend || pend.length === 0) return;
+
+    // pending 递增有序: 二分查找第一个 expr >= v 的位置
+    let lo = 0;
+    let hi = pend.length;
+    while (lo < hi) {
+        const mid = (lo + hi) >> 1;
+        if (notation.compare(pend[mid].expr, v) < 0) lo = mid + 1;
+        else hi = mid;
     }
+    const start = lo;
+
+    if (start > 0) {
+        const np = (new_node.pending_items ??= []);
+        np.push(...pend.slice(0, start));
+    }
+
+    // start 起连续 == v 的段, 取末者 (重复时后写覆盖)
+    let end = start;
+    while (end < pend.length && notation.compare(pend[end].expr, v) === 0) end++;
+    if (end > start) {
+        const attach = pend[end - 1];
+        const nd_ed = (new_node.extraData ??= {});
+        Object.assign(nd_ed, attach.extraData);
+    }
+
+    if (end < pend.length) {
+        node.pending_items = pend.slice(end);
+    } else {
+        delete node.pending_items;
+    }
+}
+
+function expand_tier_impl<T>(
+    node: TreeNode<T>,
+    notation: NotationDefinition<T>,
+    fs: (expr: T, i: number) => T,
+    variant: string,
+    tier: number,
+    to_parent: boolean,
+    max_fs?: number,
+): TreeNode<T> | undefined {
+    const new_node = expand_single(node, notation, fs, variant, to_parent, max_fs);
+    if (!new_node) return;
 
     if (tier > 0) {
         const new_to_parent = to_parent || node.children.length === 1;

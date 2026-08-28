@@ -580,6 +580,19 @@ ul {
     color: var(--color-text);
 }
 
+.pending-badge {
+    color: var(--color-danger);
+    font-weight: bold;
+    user-select: none;
+    margin-right: 4px;
+    vertical-align: middle;
+    cursor: pointer;
+}
+
+.pending-badge:hover {
+    text-decoration: underline;
+}
+
 .toolbar input[type='text'],
 .toolbar input[type='number'],
 .tree-item input[type='text'] {

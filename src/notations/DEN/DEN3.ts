@@ -1,9 +1,5 @@
 import { lex_compare, number_compare } from '@/utils.ts';
-import {
-    draw_diagram_control as den2_diagram_control,
-    type Expr as DEN2_Expr,
-    type DiagramData,
-} from './DEN2.ts';
+import { draw_diagram_control as den2_diagram_control, type Expr as DEN2_Expr, type DiagramData } from './DEN2.ts';
 import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
 
 const data: any = {};

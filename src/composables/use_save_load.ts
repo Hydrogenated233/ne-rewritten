@@ -3,6 +3,7 @@ import { computed, inject, type InjectionKey, reactive, ref, watch } from 'vue';
 import { get_notation } from '@/core/registry.ts';
 import { init_dataset, type TreeNode } from '@/core/tree.ts';
 import {
+    expand_all_pending,
     export_analysis,
     import_analysis,
     parse_analysis_entries,
@@ -85,7 +86,7 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
         if (!raw) return;
         try {
             const entries: any[] = parse_analysis_entries(raw);
-            import_analysis(r, entries, n, settings.variant, settings.max_find_fs);
+            import_analysis(r, entries, n);
         } catch {
             /* ignore corrupt data */
         }
@@ -133,9 +134,12 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
             if (!display_spec.from_display) return;
             const buf = await file.arrayBuffer();
             const entries = await import_from_xlsx(buf, display_spec.from_display);
-            const matched = import_analysis(r, entries, n, settings.variant, settings.max_find_fs);
-            if ((entries as any).skipped?.length || matched.length !== entries.length) {
+            const { matched, not_found } = import_analysis(r, entries, n);
+            if ((entries as any).skipped?.length || not_found.length > 0) {
                 alert(t('import.error'));
+            }
+            if (settings.expand_all_on_import) {
+                expand_all_pending(r, n, settings.variant, settings.max_find_fs);
             }
             if (matched.length > 0) {
                 const last = matched[matched.length - 1];

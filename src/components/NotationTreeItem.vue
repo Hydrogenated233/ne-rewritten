@@ -6,6 +6,7 @@ import type { TreeNodeExtra } from '@/core/extra.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { expand_item } from '@/core/expander.ts';
+import { expand_pending_node } from '@/core/analysis.ts';
 import { focus_node, focus_node_input, set_last_focus } from '@/composables/use_focus_tracker.ts';
 import { use_diagram } from '@/composables/use_diagram.ts';
 import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
@@ -13,6 +14,8 @@ import { use_latex } from '@/composables/use_latex.ts';
 import { use_multi_select } from '@/composables/use_multi_select.ts';
 import RenderLatex from '@/components/RenderLatex.vue';
 import { NotationDefinition, resolve_display, ResolvedDisplaySpec } from '@/notation-definition.ts';
+import { cached_display, ORIGINAL_ID } from '@/core/display_cache.ts';
+import { observe_on_screen, unobserve_on_screen } from '@/composables/use_on_screen.ts';
 
 const props = defineProps<{
     node: TreeNode<T>;
@@ -25,6 +28,8 @@ const resize_span = ref<HTMLSpanElement | null>(null);
 const tooltip = ref(false);
 const tooltip_FS = ref<string[]>([]);
 const focused = ref(false);
+const on_screen = ref(false);
+const shown_ref = ref<HTMLDivElement | null>(null);
 const { show: show_diagram, hide: hide_diagram, dispatch_action: dispatch_diagram_action } = use_diagram();
 const { show: show_latex_viewer, hide: hide_latex_viewer } = use_latex();
 
@@ -57,10 +62,24 @@ const resolved_equiv = computed(() => {
 });
 const resolved_original = computed(() => resolve_display(props.notation.display));
 
+/** 缓存 key 用的稳定标识: 原始 display 的 plain 字符串 (廉价, 且同一表达式值恒定)。 */
+const expr_key = computed(() => resolved_original.value.plain(props.node.expr));
+
 const equiv_option_ids = computed(() => {
     if (!props.notation.display_equiv) return [];
     return Object.keys(props.notation.display_equiv);
 });
+
+/** 是否有"昂贵"等价行在显示。仅此情形才启用可见性门控; 无等价时保持现状零回归。 */
+const equiv_mode = computed(() => {
+    const current = equiv_name.value;
+    if (current && props.notation.display_equiv?.[current]) return true;
+    const shown = settings.shown_equiv[props.notation.id] ?? {};
+    return equiv_option_ids.value.some((id) => shown[id] && id !== current);
+});
+
+/** 挂载条目数 (输入框左侧红色徽标显示)。 */
+const pending_count = computed(() => props.node.pending_items?.length ?? 0);
 
 const equiv_rows = computed(() => {
     const nid = props.notation.id;
@@ -68,20 +87,35 @@ const equiv_rows = computed(() => {
     const hideOrig = settings.equiv_hide_original[nid] ?? true;
     const shownMap: Record<string, boolean> = settings.shown_equiv[nid] ?? {};
 
-    const rows: Array<{ label: string; spec: ResolvedDisplaySpec<T> }> = [];
+    const rows: Array<{
+        id: string;
+        label: string;
+        spec: ResolvedDisplaySpec<T>;
+        render: (mode: 'plain' | 'html' | 'latex') => string;
+    }> = [];
+
+    // render 闭包只在模板 (可见时) 被调用, 因此 equiv_rows 本体不追踪 expr_key / node.expr,
+    // 只随等价设置变化重算。spec 保留给 primary_display 与 tooltip 使用。
+    const add_row = (id: string, label: string, spec: ResolvedDisplaySpec<T>) => {
+        rows.push({
+            id,
+            label,
+            spec,
+            render: (mode) => cached_display(nid, id, mode, expr_key.value, () => spec[mode](props.node.expr)),
+        });
+    };
 
     if (current) {
         const spec = resolved_equiv.value;
-        if (spec) rows.push({ label: '', spec });
-        if (!hideOrig) rows.push({ label: '', spec: resolved_original.value });
+        if (spec) add_row(current, '', spec);
+        if (!hideOrig) add_row(ORIGINAL_ID, '', resolved_original.value);
     } else {
-        rows.push({ label: '', spec: resolved_original.value });
+        add_row(ORIGINAL_ID, '', resolved_original.value);
     }
 
     for (const id of equiv_option_ids.value) {
         if (shownMap[id] && id !== current) {
-            const spec = resolve_display(props.notation.display_equiv![id]);
-            rows.push({ label: id, spec });
+            add_row(id, id, resolve_display(props.notation.display_equiv![id]));
         }
     }
 
@@ -108,6 +142,11 @@ watch(analysis0, () => {
 });
 
 onMounted(() => {
+    if (shown_ref.value) {
+        observe_on_screen(shown_ref.value, () => {
+            on_screen.value = true;
+        });
+    }
     input_ref.value?.setAttribute('data-tree-path', node_path);
     const span = resize_span.value;
     let ro: ResizeObserver | undefined;
@@ -119,7 +158,10 @@ onMounted(() => {
         });
         ro.observe(span);
     }
-    onUnmounted(() => ro?.disconnect());
+    onUnmounted(() => {
+        if (shown_ref.value) unobserve_on_screen(shown_ref.value);
+        ro?.disconnect();
+    });
     if (ed.value.focus_on_mounted) {
         const el = input_ref.value;
         if (el) {
@@ -159,6 +201,10 @@ function do_expand(tier?: number, focus?: boolean) {
 
 function on_expr_mousedown(e: MouseEvent) {
     if (e.detail > 1) e.preventDefault(); // 阻止双击全选
+}
+
+function on_pending_badge_click() {
+    expand_pending_node(props.node, props.notation, settings.variant, settings.max_find_fs);
 }
 
 function on_expr_click(e: MouseEvent) {
@@ -326,6 +372,7 @@ function on_blur() {
 <template>
     <li class="tree-item">
         <div
+            ref="shown_ref"
             class="shown-item"
             :class="{
                 analyzed: has_analysis(node),
@@ -345,6 +392,9 @@ function on_blur() {
                 >{{ ed.hide_child ? '▶' : '▼' }}</span
             >
             <span v-else class="fold-icon fold-icon--spacer"></span>
+            <span v-if="pending_count > 0" class="pending-badge" @mousedown.stop @click.stop="on_pending_badge_click"
+                >({{ pending_count }})</span
+            >
             <span
                 ref="resize_span"
                 class="input-resize"
@@ -364,7 +414,7 @@ function on_blur() {
                     @blur="on_blur"
                 />
             </span>
-            <div class="equiv-rows">
+            <div v-if="equiv_mode ? on_screen : true" class="equiv-rows">
                 <div
                     v-for="(row, ri) in equiv_rows"
                     :key="ri"
@@ -372,12 +422,8 @@ function on_blur() {
                     :class="{ 'equiv-row--secondary': ri > 0 }"
                 >
                     <span v-if="row.label" class="equiv-label">{{ row.label }}:</span>
-                    <RenderLatex v-if="settings.display_mode === 'latex'" :latex="row.spec.latex(node.expr)" />
-                    <span
-                        v-else
-                        class="expr-display"
-                        v-html="settings.display_mode === 'html' ? row.spec.html(node.expr) : row.spec.plain(node.expr)"
-                    />
+                    <RenderLatex v-if="settings.display_mode === 'latex'" :latex="row.render('latex')" />
+                    <span v-else class="expr-display" v-html="row.render(settings.display_mode)" />
                 </div>
             </div>
             <div v-if="tooltip" class="tooltip" @mousedown.stop>

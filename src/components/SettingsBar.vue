@@ -5,7 +5,7 @@ import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { use_diagram } from '@/composables/use_diagram.ts';
-import { import_analysis } from '@/core/analysis.ts';
+import { expand_all_pending, import_analysis_eager } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { focus_node_input } from '@/composables/use_focus_tracker.ts';
 import { reload_all } from '@/core/user_defined_notation.ts';
@@ -80,6 +80,17 @@ function on_show_description_change(e: Event) {
     ui.description_visible.value = checked;
 }
 
+function handle_expand_all() {
+    const n = notation.value;
+    const r = root.value;
+    if (!n || !r) return;
+    expand_all_pending(r, n, settings.variant, settings.max_find_fs);
+}
+
+function on_expand_all_import_change(e: Event) {
+    settings.expand_all_on_import = (e.target as HTMLInputElement).checked;
+}
+
 function toggle_latex() {
     settings.show_latex = !settings.show_latex;
     if (settings.show_latex) settings.show_diagram = false;
@@ -103,7 +114,7 @@ function handle_find() {
     if (!display_spec.from_display) return;
     try {
         const expr = display_spec.from_display(val);
-        const matched = import_analysis(r, [{ expr, analysis: [] }], n, settings.variant, settings.max_find_fs);
+        const matched = import_analysis_eager(r, [{ expr, analysis: [] }], n, settings.variant, settings.max_find_fs);
         if (matched.length > 0) {
             focus_node_input(matched[0]);
         } else {
@@ -317,6 +328,18 @@ function on_find_keydown(e: KeyboardEvent) {
                 <button @mousedown="ui.show_hotkeys.value = true">{{ t('toolbar.hotkeys') }}</button>
                 <button class="toolbar-btn-tips" @mousedown="ui.show_tips.value = true">{{ t('toolbar.tips') }}</button>
                 <button @mousedown="ui.show_color_theme.value = true">{{ t('toolbar.theme') }}</button>
+            </div>
+            <div class="toolbar-row">
+                <span>{{ t('expand-all.label') }}</span>
+                <button @mousedown="handle_expand_all">{{ t('expand-all.expand') }}</button>
+                <label>
+                    <input
+                        type="checkbox"
+                        :checked="settings.expand_all_on_import"
+                        @change="on_expand_all_import_change"
+                    />
+                    {{ t('expand-all.on-import') }}
+                </label>
             </div>
             <div class="toolbar-row">
                 <span>{{ t('user-defined.label') }}</span>
