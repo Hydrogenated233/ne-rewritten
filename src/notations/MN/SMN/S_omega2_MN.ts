@@ -2,12 +2,15 @@ import {
     anti_lex_compare,
     boolean_compare,
     deepcopy,
+    DisplayMap,
+    DisplaySet,
     lex_compare,
     number_compare,
     tuple_lex_compare,
 } from '@/utils.ts';
 import { MN_FS_variants } from '@/notations/notation_utils.ts';
-import { NotationDefinition } from '@/notation-definition.ts';
+import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
+import { draw_mountain_diagram, MountainDiagramData } from '@/notations/draw_mountain_util.ts';
 
 export type Sep = number[];
 export type Vertical = Sep[];
@@ -559,6 +562,83 @@ function mountain_display_marked(m: Mountain, type: MarkSpec): string {
     return m.map((col, i) => column_display_marked(col, type, i + 1)).join('');
 }
 
+function vertical_display(v: Vertical): string {
+    return v.map(sep_display).join('/');
+}
+
+export interface DiagramData {
+    current_equiv: string | undefined;
+    invert_vertical?: boolean;
+}
+
+function compute_mountain_diagram(expr: Mountain, current_equiv?: string): MountainDiagramData | undefined {
+    if (is_infinity(expr) || expr.length === 0) return undefined;
+
+    const m = expr;
+    const m_display = current_equiv?.includes('layer') ? convert_to_layer(expr) : expr;
+    const V = m.map(column_verticals);
+
+    const vertical_set = new DisplaySet<Vertical>(vertical_display);
+    vertical_set.add([]);
+    for (const Vi of V) for (const v of Vi) vertical_set.add(v);
+    const sorted = vertical_set.values().sort(vertical_compare);
+    const sorted_verticals = sorted.map(vertical_display);
+    const vertical_index = new DisplayMap<Vertical, number>(vertical_display);
+    for (let i = 0; i < sorted.length; i++) {
+        vertical_index.set(sorted[i], i);
+    }
+
+    // 计算行高
+    const H = 40,
+        HS = 5;
+    const line_heights: number[] = [];
+    const heights: number[] = [0];
+    for (let i = 1; i < sorted.length; i++) {
+        const d_height = H + HS;
+        heights.push(heights[i - 1] + d_height);
+        line_heights.push(heights[i - 1] + H / 2);
+    }
+
+    const entries: (string | undefined)[][] = Array.from({ length: m.length }, () =>
+        Array.from({ length: vertical_index.size }, () => undefined),
+    );
+    const left_legs: ([number, number] | undefined)[][] = Array.from({ length: m.length }, () =>
+        Array.from({ length: vertical_index.size }, () => undefined),
+    );
+
+    for (let i = 0; i < m.length; ++i) {
+        entries[i][0] = '*';
+        for (let j = 0; j < m[i].length; j++) {
+            const vj = vertical_index.get(V[i][j])!;
+            entries[i][vj] = entry_display(m_display[i][j]);
+            const [pi, pj] = parent(m, V, [i, j]);
+            const pvj = pj === 0 ? 0 : vertical_index.get(V[pi][pj - 1])!;
+            left_legs[i][vj] = [pi, pvj];
+        }
+    }
+
+    return { sorted_verticals, heights, line_heights, entries, left_legs };
+}
+
+const draw_diagram_control: DiagramControl<Mountain, DiagramData> = {
+    default_data: { current_equiv: undefined, invert_vertical: undefined },
+    draw_diagram: (_expr, _data) => {
+        const mountain = compute_mountain_diagram(_expr, _data.current_equiv);
+        if (!mountain) return undefined;
+        return draw_mountain_diagram(mountain, { invert_vertical: _data.invert_vertical ?? false });
+    },
+    handle_action: (data: DiagramData, action): DiagramData | null => {
+        if (action.type === 'scroll') {
+            if (action.direction === 'down') {
+                return { ...data, invert_vertical: true };
+            } else if (action.direction === 'up') {
+                return { ...data, invert_vertical: false };
+            }
+        }
+        return null;
+    },
+};
+
 export const S_omega2_MN: NotationDefinition<Mountain> = {
     id: 'S-omega2-MN',
     name: "Smile's ω2 MN",
@@ -584,6 +664,7 @@ export const S_omega2_MN: NotationDefinition<Mountain> = {
     ...MN_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
     is_limit,
     compare,
+    draw_diagram: draw_diagram_control,
     credit_text_id: 'credit.n_mn',
 
     init: () => [Limit_expr(), []],
