@@ -7,6 +7,7 @@ import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { use_diagram } from '@/composables/use_diagram.ts';
 import { expand_all_pending, import_analysis_eager } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
+import { COMPAT_URL, IS_COMPAT } from '@/core/deployment.ts';
 import { focus_node_input } from '@/composables/use_focus_tracker.ts';
 import { reload_all } from '@/core/user_defined_notation.ts';
 import ModalDialog from './ModalDialog.vue';
@@ -94,6 +95,10 @@ function on_expand_all_import_change(e: Event) {
 function toggle_latex() {
     settings.show_latex = !settings.show_latex;
     if (settings.show_latex) settings.show_diagram = false;
+}
+
+function go_compat() {
+    location.href = COMPAT_URL;
 }
 
 function toggle_display_mode() {
@@ -328,6 +333,7 @@ function on_find_keydown(e: KeyboardEvent) {
                 <button @mousedown="ui.show_hotkeys.value = true">{{ t('toolbar.hotkeys') }}</button>
                 <button class="toolbar-btn-tips" @mousedown="ui.show_tips.value = true">{{ t('toolbar.tips') }}</button>
                 <button @mousedown="ui.show_color_theme.value = true">{{ t('toolbar.theme') }}</button>
+                <button v-if="!IS_COMPAT" @mousedown="go_compat">{{ t('toolbar.compat') }}</button>
             </div>
             <div class="toolbar-row">
                 <span>{{ t('expand-all.label') }}</span>

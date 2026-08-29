@@ -6,6 +6,7 @@
     "scripts": {
         "dev": "vite",
         "build": "vue-tsc -b && vite build",
+        "build:compat": "vue-tsc -b && vite build --config vite.config.compat.js",
         "build:singlefile": "vue-tsc -b && vite build --config vite.singlefile.config.js && node -e \"require('fs').renameSync('dist/index.html','dist/NE-rewritten.html')\"",
         "preview": "vite preview",
         "typecheck": "vue-tsc --noEmit"

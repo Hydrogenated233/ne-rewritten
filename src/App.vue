@@ -10,6 +10,7 @@ import NotationTree from '@/components/NotationTree.vue';
 import { use_diagram } from '@/composables/use_diagram.ts';
 import DiagramViewer from '@/components/DiagramViewer.vue';
 import HotkeyDialog from '@/components/HotkeyDialog.vue';
+import TipPopup from '@/components/TipPopup.vue';
 import TipsDialog from '@/components/TipsDialog.vue';
 import ColorThemePanel from '@/components/ColorThemePanel.vue';
 import ResetPanel from '@/components/ResetPanel.vue';
@@ -31,6 +32,7 @@ import { use_multi_select } from '@/composables/use_multi_select.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { SAVE_LOAD_KEY, use_save_load } from '@/composables/use_save_load.ts';
 import { apply_color_theme } from '@/composables/use_color_theme.ts';
+import { use_tip } from '@/composables/use_tip.ts';
 
 const settings = inject(SETTINGS_KEY)!;
 const t = (key: string, params?: Record<string, string>) => create_t(settings.language)(key, params);
@@ -59,6 +61,8 @@ const ui = use_ui_states();
 const save_load = use_save_load(reactive(new Map()));
 provide(SAVE_LOAD_KEY, save_load);
 const { trees, notation, root, save_indicator } = save_load;
+
+const tip = use_tip(settings);
 
 watch(
     () => settings.font_family,
@@ -140,6 +144,8 @@ function select_expression_in_item(e: KeyboardEvent): boolean {
 onMounted(() => {
     document.addEventListener('keydown', on_global_keydown);
     save_load.init();
+    // 打开页面时随机显示一条未被忽略的提示
+    tip.show_random();
     (window as any).debug_compare_order = debug_compare_order;
     // 说明显示状态: 以持久化的"默认显示说明"为初值 (会话内点击可临时切换)
     ui.description_visible.value = settings.show_description;
@@ -260,6 +266,7 @@ function debug_compare_order(notation_id?: string) {
         </div>
         <HotkeyDialog :show="ui.show_hotkeys.value" @close="ui.show_hotkeys.value = false" />
         <ExpandDialog :show="expand_dialog_state.visible.value" @close="expand_dialog_state.close()" />
+        <TipPopup :show="tip.shown.value !== null" :tip="tip.shown.value" @close="tip.close()" @ignore="tip.ignore" />
         <TipsDialog :show="ui.show_tips.value" @close="ui.show_tips.value = false" />
         <ColorThemePanel />
         <ResetPanel />

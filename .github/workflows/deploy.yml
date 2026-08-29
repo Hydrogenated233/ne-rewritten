@@ -26,9 +26,17 @@ jobs:
                   node-version: 24
                   cache: npm
             - run: npm ci
+            # 默认构建 (懒加载/代码分割) 部署到站点根目录
             - run: npm run build
               env:
                   BASE_URL: /${{ github.event.repository.name }}/
+            # 兼容构建 (单包, 无动态 import) 部署到 /compat/ 子目录
+            - run: npm run build:compat
+              env:
+                  BASE_URL: /${{ github.event.repository.name }}/compat/
+            - run: |
+                  mkdir -p dist/compat
+                  cp -r dist-compat/. dist/compat/
             - uses: actions/configure-pages@v5
             - uses: actions/upload-pages-artifact@v5
               with:

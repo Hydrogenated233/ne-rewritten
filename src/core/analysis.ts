@@ -210,6 +210,9 @@ export function expand_pending_node<T>(
     variant: string,
     max_find_fs: number = 10,
 ): void {
+    // 记录本次排干产出的所有节点：节点为最小子时首次展开经 append_sibling
+    // 产出的是兄弟节点（不在 node.children 中），必须一并收集再递归。
+    const created_list: TreeNode<T>[] = [];
     while (node.pending_items && node.pending_items.length > 0) {
         let created: TreeNode<T> | undefined;
         try {
@@ -218,9 +221,10 @@ export function expand_pending_node<T>(
             break; // 非标准数据, max_fs 兜底
         }
         if (!created) break;
+        created_list.push(created);
     }
-    for (const child of node.children) {
-        expand_pending_node(child, notation, variant, max_find_fs);
+    for (const created of created_list) {
+        expand_pending_node(created, notation, variant, max_find_fs);
     }
 }
 

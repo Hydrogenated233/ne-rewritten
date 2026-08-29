@@ -41,6 +41,8 @@ export interface Settings {
     show_description: boolean;
     /** 导入时自动展开全部挂载条目。 */
     expand_all_on_import: boolean;
+    /** 已勾选"不再显示"的提示 id。 */
+    ignored_tip: Record<string, boolean>;
     max_find_fs: number;
     equiv_active: Record<string, string | undefined>;
     equiv_hide_original: Record<string, boolean>;
@@ -69,6 +71,7 @@ export const DEFAULT_SETTINGS: Settings = {
     show_latex: false,
     show_description: true,
     expand_all_on_import: false,
+    ignored_tip: {},
     max_find_fs: 10,
     equiv_active: {},
     equiv_hide_original: {},
