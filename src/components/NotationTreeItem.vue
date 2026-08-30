@@ -340,8 +340,10 @@ function on_focus(e: FocusEvent) {
 
     const el = e.target as HTMLInputElement;
     const r = el.getBoundingClientRect();
-    const target_scroll = r.top + window.scrollY - 60;
-    window.scrollTo({ top: target_scroll, behavior: 'smooth' });
+    if (settings.scroll_on_focus) {
+        const target_scroll = r.top + window.scrollY - 60;
+        window.scrollTo({ top: target_scroll, behavior: 'smooth' });
+    }
 
     el.selectionStart = el.selectionEnd;
     const pixel_pos = caret_pixel_pos(el, el.selectionStart ?? 0);

@@ -36,6 +36,8 @@ export interface Settings {
     notation_name_mode: 'full' | 'simple';
     nav_mode: 'grouped' | 'flat';
     use_delete_to_clear: boolean;
+    /** 输入框获得焦点时平滑滚动页面到其位置。 */
+    scroll_on_focus: boolean;
     show_diagram: boolean;
     show_latex: boolean;
     show_description: boolean;
@@ -67,6 +69,7 @@ export const DEFAULT_SETTINGS: Settings = {
     notation_name_mode: 'simple',
     nav_mode: 'grouped',
     use_delete_to_clear: true,
+    scroll_on_focus: true,
     show_diagram: true,
     show_latex: false,
     show_description: true,

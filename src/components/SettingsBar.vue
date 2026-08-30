@@ -392,6 +392,10 @@ function on_find_keydown(e: KeyboardEvent) {
                     <input type="checkbox" v-model="settings.use_delete_to_clear" />
                     {{ t('analysis-input.use-delete') }}
                 </label>
+                <label>
+                    <input type="checkbox" v-model="settings.scroll_on_focus" />
+                    {{ t('analysis-input.scroll-on-focus') }}
+                </label>
             </div>
             <div v-if="!settings_collapsed" class="toolbar-row">
                 <label>
