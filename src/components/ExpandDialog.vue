@@ -58,8 +58,12 @@ function on_fill() {
                     />
                 </label>
                 <label class="expand-field">
-                    <span>{{ t('expand.fs-index') }}</span>
+                    <span>{{ t('expand.fs-start') }}</span>
                     <input type="number" v-model.number="ed.FS_index.value" min="0" step="1" />
+                </label>
+                <label class="expand-field">
+                    <span>{{ t('expand.count') }}</span>
+                    <input type="number" v-model.number="ed.count.value" min="1" max="1000" step="1" />
                 </label>
                 <label class="expand-field expand-field--wide">
                     <span>{{ t('expand.notation') }}</span>
@@ -96,8 +100,8 @@ function on_fill() {
                     {{ t('expand.manual-hint') }}
                 </div>
                 <div v-else-if="ed.preview_status.value === 'ok'">
-                    <div class="expand-preview-result">FS({{ ed.FS_index.value }}) = {{ ed.preview.value }}</div>
-                    <div class="expand-preview-hint">{{ t('expand.fill-hint') }}</div>
+                    <pre class="expand-preview-result">{{ ed.preview.value }}</pre>
+                    <div v-if="ed.count.value === 1" class="expand-preview-hint">{{ t('expand.fill-hint') }}</div>
                 </div>
                 <div v-else-if="ed.preview_status.value === 'error-parse'" class="expand-preview-error">
                     {{ t('expand.error-parse') }}
@@ -116,7 +120,7 @@ function on_fill() {
                 <button
                     type="button"
                     @mousedown="on_fill"
-                    :disabled="ed.preview_status.value !== 'ok'"
+                    :disabled="ed.preview_status.value !== 'ok' || ed.count.value !== 1"
                     class="expand-btn"
                 >
                     {{ t('expand.fill') }}
@@ -206,9 +210,11 @@ function on_fill() {
     margin-top: 6px;
 }
 .expand-preview-result {
+    margin: 0;
     color: var(--color-text);
     overflow-wrap: anywhere;
     font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
+    white-space: pre-wrap;
 }
 .expand-preview-error {
     color: var(--color-danger);

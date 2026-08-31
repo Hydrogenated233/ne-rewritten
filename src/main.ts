@@ -95,12 +95,14 @@ import { UP2MN_v1a } from '@/notations/MN/UPMN/UP2MN-v1a.ts';
 import { create_notation_tools } from '@/core/notation_tools.ts';
 import { LocalNotationRuntime } from '@/core/local_notation_runtime.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
+import { app_storage } from '@/core/storage.ts';
+import { IS_STANDALONE } from '@/core/deployment.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
 function load_settings(): Partial<Settings> {
     try {
-        const raw = localStorage.getItem(SETTINGS_KEY_NAME);
+        const raw = app_storage()?.getItem(SETTINGS_KEY_NAME);
         if (!raw) return {};
         const parsed = JSON.parse(raw);
         if (typeof parsed !== 'object' || parsed === null) return {};
@@ -146,17 +148,27 @@ set_generator_state(settings.generator_state ?? {});
 watch(
     () => settings,
     (val) => {
-        localStorage.setItem(SETTINGS_KEY_NAME, JSON.stringify(val));
+        app_storage()?.setItem(SETTINGS_KEY_NAME, JSON.stringify(val));
     },
     { deep: true },
 );
 
 if (legacy_scripts_migrated) {
     try {
-        localStorage.setItem(SETTINGS_KEY_NAME, JSON.stringify(settings));
+        app_storage()?.setItem(SETTINGS_KEY_NAME, JSON.stringify(settings));
     } catch {
         // The migrated source remains in the native local-file store even if
         // the legacy settings record cannot be rewritten immediately.
+    }
+}
+
+// Standalone exports contain a fixed, trusted file set. Load it immediately;
+// the normal application still waits for the explicit resume action.
+if (IS_STANDALONE) {
+    try {
+        local_notation_runtime.boot();
+    } catch (error) {
+        console.warn('Could not load bundled local notation files.', error);
     }
 }
 
@@ -278,9 +290,11 @@ for (let notation of list_notations()) {
     window.notations[notation.id] = notation;
 }
 
-// Stable integration surface for the future AI/tools workspace. These handlers
-// call the same registry and expansion core as the visible application.
-(window as any).notation_tools = create_notation_tools();
+// Stable integration surface for the AI/tools workspace. Standalone exports
+// do not expose the AI integration surface or its diagnostic helpers.
+if (!IS_STANDALONE) {
+    (window as any).notation_tools = create_notation_tools();
+}
 
 const app = createApp(App);
 

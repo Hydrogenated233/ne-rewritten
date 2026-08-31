@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue';
+import { defineAsyncComponent, inject, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { get_notation } from '@/core/registry.ts';
 import { resolve_name } from '@/notation-definition.ts';
@@ -34,6 +34,14 @@ import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { SAVE_LOAD_KEY, use_save_load } from '@/composables/use_save_load.ts';
 import { apply_color_theme } from '@/composables/use_color_theme.ts';
 import { use_tip } from '@/composables/use_tip.ts';
+import { IS_STANDALONE } from '@/core/deployment.ts';
+
+// Keep the AI workspace out of the initial route chunk. It is not needed for
+// exploration and can remain a separately loaded tab on GitHub Pages. The
+// standalone build must not bundle the AI workspace at all.
+const AINotationPanel = IS_STANDALONE ? null : defineAsyncComponent(() => import('@/components/AINotationPanel.vue'));
+const ToolsPanel = defineAsyncComponent(() => import('@/components/ToolsPanel.vue'));
+const is_standalone = IS_STANDALONE;
 
 const settings = inject(SETTINGS_KEY)!;
 const t = (key: string, params?: Record<string, string>) => create_t(settings.language)(key, params);
@@ -64,7 +72,7 @@ provide(SAVE_LOAD_KEY, save_load);
 const { trees, notation, root, save_indicator } = save_load;
 
 const tip = use_tip(settings);
-const active_page = ref<'explore' | 'settings'>('explore');
+const active_page = ref<'explore' | 'tools' | 'settings' | 'ai'>('explore');
 
 watch(
     () => settings.font_family,
@@ -219,12 +227,33 @@ function debug_compare_order(notation_id?: string) {
             <button
                 type="button"
                 class="page-tab"
+                :class="{ 'page-tab--active': active_page === 'tools' }"
+                role="tab"
+                :aria-selected="active_page === 'tools'"
+                @mousedown.prevent="active_page = 'tools'"
+            >
+                {{ t('page.tools') }}
+            </button>
+            <button
+                type="button"
+                class="page-tab"
                 :class="{ 'page-tab--active': active_page === 'settings' }"
                 role="tab"
                 :aria-selected="active_page === 'settings'"
                 @mousedown.prevent="active_page = 'settings'"
             >
                 {{ t('page.settings') }}
+            </button>
+            <button
+                v-if="!is_standalone"
+                type="button"
+                class="page-tab"
+                :class="{ 'page-tab--active': active_page === 'ai' }"
+                role="tab"
+                :aria-selected="active_page === 'ai'"
+                @mousedown.prevent="active_page = 'ai'"
+            >
+                {{ t('page.ai') }}
             </button>
         </nav>
 
@@ -268,8 +297,16 @@ function debug_compare_order(notation_id?: string) {
             <div v-else>{{ t('notation-tree.empty') }}</div>
         </section>
 
-        <section v-else class="page-panel page-panel--settings" role="tabpanel">
+        <section v-else-if="active_page === 'tools'" class="page-panel page-panel--tools" role="tabpanel">
+            <ToolsPanel />
+        </section>
+
+        <section v-else-if="active_page === 'settings'" class="page-panel page-panel--settings" role="tabpanel">
             <SettingsBar />
+        </section>
+
+        <section v-if="active_page === 'ai' && !is_standalone" class="page-panel page-panel--ai" role="tabpanel">
+            <AINotationPanel />
         </section>
 
         <div

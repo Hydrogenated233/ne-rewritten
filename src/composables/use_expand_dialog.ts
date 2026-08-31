@@ -8,6 +8,7 @@ import { resolve_display, resolve_name } from '@/notation-definition.ts';
 const visible = ref(false);
 const input_text = ref('');
 const FS_index = ref(0);
+const count = ref(1);
 const notation_id = ref('');
 const notation_equiv = ref<string | undefined>(undefined);
 const variant = ref<Variant>('FS_short');
@@ -29,6 +30,11 @@ const equiv_options = computed(() => {
 
 function run_core() {
     if (!Number.isSafeInteger(FS_index.value) || FS_index.value < 0) {
+        preview_status.value = 'error-index';
+        preview.value = null;
+        return;
+    }
+    if (!Number.isSafeInteger(count.value) || count.value < 1 || count.value > 1000) {
         preview_status.value = 'error-index';
         preview.value = null;
         return;
@@ -61,32 +67,30 @@ function run_core() {
         return;
     }
 
-    let result: any;
-    try {
-        const fs_fn =
-            variant.value === 'FS_short'
-                ? (n.FS_short ?? n.FS)
-                : variant.value === 'FS_alter'
-                  ? (n.FS_alter ?? n.FS)
-                  : n.FS;
-        if (!fs_fn) {
-            preview_status.value = 'error-fs';
-            preview.value = null;
-            return;
-        }
-        result = fs_fn(expr, FS_index.value);
-    } catch {
-        preview_status.value = 'error-fs';
-        preview.value = null;
-        return;
-    }
-
     const result_display_data =
         equiv_name && n.display_equiv?.[equiv_name]
             ? resolve_display(n.display_equiv[equiv_name])
             : resolve_display(n.display);
+    const fs_fn =
+        variant.value === 'FS_short' ? (n.FS_short ?? n.FS) : variant.value === 'FS_alter' ? (n.FS_alter ?? n.FS) : n.FS;
+    if (!fs_fn) {
+        preview_status.value = 'error-fs';
+        preview.value = null;
+        return;
+    }
+    const lines: string[] = [];
     try {
-        preview.value = result_display_data.plain(result);
+        for (let offset = 0; offset < count.value; offset++) {
+            const index = FS_index.value + offset;
+            if (!Number.isSafeInteger(index)) throw new Error('Fundamental-sequence index exceeds the safe integer range.');
+            try {
+                const result = fs_fn(expr, index);
+                lines.push(`FS(${index}) = ${result_display_data.plain(result)}`);
+            } catch (error) {
+                lines.push(`FS(${index}) = Error: ${error instanceof Error ? error.message : String(error)}`);
+            }
+        }
+        preview.value = lines.join('\n');
         preview_status.value = 'ok';
     } catch {
         preview_status.value = 'error-fs';
@@ -94,7 +98,7 @@ function run_core() {
     }
 }
 
-watch([input_text, FS_index, notation_id, notation_equiv, variant], () => {
+watch([input_text, FS_index, count, notation_id, notation_equiv, variant], () => {
     if (!visible.value) return;
     preview.value = null;
     preview_status.value = 'none';
@@ -105,11 +109,13 @@ export function use_expand_dialog() {
         input_text.value = text;
         if (expand_settings) {
             FS_index.value = expand_settings.FS_index;
+            count.value = expand_settings.count ?? 1;
             notation_id.value = expand_settings.notation_id || 'omega';
             notation_equiv.value = expand_settings.notation_equiv;
             variant.value = expand_settings.variant;
         } else if (!notation_id.value) {
             notation_id.value = 'omega';
+            count.value = 1;
         }
         preview.value = null;
         preview_status.value = 'none';
@@ -130,6 +136,7 @@ export function use_expand_dialog() {
         if (!notation_id.value) return null;
         return {
             FS_index: FS_index.value,
+            count: count.value,
             notation_id: notation_id.value,
             notation_equiv: notation_equiv.value,
             variant: variant.value,
@@ -141,7 +148,7 @@ export function use_expand_dialog() {
     }
 
     function confirm_and_fill() {
-        if (preview_status.value !== 'ok' || preview.value === null) return;
+        if (preview_status.value !== 'ok' || preview.value === null || count.value !== 1) return;
         const path = get_last_focus();
         if (!path) return;
         const el = document.querySelector<HTMLInputElement>(`[data-tree-path="${path}"]`);
@@ -156,6 +163,7 @@ export function use_expand_dialog() {
         visible,
         input_text,
         FS_index,
+        count,
         notation_id,
         notation_equiv,
         variant,

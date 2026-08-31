@@ -3,6 +3,8 @@ export type DisplayMode = 'plain' | 'html' | 'latex';
 
 export interface ExpandSettings {
     FS_index: number;
+    /** Number of consecutive fundamental-sequence terms shown by direct expansion. */
+    count?: number;
     notation_id: string;
     notation_equiv: string | undefined;
     variant: Variant;

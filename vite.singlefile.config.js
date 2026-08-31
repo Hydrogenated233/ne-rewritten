@@ -5,6 +5,9 @@ import path from 'path';
 
 export default defineConfig({
     base: './',
+    define: {
+        'import.meta.env.VITE_STANDALONE': JSON.stringify('true'),
+    },
     plugins: [vue(), viteSingleFile()],
     resolve: {
         alias: {

@@ -134,6 +134,16 @@ export class LocalNotationRuntime {
         return this.store.updateFile(id, { trusted: true, lastError: null });
     }
 
+    /** Persist a runtime error without changing the live source or enabled state. */
+    recordError(id: string, error: LocalNotationError | unknown): LocalNotationFile {
+        const details = this.error_from_exception(error);
+        return this.store.updateFile(id, { lastError: details });
+    }
+
+    clearError(id: string): LocalNotationFile {
+        return this.store.updateFile(id, { lastError: null });
+    }
+
     enable(id: string): LocalNotationMutationResult {
         const file = this.require_file(id);
         if (!file.trusted) throw new LocalNotationRuntimeError('Local notation file is not trusted yet.');
@@ -297,12 +307,27 @@ export class LocalNotationRuntime {
     }
 
     private error_from_exception(error: unknown): LocalNotationError {
+        if (error && typeof error === 'object' && 'message' in error && 'at' in error) {
+            const value = error as Partial<LocalNotationError>;
+            return {
+                code: typeof value.code === 'string' ? value.code : 'UNKNOWN_ERROR',
+                message: String(value.message ?? 'Unknown error'),
+                line: value.line ?? null,
+                column: value.column ?? null,
+                stack: value.stack,
+                at: Number(value.at) || Date.now(),
+            };
+        }
         if (error instanceof LocalNotationRuntimeError) return error_from_warnings(error.warnings);
+        const message = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack ?? '' : '';
+        const location = stack.match(/:(\d+):(\d+)\)?(?:\s|$)/);
         return {
             code: 'SOURCE_INVALID',
-            message: error instanceof Error ? error.message : String(error),
-            line: null,
-            column: null,
+            message,
+            line: location ? Number(location[1]) : null,
+            column: location ? Number(location[2]) : null,
+            stack,
             at: Date.now(),
         };
     }

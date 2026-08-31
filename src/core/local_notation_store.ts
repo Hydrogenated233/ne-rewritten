@@ -1,6 +1,8 @@
 export const LOCAL_NOTATION_STORE_VERSION = 1;
 export const DEFAULT_LOCAL_NOTATION_STORE_KEY = 'ne-local-notation-files';
 
+import { app_storage } from '@/core/storage.ts';
+
 export interface LocalNotationError {
     code: string;
     message: string;
@@ -106,7 +108,7 @@ function is_quota_error(error: unknown): boolean {
 }
 
 function browser_storage(): StorageLike | null {
-    return typeof localStorage === 'undefined' ? null : localStorage;
+    return app_storage();
 }
 
 export interface LocalNotationFileStoreOptions {

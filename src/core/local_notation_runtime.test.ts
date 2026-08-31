@@ -140,4 +140,22 @@ describe('LocalNotationRuntime', () => {
         runtime.deleteFile(created.file.id);
         expect(runtime.getFile(created.file.id)).toBeUndefined();
     });
+
+    it('records and clears an error without changing source or enabled state', () => {
+        const storage = new MemoryStorage();
+        const runtime = new LocalNotationRuntime({ storage, createId: () => 'error' });
+        const created = runtime.createUpload('Error.js', source_for('runtime-error'), true);
+        runtime.enable(created.file.id);
+        const before = runtime.getFile(created.file.id)!;
+
+        runtime.recordError(created.file.id, Object.assign(new Error('line failure'), { code: 'TEST_ERROR' }));
+        expect(runtime.getFile(created.file.id)).toMatchObject({
+            source: before.source,
+            enabled: true,
+            lastError: { code: 'SOURCE_INVALID', message: 'line failure' },
+        });
+
+        runtime.clearError(created.file.id);
+        expect(runtime.getFile(created.file.id)?.lastError).toBeNull();
+    });
 });

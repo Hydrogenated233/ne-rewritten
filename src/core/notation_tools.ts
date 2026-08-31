@@ -1,6 +1,7 @@
 import { get_category, get_notation, list_notations } from '@/core/registry.ts';
 import { init_dataset, type TreeNode } from '@/core/tree.ts';
 import { resolve_display, type NotationDefinition, type TextSpec } from '@/notation-definition.ts';
+import { validate_notation_source, type SourceValidationResult } from '@/core/source_validator.ts';
 
 export interface NotationSummary {
     id: string;
@@ -291,6 +292,8 @@ export function create_notation_tools() {
             expand_notation(args.notation_id, args.expression, args.count, args.variant),
         detect_inf_chain: (args: { notation_id: string; options?: InfChainOptions }) =>
             detect_inf_chain_by_id(args.notation_id, args.options),
+        validate_source: (args: { source: string; file_name?: string }): SourceValidationResult =>
+            validate_notation_source(args.source),
         diff_notations: (args: { left_id: string; right_id: string; options?: DiffOptions }) =>
             diff_notations(args.left_id, args.right_id, args.options),
     };

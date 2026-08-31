@@ -4,6 +4,7 @@ let next_floating_panel_z_index = 20000;
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { app_storage } from '@/core/storage.ts';
 
 const props = withDefaults(
     defineProps<{
@@ -78,7 +79,7 @@ function load_geometry(): void {
 
     if (props.storageKey) {
         try {
-            const saved = JSON.parse(localStorage.getItem(props.storageKey) ?? 'null');
+            const saved = JSON.parse(app_storage()?.getItem(props.storageKey) ?? 'null');
             if (saved && typeof saved === 'object') {
                 if (Number.isFinite(saved.x)) x.value = saved.x;
                 if (Number.isFinite(saved.y)) y.value = saved.y;
@@ -97,7 +98,7 @@ function load_geometry(): void {
 function save_geometry(): void {
     if (!props.storageKey || !initialized.value) return;
     try {
-        localStorage.setItem(
+        app_storage()?.setItem(
             props.storageKey,
             JSON.stringify({ x: x.value, y: y.value, width: width.value, height: height.value }),
         );

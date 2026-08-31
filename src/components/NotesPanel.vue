@@ -4,6 +4,7 @@ import FloatingPanel from './FloatingPanel.vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
+import { app_storage } from '@/core/storage.ts';
 
 const t = inject(I18N_KEY)!;
 const save_load = inject(SAVE_LOAD_KEY)!;
@@ -21,7 +22,7 @@ function load_note(): void {
         return;
     }
     try {
-        note.value = localStorage.getItem(storage_key()) ?? '';
+        note.value = app_storage()?.getItem(storage_key()) ?? '';
     } catch {
         note.value = '';
     }
@@ -38,7 +39,7 @@ watch(
 watch(note, (value) => {
     if (!ui.show_notes.value || !save_load.notation.value?.id) return;
     try {
-        localStorage.setItem(storage_key(), value);
+        app_storage()?.setItem(storage_key(), value);
     } catch {
         // Private browsing or storage quota failures should not block editing.
     }

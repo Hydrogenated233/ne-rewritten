@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
@@ -8,6 +8,7 @@ import { get_script_warnings } from '@/core/user_defined_notation.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
 import ModalDialog from './ModalDialog.vue';
 import TEMPLATE_JS from '@/assets/template.js?raw';
+import GUIDE_MD from '@/assets/making-a-notation.md?raw';
 
 const t = inject(I18N_KEY)!;
 const runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
@@ -23,6 +24,14 @@ const delete_target_id = ref('');
 const show_new_dialog = ref(false);
 const new_script_name = ref('');
 const status_message = ref('');
+const show_dirty_confirm = ref(false);
+const show_download_confirm = ref(false);
+const pending_action = ref<(() => void) | null>(null);
+const guide_open = ref(false);
+const guide_loading = ref(false);
+const guide_error = ref('');
+const guide_html = ref('');
+const guide_ready = ref(false);
 let editor_view: import('@codemirror/view').EditorView | null = null;
 let editor_file_id: string | null = null;
 
@@ -31,8 +40,23 @@ const current_file = computed(() => files.value[active_tab.value]);
 // CodeMirror 按需加载: 未加载时用只读 pre 展示代码
 const cm_ready = ref(false);
 const cm_loading = ref(false);
+const draft_revision = ref(0);
 
-const code_lines = computed(() => (current_file.value?.source ?? '').split('\n'));
+const current_draft = computed(() => {
+    draft_revision.value;
+    const file = current_file.value;
+    if (!file) return undefined;
+    try {
+        return runtime.getDraft(file.id);
+    } catch {
+        return undefined;
+    }
+});
+const current_source = computed(() => current_draft.value?.source ?? current_file.value?.source ?? '');
+const current_name = computed(() => current_draft.value?.name ?? current_file.value?.name ?? '');
+const is_dirty = computed(() => !!current_draft.value);
+const code_lines = computed(() => current_source.value.split('\n'));
+const current_error = computed(() => current_file.value?.lastError ?? null);
 
 function refresh_files(): void {
     try {
@@ -46,6 +70,14 @@ function refresh_files(): void {
 
 function set_status(error: unknown): void {
     status_message.value = error instanceof Error ? error.message : String(error);
+}
+
+function record_error_safely(id: string, error: unknown): void {
+    try {
+        runtime.recordError(id, error);
+    } catch (storage_error) {
+        set_status(storage_error);
+    }
 }
 
 function normalize_name(value: string): string {
@@ -77,20 +109,24 @@ function has_warning(file_name: string): boolean {
 
 function select_file(id: string): void {
     const index = files.value.findIndex((file) => file.id === id);
-    if (index >= 0) active_tab.value = index;
+    if (index < 0 || index === active_tab.value) return;
+    guard_pending_changes(() => {
+        active_tab.value = index;
+    });
 }
 
 function new_script(): void {
-    sync_editor();
-    const base = 'untitled';
-    let n = 1;
-    while (files.value.some((file) => file.name.toLowerCase() === `${base}_${n}.js`)) n++;
-    new_script_name.value = `${base}_${n}.js`;
-    show_new_dialog.value = true;
-    nextTick(() => {
-        const input = document.querySelector('.new-name-input') as HTMLInputElement;
-        input?.focus();
-        input?.select();
+    guard_pending_changes(() => {
+        const base = 'untitled';
+        let n = 1;
+        while (files.value.some((file) => file.name.toLowerCase() === `${base}_${n}.js`)) n++;
+        new_script_name.value = `${base}_${n}.js`;
+        show_new_dialog.value = true;
+        nextTick(() => {
+            const input = document.querySelector('.new-name-input') as HTMLInputElement;
+            input?.focus();
+            input?.select();
+        });
     });
 }
 
@@ -113,20 +149,94 @@ function sync_editor(): void {
     const file = runtime.getFile(editor_file_id);
     if (!file || file.enabled) return;
     const source = editor_view.state.doc.toString();
-    if (source === file.source) return;
+    const draft = runtime.getDraft(file.id);
+    if (source === file.source && !draft) return;
     try {
-        runtime.saveFile(file.id, file.name, source);
-        refresh_files();
+        runtime.setDraft(file.id, { name: draft?.name ?? file.name, source });
+        draft_revision.value++;
         status_message.value = '';
     } catch (error) {
         set_status(error);
     }
 }
 
-function confirm_delete(id: string): void {
+function save_selected(): boolean {
     sync_editor();
-    delete_target_id.value = id;
-    show_delete_confirm.value = true;
+    const file = current_file.value;
+    const draft = current_draft.value;
+    if (!file || !draft) return true;
+    try {
+        runtime.saveFile(file.id, draft.name ?? file.name, draft.source);
+        draft_revision.value++;
+        refresh_files();
+        nextTick(() => init_editor_inner(!(current_file.value?.enabled ?? false)));
+        status_message.value = '';
+        return true;
+    } catch (error) {
+        set_status(error);
+        return false;
+    }
+}
+
+function discard_selected(): void {
+    const file = current_file.value;
+    if (!file) return;
+    try {
+        runtime.clearDraft(file.id);
+        draft_revision.value++;
+        nextTick(() => init_editor_inner(!file.enabled));
+        status_message.value = '';
+    } catch (error) {
+        set_status(error);
+    }
+}
+
+function download_selected(): void {
+    sync_editor();
+    const file = current_file.value;
+    if (!file) return;
+    if (is_dirty.value) {
+        show_download_confirm.value = true;
+        return;
+    }
+    download_source(file.name, file.source);
+}
+
+function download_source(name: string, source: string): void {
+    const safe_name = normalize_name(name);
+    const blob = new Blob([source], { type: 'text/javascript;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = safe_name;
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function download_draft(): void {
+    const file = current_file.value;
+    if (!file) return;
+    const draft = current_draft.value;
+    download_source(draft?.name ?? file.name, draft?.source ?? file.source);
+    show_download_confirm.value = false;
+}
+
+function save_then_download(): void {
+    if (save_selected()) {
+        const file = current_file.value;
+        if (file) download_source(file.name, file.source);
+    }
+    show_download_confirm.value = false;
+}
+
+function confirm_delete(id: string): void {
+    guard_pending_changes(() => {
+        delete_target_id.value = id;
+        show_delete_confirm.value = true;
+    });
 }
 
 function do_delete(): void {
@@ -142,23 +252,24 @@ function do_delete(): void {
 }
 
 function add_template(): void {
-    sync_editor();
-    const base = 'template';
-    let name = `${base}.js`;
-    let final_name = name;
-    let n = 1;
-    while (files.value.some((file) => file.name.toLowerCase() === final_name.toLowerCase())) {
-        final_name = `${base}_${n}.js`;
-        n++;
-    }
-    try {
-        const created = runtime.createTemplate(final_name, TEMPLATE_JS);
-        refresh_files();
-        select_file(created.id);
-        status_message.value = '';
-    } catch (error) {
-        set_status(error);
-    }
+    guard_pending_changes(() => {
+        const base = 'template';
+        let name = `${base}.js`;
+        let final_name = name;
+        let n = 1;
+        while (files.value.some((file) => file.name.toLowerCase() === final_name.toLowerCase())) {
+            final_name = `${base}_${n}.js`;
+            n++;
+        }
+        try {
+            const created = runtime.createTemplate(final_name, TEMPLATE_JS);
+            refresh_files();
+            active_tab.value = files.value.findIndex((file) => file.id === created.id);
+            status_message.value = '';
+        } catch (error) {
+            set_status(error);
+        }
+    });
 }
 
 function start_rename(): void {
@@ -178,8 +289,12 @@ function finish_rename(): void {
     if (new_name && new_name !== current_file.value.name) {
         try {
             sync_editor();
-            runtime.saveFile(current_file.value.id, new_name, runtime.getFile(current_file.value.id)?.source ?? '');
-            refresh_files();
+            const draft = current_draft.value;
+            runtime.setDraft(current_file.value.id, {
+                name: new_name,
+                source: draft?.source ?? current_file.value.source,
+            });
+            draft_revision.value++;
             status_message.value = '';
         } catch (error) {
             set_status(error);
@@ -191,19 +306,26 @@ function finish_rename(): void {
 function toggle_enable(): void {
     const file = current_file.value;
     if (!file) return;
-    sync_editor();
-    try {
-        if (file.enabled) runtime.disable(file.id);
-        else runtime.enable(file.id);
-        refresh_files();
-        status_message.value = '';
-    } catch (error) {
-        set_status(error);
-    }
+    guard_pending_changes(() => {
+        const latest = runtime.getFile(file.id) ?? file;
+        if (!latest.enabled && !latest.trusted && !window.confirm(t('user-defined.trust-confirm'))) return;
+        try {
+            if (!latest.trusted) runtime.trustFile(latest.id);
+            if (latest.enabled) runtime.disable(latest.id);
+            else runtime.enable(latest.id);
+            refresh_files();
+            status_message.value = '';
+        } catch (error) {
+            record_error_safely(latest.id, error);
+            refresh_files();
+            set_status(error);
+        }
+    });
 }
 
 function trust_file(): void {
     if (!current_file.value) return;
+    if (!window.confirm(t('user-defined.trust-confirm'))) return;
     try {
         runtime.trustFile(current_file.value.id);
         refresh_files();
@@ -216,6 +338,29 @@ function trust_file(): void {
 function open_nav_panel(): void {
     sync_editor();
     ui.show_user_defined_nav.value = true;
+}
+
+function guard_pending_changes(action: () => void): void {
+    sync_editor();
+    if (!is_dirty.value) {
+        action();
+        return;
+    }
+    pending_action.value = action;
+    show_dirty_confirm.value = true;
+}
+
+function resolve_dirty(choice: 'save' | 'discard' | 'cancel'): void {
+    const action = pending_action.value;
+    pending_action.value = null;
+    show_dirty_confirm.value = false;
+    if (choice === 'cancel' || !action) return;
+    if (choice === 'save') {
+        if (save_selected()) action();
+    } else {
+        discard_selected();
+        action();
+    }
 }
 
 function move_tab(from: number, to: number): void {
@@ -250,8 +395,12 @@ function on_drop(idx: number): void {
     drag_idx = null;
 }
 
-// File upload
+// File upload: follow the source application's trust/replace flow.
 function upload_file(): void {
+    guard_pending_changes(open_upload_picker);
+}
+
+function open_upload_picker(): void {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = '.js';
@@ -262,10 +411,29 @@ function upload_file(): void {
         reader.onload = () => {
             const code = reader.result as string;
             try {
+                const existing = runtime.findByName(file.name);
+                if (existing) {
+                    if (!window.confirm(t('user-defined.replace-confirm'))) return;
+                    const result = runtime.replaceUpload(existing.id, file.name, code);
+                    refresh_files();
+                    active_tab.value = files.value.findIndex((item) => item.id === result.file.id);
+                    status_message.value = t('user-defined.replaced');
+                    return;
+                }
+                if (!window.confirm(t('user-defined.trust-confirm'))) return;
                 const created = runtime.createUpload(file.name, code, false);
-                refresh_files();
-                select_file(created.file.id);
-                status_message.value = '';
+                runtime.trustFile(created.file.id);
+                try {
+                    const result = runtime.enable(created.file.id);
+                    refresh_files();
+                    active_tab.value = files.value.findIndex((item) => item.id === result.file.id);
+                    status_message.value = t('user-defined.uploaded');
+                } catch (error) {
+                    record_error_safely(created.file.id, error);
+                    refresh_files();
+                    active_tab.value = files.value.findIndex((item) => item.id === created.file.id);
+                    set_status(t('user-defined.upload-failed'));
+                }
             } catch (error) {
                 set_status(error);
             }
@@ -273,6 +441,49 @@ function upload_file(): void {
         reader.readAsText(file);
     };
     input.click();
+}
+
+async function open_guide(): Promise<void> {
+    guide_open.value = true;
+    if (guide_ready.value || guide_loading.value) return;
+    guide_loading.value = true;
+    guide_error.value = '';
+    try {
+        const mod = await import('marked');
+        guide_html.value = String(await mod.marked(GUIDE_MD));
+        guide_ready.value = true;
+    } catch (error) {
+        guide_error.value = error instanceof Error ? error.message : String(error);
+    } finally {
+        guide_loading.value = false;
+    }
+}
+
+function close_guide(): void {
+    guide_open.value = false;
+}
+
+function error_location(): string {
+    const error = current_error.value;
+    if (!error?.line) return '';
+    return t('user-defined.error-at', { line: String(error.line), column: String(error.column ?? '?') });
+}
+
+function jump_to_error(): void {
+    const error = current_error.value;
+    if (!error?.line || !editor_view) return;
+    const line = editor_view.state.doc.line(Math.max(1, Math.min(error.line, editor_view.state.doc.lines)));
+    const pos = Math.min(line.from + Math.max(0, (error.column ?? 1) - 1), line.to);
+    editor_view.dispatch({ selection: { anchor: pos } });
+    editor_view.focus();
+}
+
+function on_before_unload(event: BeforeUnloadEvent): void {
+    sync_editor();
+    if (is_dirty.value) {
+        event.preventDefault();
+        event.returnValue = '';
+    }
 }
 
 // CodeMirror editor
@@ -311,7 +522,7 @@ function init_editor_inner(editable: boolean): void {
         javascript,
     } = cm;
 
-    const doc_code = current_file.value?.source ?? '';
+    const doc_code = current_source.value;
     editor_file_id = current_file.value?.id ?? null;
 
     // 每个 EditorView 实例使用独立的 Compartment
@@ -420,7 +631,10 @@ onUnmounted(() => {
     sync_editor();
     editor_view?.destroy();
     editor_view = null;
+    window.removeEventListener('beforeunload', on_before_unload);
 });
+
+onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 </script>
 
 <template>
@@ -445,7 +659,7 @@ onUnmounted(() => {
                     @dragstart="on_dragstart(idx)"
                     @dragover="on_dragover($event, idx)"
                     @drop="on_drop(idx)"
-                    @click="active_tab = idx"
+                    @click="select_file(file.id)"
                 >
                     <span
                         v-if="has_warning(file.name)"
@@ -456,6 +670,16 @@ onUnmounted(() => {
                     <span class="ud-tab-name">{{ file.name }}</span>
                     <span v-if="file.enabled" class="ud-tab-status">{{ t('user-defined.enable') }}</span>
                     <span v-else-if="!file.trusted" class="ud-tab-status">{{ t('user-defined.untrusted') }}</span>
+                    <span v-if="file.manifest.notations.length" class="ud-tab-ids" :title="file.manifest.notations.join(', ')">
+                        {{ file.manifest.notations.length }} ID
+                    </span>
+                    <span
+                        v-if="file.knownNotationIds.some((id) => !file.manifest.notations.includes(id))"
+                        class="ud-tab-retained"
+                    >
+                        {{ t('user-defined.retained') }}
+                    </span>
+                    <span v-if="current_file?.id === file.id && is_dirty" class="ud-tab-status ud-tab-dirty">{{ t('user-defined.dirty') }}</span>
                 </div>
                 <button class="ud-btn ud-btn-new" @mousedown.prevent="new_script">{{ t('user-defined.new') }}</button>
             </div>
@@ -484,6 +708,16 @@ onUnmounted(() => {
 
             <!-- Right: buttons -->
             <div class="ud-buttons">
+                <button class="ud-btn" @mousedown.prevent="open_guide">{{ t('user-defined.guide') }}</button>
+                <button class="ud-btn ud-btn-success" :disabled="!current_file || !is_dirty" @mousedown.prevent="save_selected">
+                    {{ t('user-defined.save') }}
+                </button>
+                <button class="ud-btn" :disabled="!current_file || !is_dirty" @mousedown.prevent="discard_selected">
+                    {{ t('user-defined.discard') }}
+                </button>
+                <button class="ud-btn" :disabled="!current_file" @mousedown.prevent="download_selected">
+                    {{ t('user-defined.download') }}
+                </button>
                 <button
                     v-if="current_file && !current_file.trusted"
                     class="ud-btn ud-btn-success"
@@ -491,7 +725,7 @@ onUnmounted(() => {
                 >
                     {{ t('user-defined.trust') }}
                 </button>
-                <button class="ud-btn" :disabled="!current_file || !current_file.trusted" @mousedown.prevent="toggle_enable">
+                <button class="ud-btn" :disabled="!current_file" @mousedown.prevent="toggle_enable">
                     {{ current_file?.enabled ? t('user-defined.disable') : t('user-defined.enable') }}
                 </button>
                 <button class="ud-btn" :disabled="!current_file" @mousedown.prevent="start_rename">
@@ -526,6 +760,13 @@ onUnmounted(() => {
                 </button>
             </div>
             <div v-if="status_message" class="ud-status-message">{{ status_message }}</div>
+            <div v-if="current_error" class="ud-runtime-error" role="alert">
+                <strong>{{ current_error.code }}</strong>
+                <span>{{ current_error.message }}</span>
+                <button v-if="current_error.line" class="ud-error-location" @mousedown.prevent="jump_to_error">
+                    {{ error_location() }}
+                </button>
+            </div>
         </div>
     </ModalDialog>
 
@@ -549,6 +790,51 @@ onUnmounted(() => {
         <div class="new-buttons">
             <button class="new-btn-cancel" @mousedown="show_new_dialog = false">{{ t('user-defined.cancel') }}</button>
             <button class="new-btn-confirm" @mousedown="do_create_script">{{ t('user-defined.create') }}</button>
+        </div>
+    </ModalDialog>
+
+    <ModalDialog :show="show_dirty_confirm" :title="t('user-defined.dirty-title')" @close="resolve_dirty('cancel')">
+        <p class="confirm-message">{{ t('user-defined.dirty-body') }}</p>
+        <div class="confirm-buttons">
+            <button class="ud-btn ud-btn-success" @mousedown.prevent="resolve_dirty('save')">
+                {{ t('user-defined.save') }}
+            </button>
+            <button class="ud-btn" @mousedown.prevent="resolve_dirty('discard')">
+                {{ t('user-defined.discard') }}
+            </button>
+            <button class="ud-btn" @mousedown.prevent="resolve_dirty('cancel')">
+                {{ t('user-defined.cancel') }}
+            </button>
+        </div>
+    </ModalDialog>
+
+    <ModalDialog
+        :show="show_download_confirm"
+        :title="t('user-defined.download-title')"
+        @close="show_download_confirm = false"
+    >
+        <p class="confirm-message">{{ t('user-defined.download-body') }}</p>
+        <div class="confirm-buttons">
+            <button class="ud-btn ud-btn-success" @mousedown.prevent="save_then_download">
+                {{ t('user-defined.save') }}
+            </button>
+            <button class="ud-btn" @mousedown.prevent="download_draft">
+                {{ t('user-defined.download-draft') }}
+            </button>
+            <button class="ud-btn" @mousedown.prevent="show_download_confirm = false">
+                {{ t('user-defined.cancel') }}
+            </button>
+        </div>
+    </ModalDialog>
+
+    <ModalDialog :show="guide_open" :title="t('user-defined.guide-title')" @close="close_guide">
+        <div class="ud-guide-content">
+            <div v-if="guide_loading" class="ud-guide-state">{{ t('user-defined.guide-loading') }}</div>
+            <div v-else-if="guide_error" class="ud-guide-state ud-guide-error">
+                {{ t('user-defined.guide-load-failed') }}: {{ guide_error }}
+                <button class="ud-btn" @mousedown.prevent="open_guide">{{ t('user-defined.retry') }}</button>
+            </div>
+            <article v-else class="ud-guide-article" v-html="guide_html" />
         </div>
     </ModalDialog>
 </template>
@@ -608,6 +894,17 @@ onUnmounted(() => {
 .ud-tab-status {
     font-size: 11px;
     color: var(--color-text-secondary);
+}
+
+.ud-tab-ids,
+.ud-tab-retained {
+    flex: 0 0 auto;
+    color: var(--color-text-secondary);
+    font-size: 10px;
+}
+
+.ud-tab-retained {
+    color: var(--color-category);
 }
 
 .ud-warn {
@@ -862,5 +1159,110 @@ onUnmounted(() => {
 .ud-btn-new:hover {
     background: var(--color-accent);
     color: var(--color-bg);
+}
+
+.ud-status-message {
+    flex: 0 0 100%;
+    color: var(--color-success);
+    font-size: 12px;
+}
+
+.ud-runtime-error {
+    display: flex;
+    align-items: baseline;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 4px;
+    padding: 7px 9px;
+    border: 1px solid var(--color-danger);
+    border-radius: 4px;
+    color: var(--color-danger);
+    font-size: 12px;
+}
+
+.ud-error-location {
+    padding: 2px 6px;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    font: inherit;
+}
+
+.confirm-message {
+    margin: 0 0 14px;
+    line-height: 1.5;
+}
+
+.confirm-buttons {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.ud-guide-content {
+    width: min(820px, 78vw);
+    max-height: 72vh;
+    overflow: auto;
+}
+
+.ud-guide-state {
+    padding: 24px 8px;
+    color: var(--color-text-secondary);
+}
+
+.ud-guide-error {
+    color: var(--color-danger);
+}
+
+.ud-guide-article {
+    color: var(--color-text);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.ud-guide-article :deep(h1),
+.ud-guide-article :deep(h2),
+.ud-guide-article :deep(h3) {
+    margin: 0.8em 0 0.4em;
+}
+
+.ud-guide-article :deep(pre) {
+    overflow: auto;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 4px;
+    background: var(--color-bg-secondary);
+}
+
+.ud-guide-article :deep(code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (max-width: 760px) {
+    .ud-layout {
+        min-width: 0;
+        height: 72vh;
+    }
+
+    .ud-editor-area {
+        width: min(500px, 100%);
+    }
+
+    .ud-buttons {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .ud-btn {
+        flex: 1 1 auto;
+    }
+
+    .ud-guide-content {
+        width: min(92vw, 820px);
+    }
 }
 </style>

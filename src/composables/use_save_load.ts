@@ -14,6 +14,7 @@ import { resolve_display } from '@/notation-definition.ts';
 import { download_buffer, export_analysis_with_notes_to_xlsx, import_from_xlsx } from '@/core/xlsx_io.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
+import { app_storage } from '@/core/storage.ts';
 
 export interface SaveLoadInstance {
     trees: Map<string, TreeNode<unknown>>;
@@ -75,7 +76,7 @@ export function use_save_load(
         const r = root.value;
         if (!n || !r) return;
         const entries = export_analysis(r);
-        localStorage.setItem(ANALYSIS_STORAGE_PREFIX + n.id, stringify_analysis_entries(entries));
+        app_storage()?.setItem(ANALYSIS_STORAGE_PREFIX + n.id, stringify_analysis_entries(entries));
         last_save_time.value = Date.now();
         update_save_indicator();
     }
@@ -83,7 +84,7 @@ export function use_save_load(
     function load_analysis(id: string, r: TreeNode<any>) {
         const n = get_notation(id);
         if (!n) return;
-        const raw = localStorage.getItem(ANALYSIS_STORAGE_PREFIX + id);
+        const raw = app_storage()?.getItem(ANALYSIS_STORAGE_PREFIX + id);
         if (!raw) return;
         try {
             const entries: any[] = parse_analysis_entries(raw);
@@ -96,7 +97,7 @@ export function use_save_load(
     function handle_reset() {
         const n = notation.value;
         if (!n) return;
-        localStorage.removeItem(ANALYSIS_STORAGE_PREFIX + n.id);
+        app_storage()?.removeItem?.(ANALYSIS_STORAGE_PREFIX + n.id);
         const new_root: TreeNode<any> = reactive(init_dataset(n));
         trees.set(n.id, new_root);
     }
@@ -113,7 +114,7 @@ export function use_save_load(
                 : resolve_display(n.display).plain;
         let note = '';
         try {
-            note = localStorage.getItem(`ne-note-${n.id}`) ?? '';
+            note = app_storage()?.getItem(`ne-note-${n.id}`) ?? '';
         } catch {
             // Notes are optional; a storage failure must not block analysis export.
         }

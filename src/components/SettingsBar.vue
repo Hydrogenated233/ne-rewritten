@@ -1,15 +1,18 @@
 <script setup lang="ts">
-import { computed, inject, ref } from 'vue';
+import { computed, defineAsyncComponent, inject, ref } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { expand_all_pending } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
-import { COMPAT_URL, IS_COMPAT } from '@/core/deployment.ts';
+import { COMPAT_URL, IS_COMPAT, IS_STANDALONE } from '@/core/deployment.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import ModalDialog from './ModalDialog.vue';
 import DiagramSettingsPanel from './DiagramSettingsPanel.vue';
+import StandaloneFilesPanel from './StandaloneFilesPanel.vue';
+
+const StandaloneExportPanel = defineAsyncComponent(() => import('./StandaloneExportPanel.vue'));
 
 const settings = inject(SETTINGS_KEY)!;
 const t = inject(I18N_KEY)!;
@@ -239,7 +242,9 @@ function toggle_display_mode() {
             <div class="toolbar-row">
                 <button @mousedown="ui.show_color_theme.value = true">{{ t('toolbar.theme') }}</button>
                 <button v-if="!IS_COMPAT" @mousedown="go_compat">{{ t('toolbar.compat') }}</button>
+                <StandaloneExportPanel v-if="!IS_STANDALONE" />
             </div>
+            <StandaloneFilesPanel v-if="IS_STANDALONE" />
             <div class="toolbar-row">
                 <span>{{ t('expand-all.label') }}</span>
                 <button @mousedown="handle_expand_all">{{ t('expand-all.expand') }}</button>
@@ -264,7 +269,10 @@ function toggle_display_mode() {
             </div>
             <div class="toolbar-row">
                 <span>{{ t('user-defined.label') }}</span>
-                <template v-if="has_pending_scripts">
+                <template v-if="IS_STANDALONE">
+                    <span class="standalone-label">{{ t('standalone-export.fixed') }}</span>
+                </template>
+                <template v-else-if="has_pending_scripts">
                     <button @mousedown="resume_scripts">{{ t('user-defined.resume') }}</button>
                     <button @mousedown="disable_all">{{ t('user-defined.disable-all') }}</button>
                 </template>
@@ -395,5 +403,10 @@ function toggle_display_mode() {
 .diagram-settings-btn:hover {
     background: var(--color-success);
     color: var(--color-bg);
+}
+
+.standalone-label {
+    color: var(--color-text-secondary);
+    font-size: 13px;
 }
 </style>
