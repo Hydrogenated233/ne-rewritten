@@ -7,12 +7,14 @@ import { resolve_display, resolve_name } from '@/notation-definition.ts';
 
 const visible = ref(false);
 const input_text = ref('');
-const FS_index = ref(1);
+const FS_index = ref(0);
 const notation_id = ref('');
 const notation_equiv = ref<string | undefined>(undefined);
 const variant = ref<Variant>('FS_short');
 const preview = ref<string | null>(null);
-const preview_status = ref<'none' | 'ok' | 'error-parse' | 'error-no-from-display' | 'error-fs'>('none');
+const preview_status = ref<'none' | 'ok' | 'error-parse' | 'error-no-from-display' | 'error-fs' | 'error-index'>(
+    'none',
+);
 
 const _ui = use_ui_states();
 
@@ -26,6 +28,11 @@ const equiv_options = computed(() => {
 });
 
 function run_core() {
+    if (!Number.isSafeInteger(FS_index.value) || FS_index.value < 0) {
+        preview_status.value = 'error-index';
+        preview.value = null;
+        return;
+    }
     const n = get_notation(notation_id.value);
     if (!n) {
         preview_status.value = 'error-no-from-display';
@@ -88,7 +95,9 @@ function run_core() {
 }
 
 watch([input_text, FS_index, notation_id, notation_equiv, variant], () => {
-    if (visible.value) run_core();
+    if (!visible.value) return;
+    preview.value = null;
+    preview_status.value = 'none';
 });
 
 export function use_expand_dialog() {
@@ -105,7 +114,6 @@ export function use_expand_dialog() {
         preview.value = null;
         preview_status.value = 'none';
         visible.value = true;
-        window.setTimeout(() => run_core());
         window.setTimeout(() => {
             const el = document.querySelector<HTMLInputElement>('.expand-text-input');
             el?.focus();
@@ -126,6 +134,10 @@ export function use_expand_dialog() {
             notation_equiv: notation_equiv.value,
             variant: variant.value,
         };
+    }
+
+    function run(): void {
+        run_core();
     }
 
     function confirm_and_fill() {
@@ -153,6 +165,7 @@ export function use_expand_dialog() {
         equiv_options,
         open,
         close,
+        run,
         save_settings,
         confirm_and_fill,
     };

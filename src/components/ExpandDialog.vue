@@ -16,10 +16,13 @@ const ed = use_expand_dialog();
 function on_keydown(e: KeyboardEvent) {
     if (e.key === 'Enter') {
         e.preventDefault();
-        const saved = ed.save_settings();
-        if (saved) settings.expand = saved;
-        ed.confirm_and_fill();
+        if (ed.preview_status.value === 'ok' || e.ctrlKey) on_fill();
+        else on_run();
     }
+}
+
+function on_run() {
+    ed.run();
 }
 
 function on_fill() {
@@ -42,51 +45,59 @@ function on_fill() {
         @close="emit('close')"
     >
         <div class="expand-form" @keydown="on_keydown">
-            <div class="expand-row">
-                <input
-                    type="text"
-                    class="expand-text-input"
-                    spellcheck="false"
-                    :placeholder="t('expand.text')"
-                    v-model="ed.input_text.value"
-                />
-            </div>
-            <div class="expand-row">
-                <label
-                    >{{ t('expand.fs-index') }}
-                    <input type="number" v-model.number="ed.FS_index.value" min="1" />
+            <div class="expand-controls">
+                <label class="expand-field expand-field--wide">
+                    <span>{{ t('expand.text') }}</span>
+                    <input
+                        type="text"
+                        class="expand-text-input"
+                        spellcheck="false"
+                        autocomplete="off"
+                        :placeholder="t('expand.text-placeholder')"
+                        v-model="ed.input_text.value"
+                    />
                 </label>
-                <label
-                    >{{ t('expand.notation') }}
+                <label class="expand-field">
+                    <span>{{ t('expand.fs-index') }}</span>
+                    <input type="number" v-model.number="ed.FS_index.value" min="0" step="1" />
+                </label>
+                <label class="expand-field expand-field--wide">
+                    <span>{{ t('expand.notation') }}</span>
                     <select v-model="ed.notation_id.value">
                         <option v-for="n in ed.notation_options.value" :key="n.id" :value="n.id">
                             {{ resolve_name(n.simple_name ?? n.name, t) }}
                         </option>
                     </select>
                 </label>
-                <label
-                    >{{ t('expand.equiv') }}
+                <label v-if="ed.equiv_options.value.length > 0" class="expand-field">
+                    <span>{{ t('expand.equiv') }}</span>
                     <select v-model="ed.notation_equiv.value">
                         <option value="">{{ t('equiv.none') }}</option>
                         <option v-for="k in ed.equiv_options.value" :key="k" :value="k">{{ k }}</option>
                     </select>
                 </label>
-                <label
-                    >{{ t('expand.fs-variant') }}
+                <label class="expand-field">
+                    <span>{{ t('expand.fs-variant') }}</span>
                     <select v-model="ed.variant.value">
                         <option value="FS_short">{{ t('fs-variant.short') }}</option>
                         <option value="FS">{{ t('fs-variant.normal') }}</option>
                         <option value="FS_alter">{{ t('fs-variant.alternative') }}</option>
                     </select>
                 </label>
+                <div class="expand-field expand-field--action">
+                    <span aria-hidden="true">&nbsp;</span>
+                    <button type="button" class="expand-btn expand-btn--primary" @click="on_run">
+                        {{ t('expand.run') }}
+                    </button>
+                </div>
             </div>
-            <div class="expand-row expand-preview">
+            <div class="expand-preview" aria-live="polite">
                 <div v-if="ed.preview_status.value === 'none'" class="expand-preview-hint">
-                    {{ t('expand.preview-hint') }}
+                    {{ t('expand.manual-hint') }}
                 </div>
                 <div v-else-if="ed.preview_status.value === 'ok'">
-                    <div class="expand-preview-result">{{ ed.preview.value }}</div>
-                    <div class="expand-preview-hint">{{ t('expand.preview-hint') }}</div>
+                    <div class="expand-preview-result">FS({{ ed.FS_index.value }}) = {{ ed.preview.value }}</div>
+                    <div class="expand-preview-hint">{{ t('expand.fill-hint') }}</div>
                 </div>
                 <div v-else-if="ed.preview_status.value === 'error-parse'" class="expand-preview-error">
                     {{ t('expand.error-parse') }}
@@ -96,6 +107,9 @@ function on_fill() {
                 </div>
                 <div v-else-if="ed.preview_status.value === 'error-fs'" class="expand-preview-error">
                     {{ t('expand.error-fs') }}
+                </div>
+                <div v-else-if="ed.preview_status.value === 'error-index'" class="expand-preview-error">
+                    {{ t('expand.error-index') }}
                 </div>
             </div>
             <div class="expand-row expand-buttons">
@@ -119,43 +133,66 @@ function on_fill() {
 .expand-form {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     width: 100%;
     min-width: 0;
 }
-.expand-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
+
+.expand-controls {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(110px, 0.45fr);
+    gap: 10px;
+    align-items: end;
 }
-.expand-text-input {
-    flex: 1;
+
+.expand-field {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+
+.expand-field--wide {
+    grid-column: 1 / -1;
+}
+
+.expand-field--action {
+    align-items: stretch;
+}
+
+.expand-field input,
+.expand-field select {
+    width: 100%;
+    min-width: 0;
+    height: 32px;
+    box-sizing: border-box;
     font-family: inherit;
     font-size: 14px;
     padding: 4px 8px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: 5px;
+    background: var(--color-bg);
+    color: var(--color-text);
 }
-.expand-row label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 13px;
+
+.expand-field input:focus,
+.expand-field select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px var(--color-accent-bg);
 }
-.expand-row select,
-.expand-row input[type='number'] {
-    font-family: inherit;
-    font-size: 13px;
-    padding: 2px 6px;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
+
+.expand-text-input {
+    font-size: 16px !important;
 }
+
 .expand-preview {
     border: 1px solid var(--color-border-light);
-    border-radius: 4px;
-    padding: 8px 12px;
-    min-height: 40px;
+    border-radius: 6px;
+    padding: 12px;
+    min-height: 64px;
     font-family: inherit;
     font-size: 14px;
     background: var(--color-bg-secondary);
@@ -164,12 +201,14 @@ function on_fill() {
     word-break: break-all;
 }
 .expand-preview-hint {
-    color: var(--color-success);
+    color: var(--color-text-secondary);
     font-family: inherit;
-    margin-top: 4px;
+    margin-top: 6px;
 }
 .expand-preview-result {
     color: var(--color-text);
+    overflow-wrap: anywhere;
+    font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', monospace;
 }
 .expand-preview-error {
     color: var(--color-danger);
@@ -177,22 +216,51 @@ function on_fill() {
 }
 .expand-buttons {
     justify-content: flex-end;
+    gap: 8px;
 }
 .expand-btn {
+    min-width: 96px;
+    min-height: 32px;
     font-family: inherit;
-    font-size: 13px;
-    padding: 4px 16px;
-    border: 1px solid var(--color-text-secondary);
-    border-radius: 4px;
-    background: var(--color-bg);
+    font-size: 14px;
+    padding: 5px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
     cursor: pointer;
 }
 .expand-btn:hover {
     background: var(--color-bg-hover);
 }
+.expand-btn--primary {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-bg);
+    font-weight: 600;
+}
+.expand-btn--primary:hover {
+    background: var(--color-accent-hover);
+}
 .expand-btn:disabled {
     color: var(--color-text-muted);
     border-color: var(--color-border-light);
+    background: var(--color-bg-secondary);
     cursor: default;
+}
+
+@media (max-width: 560px) {
+    .expand-controls {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .expand-field--wide {
+        grid-column: auto;
+    }
+    .expand-buttons {
+        flex-direction: column-reverse;
+    }
+    .expand-btn {
+        width: 100%;
+    }
 }
 </style>

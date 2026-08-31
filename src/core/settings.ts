@@ -87,7 +87,7 @@ export const DEFAULT_SETTINGS: Settings = {
     hidden_notations: [],
     generator_state: {},
     user_scripts: [],
-    expand: { FS_index: 1, notation_id: 'omega', notation_equiv: undefined, variant: 'FS_short' },
+    expand: { FS_index: 0, notation_id: 'omega', notation_equiv: undefined, variant: 'FS_short' },
     latex_analysis: {
         subscript_bracket: true,
         map_p: false,

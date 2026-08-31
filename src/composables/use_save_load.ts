@@ -11,7 +11,7 @@ import {
 } from '@/core/analysis.ts';
 import type { NotationDefinition } from '@/notation-definition.ts';
 import { resolve_display } from '@/notation-definition.ts';
-import { download_buffer, export_to_xlsx, import_from_xlsx } from '@/core/xlsx_io.ts';
+import { download_buffer, export_analysis_with_notes_to_xlsx, import_from_xlsx } from '@/core/xlsx_io.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 
@@ -111,7 +111,18 @@ export function use_save_load(
             equiv_name && n.display_equiv?.[equiv_name]
                 ? resolve_display(n.display_equiv[equiv_name]).plain
                 : resolve_display(n.display).plain;
-        const buf = await export_to_xlsx(entries, display_fn, settings.export_hide);
+        let note = '';
+        try {
+            note = localStorage.getItem(`ne-note-${n.id}`) ?? '';
+        } catch {
+            // Notes are optional; a storage failure must not block analysis export.
+        }
+        const buf = await export_analysis_with_notes_to_xlsx(
+            entries,
+            display_fn,
+            settings.export_hide,
+            note ? [{ name: t('notes.sheet'), text: note }] : [],
+        );
         download_buffer(buf, `${n.id}_analysis.xlsx`);
     }
 
