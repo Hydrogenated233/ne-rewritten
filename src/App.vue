@@ -14,7 +14,6 @@ import TipPopup from '@/components/TipPopup.vue';
 import TipsDialog from '@/components/TipsDialog.vue';
 import ColorThemePanel from '@/components/ColorThemePanel.vue';
 import ResetPanel from '@/components/ResetPanel.vue';
-import AnalysisLatexSettingsPanel from '@/components/AnalysisLatexSettingsPanel.vue';
 import UserDefinedApiPanel from '@/components/UserDefinedApiPanel.vue';
 import UserDefinedNavPanel from '@/components/UserDefinedNavPanel.vue';
 import { create_t, I18N_KEY } from '@/composables/use_i18n.ts';
@@ -24,6 +23,7 @@ import LaTeXViewer from '@/components/LaTeXViewer.vue';
 import MultiSelectBar from '@/components/MultiSelectBar.vue';
 import ConfigBar from '@/components/ConfigBar.vue';
 import NotationPicker from '@/components/NotationPicker.vue';
+import EquivalentNotationBar from '@/components/EquivalentNotationBar.vue';
 import ExploreToolbar from '@/components/ExploreToolbar.vue';
 import NotesPanel from '@/components/NotesPanel.vue';
 import SettingsBar from '@/components/SettingsBar.vue';
@@ -259,6 +259,7 @@ function debug_compare_order(notation_id?: string) {
 
         <section v-if="active_page === 'explore'" class="page-panel" role="tabpanel">
             <NotationPicker />
+            <EquivalentNotationBar />
             <ExploreToolbar />
 
             <template v-if="notation?.description">
@@ -341,7 +342,6 @@ function debug_compare_order(notation_id?: string) {
         <UserDefinedNotationPanel v-if="!is_standalone" />
         <UserDefinedApiPanel />
         <UserDefinedNavPanel />
-        <AnalysisLatexSettingsPanel />
         <MultiSelectBar />
         <ConfigBar />
     </div>
@@ -570,8 +570,14 @@ function debug_compare_order(notation_id?: string) {
 
 .shown-item {
     position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 4px;
+    border-radius: 3px;
     cursor: pointer;
     min-height: 1.25em;
+    transition: background 0.1s;
 }
 
 .shown-item:hover {
@@ -602,12 +608,15 @@ function debug_compare_order(notation_id?: string) {
 .equiv-rows {
     display: inline-flex;
     flex-direction: column;
-    vertical-align: top;
+    align-items: flex-start;
+    min-width: 0;
+    vertical-align: middle;
 }
 .equiv-row {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 4px;
+    min-width: 0;
     white-space: nowrap;
 }
 .equiv-row--secondary {
@@ -617,6 +626,33 @@ function debug_compare_order(notation_id?: string) {
     color: var(--color-text-secondary);
     font-size: 0.85em;
     flex-shrink: 0;
+}
+
+.notation-expression {
+    min-width: 0;
+    color: var(--color-text);
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 13px;
+}
+
+.notation-expression__active,
+.notation-expression__original,
+.notation-expression__original-value {
+    display: inline;
+}
+
+.notation-expression.is-latex .render-latex,
+.notation-expression.is-latex .katex {
+    font-size: 1.08em;
+}
+
+.notation-expression__original {
+    color: var(--color-text-secondary);
+}
+
+.notation-expression__separator {
+    color: var(--color-text-muted);
+    user-select: none;
 }
 
 .tooltip {
@@ -730,11 +766,35 @@ ul {
 
 .input-resize {
     display: inline-block;
+    position: relative;
     overflow: hidden;
     resize: horizontal;
     min-width: 60px;
     max-width: 600px;
     vertical-align: middle;
+}
+
+.input-resize.has-inline-latex > input {
+    color: transparent;
+}
+
+.analysis-inline-latex {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    overflow: hidden;
+    align-items: center;
+    padding: 2px 8px;
+    border: 1px solid transparent;
+    box-sizing: border-box;
+    color: var(--color-text);
+    line-height: 1.4;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+.analysis-inline-latex .render-latex {
+    min-width: max-content;
 }
 
 .input-resize.input-hidden {

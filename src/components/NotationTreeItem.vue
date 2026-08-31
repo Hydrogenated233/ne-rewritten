@@ -81,56 +81,60 @@ const equiv_mode = computed(() => {
 /** 挂载条目数 (输入框左侧红色徽标显示)。 */
 const pending_count = computed(() => props.node.pending_items?.length ?? 0);
 
-const equiv_rows = computed(() => {
+interface DisplayRow {
+    id: string;
+    label: string;
+    spec: ResolvedDisplaySpec<T>;
+    render: (mode: 'plain' | 'html' | 'latex') => string;
+}
+
+function make_display_row(id: string, label: string, spec: ResolvedDisplaySpec<T>): DisplayRow {
+    return {
+        id,
+        label,
+        spec,
+        render: (mode) =>
+            cached_display(props.notation.id, id, mode, expr_key.value, () => spec[mode](props.node.expr)),
+    };
+}
+
+const primary_row = computed(() => {
+    const current = equiv_name.value;
+    const spec = current ? resolved_equiv.value : resolved_original.value;
+    return make_display_row(current || ORIGINAL_ID, '', spec ?? resolved_original.value);
+});
+
+const comparison_original_row = computed(() => {
+    const current = equiv_name.value;
+    if (!current || (settings.equiv_hide_original[props.notation.id] ?? true)) return null;
+    return make_display_row(ORIGINAL_ID, '', resolved_original.value);
+});
+
+const extra_equiv_rows = computed(() => {
     const nid = props.notation.id;
     const current = equiv_name.value;
-    const hideOrig = settings.equiv_hide_original[nid] ?? true;
     const shownMap: Record<string, boolean> = settings.shown_equiv[nid] ?? {};
-
-    const rows: Array<{
-        id: string;
-        label: string;
-        spec: ResolvedDisplaySpec<T>;
-        render: (mode: 'plain' | 'html' | 'latex') => string;
-    }> = [];
-
-    // render 闭包只在模板 (可见时) 被调用, 因此 equiv_rows 本体不追踪 expr_key / node.expr,
-    // 只随等价设置变化重算。spec 保留给 primary_display 与 tooltip 使用。
-    const add_row = (id: string, label: string, spec: ResolvedDisplaySpec<T>) => {
-        rows.push({
-            id,
-            label,
-            spec,
-            render: (mode) => cached_display(nid, id, mode, expr_key.value, () => spec[mode](props.node.expr)),
-        });
-    };
-
-    if (current) {
-        const spec = resolved_equiv.value;
-        if (spec) add_row(current, '', spec);
-        if (!hideOrig) add_row(ORIGINAL_ID, '', resolved_original.value);
-    } else {
-        add_row(ORIGINAL_ID, '', resolved_original.value);
-    }
-
-    for (const id of equiv_option_ids.value) {
-        if (shownMap[id] && id !== current) {
-            add_row(id, id, resolve_display(props.notation.display_equiv![id]));
-        }
-    }
-
-    return rows;
+    return equiv_option_ids.value
+        .filter((id) => shownMap[id] && id !== current)
+        .map((id) => make_display_row(id, id, resolve_display(props.notation.display_equiv![id])));
 });
 
 const primary_display = computed(() => {
-    const first = equiv_rows.value[0];
-    if (!first) return () => '';
-    const d = first.spec;
+    const d = primary_row.value.spec;
     return settings.display_mode === 'html' ? d.html : settings.display_mode === 'latex' ? d.latex : d.plain;
 });
 
+const show_inline_analysis_latex = computed(
+    () =>
+        settings.analysis_latex_preview &&
+        settings.analysis_latex_inline &&
+        settings.show_input &&
+        !focused.value &&
+        analysis0.value.trim().length > 0,
+);
+
 watch(analysis0, () => {
-    if (focused.value && settings.show_latex) {
+    if (focused.value && settings.analysis_latex_preview) {
         const el = input_ref.value;
         if (el) {
             const r = el.getBoundingClientRect();
@@ -350,16 +354,14 @@ function on_focus(e: FocusEvent) {
     el.scrollLeft = pixel_pos - el.clientWidth / 2;
 
     const dc = props.notation.draw_diagram;
-    if (dc && settings.show_diagram) {
+    if (settings.analysis_latex_preview) {
+        hide_diagram();
+        show_latex_viewer(analysis0.value, r.left, 60 + r.height);
+    } else if (dc && settings.show_diagram) {
         show_diagram(dc, props.node.expr, r.left, 60 + r.height, settings.equiv_active[props.notation.id] ?? undefined);
+        hide_latex_viewer();
     } else {
         hide_diagram();
-    }
-
-    // trigger LaTeX for current value on focus (watcher fires on subsequent changes)
-    if (focused.value && settings.show_latex) {
-        show_latex_viewer(analysis0.value, r.left, 60 + r.height);
-    } else {
         hide_latex_viewer();
     }
 }
@@ -401,7 +403,10 @@ function on_blur() {
                 ref="resize_span"
                 class="input-resize"
                 :style="{ width: settings.input_width + 'px' }"
-                :class="{ 'input-hidden': !settings.show_input }"
+                :class="{
+                    'input-hidden': !settings.show_input,
+                    'has-inline-latex': show_inline_analysis_latex,
+                }"
                 @mousedown.stop
             >
                 <input
@@ -415,14 +420,37 @@ function on_blur() {
                     @focus="on_focus"
                     @blur="on_blur"
                 />
+                <span v-if="show_inline_analysis_latex" class="analysis-inline-latex" aria-hidden="true">
+                    <RenderLatex :latex="analysis0" />
+                </span>
             </span>
             <div v-if="equiv_mode ? on_screen : true" class="equiv-rows">
-                <div
-                    v-for="(row, ri) in equiv_rows"
-                    :key="ri"
-                    class="equiv-row"
-                    :class="{ 'equiv-row--secondary': ri > 0 }"
-                >
+                <div class="equiv-row equiv-row--primary">
+                    <span class="notation-expression" :class="{ 'is-latex': settings.display_mode === 'latex' }">
+                        <span class="notation-expression__active">
+                            <RenderLatex
+                                v-if="settings.display_mode === 'latex'"
+                                :latex="primary_row.render('latex')"
+                            />
+                            <span v-else class="expr-display" v-html="primary_row.render(settings.display_mode)" />
+                        </span>
+                        <span v-if="comparison_original_row" class="notation-expression__original">
+                            <span class="notation-expression__separator" aria-hidden="true"> = </span>
+                            <span class="notation-expression__original-value">
+                                <RenderLatex
+                                    v-if="settings.display_mode === 'latex'"
+                                    :latex="comparison_original_row.render('latex')"
+                                />
+                                <span
+                                    v-else
+                                    class="expr-display"
+                                    v-html="comparison_original_row.render(settings.display_mode)"
+                                />
+                            </span>
+                        </span>
+                    </span>
+                </div>
+                <div v-for="row in extra_equiv_rows" :key="row.id" class="equiv-row equiv-row--secondary">
                     <span v-if="row.label" class="equiv-label">{{ row.label }}:</span>
                     <RenderLatex v-if="settings.display_mode === 'latex'" :latex="row.render('latex')" />
                     <span v-else class="expr-display" v-html="row.render(settings.display_mode)" />

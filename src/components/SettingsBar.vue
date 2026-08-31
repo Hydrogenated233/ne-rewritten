@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, inject, ref } from 'vue';
+import { computed, defineAsyncComponent, inject, ref, watch } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
@@ -10,7 +10,8 @@ import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_run
 import DiagramSettingsPanel from './DiagramSettingsPanel.vue';
 import StandaloneFilesPanel from './StandaloneFilesPanel.vue';
 import ColorThemePanel from './ColorThemePanel.vue';
-import AnalysisLatexSettingsPanel from './AnalysisLatexSettingsPanel.vue';
+import { get_katex, load_katex } from '@/composables/use_katex.ts';
+import { validate_latex_commands } from '@/core/latex_renderer.ts';
 
 const StandaloneExportPanel = defineAsyncComponent(() => import('./StandaloneExportPanel.vue'));
 const UserDefinedNotationPanel = IS_STANDALONE
@@ -127,12 +128,10 @@ const tier_name = computed(() => {
 
 function toggle_diagram(): void {
     settings.show_diagram = !settings.show_diagram;
-    if (settings.show_diagram) settings.show_latex = false;
 }
 
 function toggle_latex(): void {
-    settings.show_latex = !settings.show_latex;
-    if (settings.show_latex) settings.show_diagram = false;
+    settings.analysis_latex_preview = !settings.analysis_latex_preview;
 }
 
 function on_show_description_change(event: Event): void {
@@ -154,10 +153,19 @@ function go_compat(): void {
     location.href = COMPAT_URL;
 }
 
-function toggle_display_mode(): void {
-    const index = DISPLAY_MODES.indexOf(settings.display_mode);
-    settings.display_mode = DISPLAY_MODES[(index + 1) % DISPLAY_MODES.length];
-}
+const latex_commands_error = ref('');
+watch(
+    () => settings.latex_commands,
+    async (value) => {
+        if (!value.trim()) {
+            latex_commands_error.value = '';
+            return;
+        }
+        const engine = get_katex() ?? (await load_katex());
+        latex_commands_error.value = validate_latex_commands(value, engine);
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -251,46 +259,17 @@ function toggle_display_mode(): void {
             <div v-else-if="active_section === 'appearance'" class="settings-list">
                 <div class="setting-row">
                     <span class="setting-label">{{ t('display.label') }}</span>
-                    <button class="setting-button" @mousedown="toggle_display_mode">
-                        {{ t('display.' + settings.display_mode) }}
-                    </button>
-                </div>
-                <div v-if="equiv_options.length > 0" class="setting-row setting-row--equiv">
-                    <span class="setting-label">{{ t('equiv.label') }}</span>
-                    <div class="setting-controls">
-                        <select
-                            :value="settings.equiv_active[settings.current_notation_id] ?? ''"
-                            class="setting-control"
-                            @change="
-                                (event: any) => {
-                                    settings.equiv_active = {
-                                        ...settings.equiv_active,
-                                        [settings.current_notation_id]:
-                                            (event.target as HTMLSelectElement).value || undefined,
-                                    };
-                                }
-                            "
+                    <div class="setting-segment" role="group" :aria-label="t('display.label')">
+                        <button
+                            v-for="mode in DISPLAY_MODES"
+                            :key="mode"
+                            type="button"
+                            :class="{ 'is-active': settings.display_mode === mode }"
+                            :aria-pressed="settings.display_mode === mode"
+                            @click="settings.display_mode = mode"
                         >
-                            <option value="">{{ t('equiv.none') }}</option>
-                            <option v-for="option in equiv_options" :key="option.id" :value="option.id">
-                                {{ option.label }}
-                            </option>
-                        </select>
-                        <label v-if="settings.equiv_active[settings.current_notation_id]" class="setting-check">
-                            <input
-                                type="checkbox"
-                                :checked="settings.equiv_hide_original[settings.current_notation_id] ?? true"
-                                @change="
-                                    (event: any) => {
-                                        settings.equiv_hide_original = {
-                                            ...settings.equiv_hide_original,
-                                            [settings.current_notation_id]: (event.target as HTMLInputElement).checked,
-                                        };
-                                    }
-                                "
-                            />
-                            {{ t('equiv.hide-original') }}
-                        </label>
+                            {{ t('display.' + mode) }}
+                        </button>
                     </div>
                 </div>
                 <div class="setting-row">
@@ -310,13 +289,6 @@ function toggle_display_mode(): void {
                         <input type="checkbox" :checked="settings.show_diagram" @change="toggle_diagram" />
                     </label>
                 </div>
-                <div class="setting-row">
-                    <span class="setting-label">{{ t('latex.show') }}</span>
-                    <label class="setting-check">
-                        <input type="checkbox" :checked="settings.show_latex" @change="toggle_latex" />
-                    </label>
-                </div>
-
                 <ColorThemePanel inline />
                 <DiagramSettingsPanel v-if="has_diagram_settings" :control="notation?.draw_diagram ?? null" inline />
 
@@ -406,7 +378,43 @@ function toggle_display_mode(): void {
                     </div>
                 </div>
 
-                <AnalysisLatexSettingsPanel inline />
+                <section class="settings-subsection latex-render-settings">
+                    <h3>{{ t('latex.analysis-section') }}</h3>
+                    <p class="settings-subsection__description">{{ t('latex.analysis-section-hint') }}</p>
+                    <label class="latex-command-field">
+                        <span class="setting-label">
+                            {{ t('latex.custom-commands') }}
+                            <small>{{ t('latex.custom-commands-hint') }}</small>
+                        </span>
+                        <textarea
+                            v-model="settings.latex_commands"
+                            class="latex-command-input"
+                            :placeholder="t('latex.custom-commands-placeholder')"
+                            maxlength="20000"
+                            rows="5"
+                            spellcheck="false"
+                        ></textarea>
+                        <span v-if="latex_commands_error" class="setting-error" role="alert">
+                            {{ t('latex.custom-commands-error') }}: {{ latex_commands_error }}
+                        </span>
+                    </label>
+                    <div class="setting-row">
+                        <span class="setting-label">{{ t('latex.analysis-preview') }}</span>
+                        <label class="setting-check">
+                            <input type="checkbox" :checked="settings.analysis_latex_preview" @change="toggle_latex" />
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">{{ t('latex.analysis-inline') }}</span>
+                        <label class="setting-check" :class="{ 'is-disabled': !settings.analysis_latex_preview }">
+                            <input
+                                v-model="settings.analysis_latex_inline"
+                                type="checkbox"
+                                :disabled="!settings.analysis_latex_preview"
+                            />
+                        </label>
+                    </div>
+                </section>
             </div>
 
             <div v-else-if="active_section === 'local'" class="settings-list settings-list--workspace">
@@ -579,6 +587,40 @@ function toggle_display_mode(): void {
     font-size: 14px;
 }
 
+.setting-segment {
+    display: inline-flex;
+    overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg-secondary);
+}
+
+.setting-segment button {
+    min-height: 30px;
+    padding: 4px 11px;
+    border: 0;
+    border-right: 1px solid var(--color-border);
+    background: transparent;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+}
+
+.setting-segment button:last-child {
+    border-right: 0;
+}
+
+.setting-segment button:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+}
+
+.setting-segment button.is-active {
+    background: var(--color-accent);
+    color: var(--color-bg);
+}
+
 .setting-button {
     padding: 4px 11px;
 }
@@ -603,6 +645,51 @@ function toggle_display_mode(): void {
     color: var(--color-text);
     font-size: 13px;
     line-height: 1.35;
+}
+
+.setting-check.is-disabled {
+    color: var(--color-text-muted);
+    cursor: not-allowed;
+}
+
+.setting-label small {
+    display: block;
+    margin-top: 3px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.45;
+}
+
+.latex-command-input {
+    width: 100%;
+    min-height: 108px;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    box-sizing: border-box;
+    resize: vertical;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font:
+        13px/1.5 ui-monospace,
+        SFMono-Regular,
+        Menlo,
+        Consolas,
+        monospace;
+    tab-size: 4;
+}
+
+.latex-command-input:focus {
+    outline: 2px solid var(--color-accent-bg);
+    border-color: var(--color-accent);
+}
+
+.setting-error {
+    color: var(--color-danger);
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
 }
 
 .setting-inline-number {
@@ -654,6 +741,25 @@ function toggle_display_mode(): void {
     font-size: 15px;
     font-weight: 600;
     letter-spacing: 0;
+}
+
+.settings-subsection__description {
+    max-width: 72ch;
+    margin: -4px 0 12px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.latex-command-field {
+    display: grid;
+    gap: 8px;
+    padding: 4px 2px 12px;
+    border-bottom: 1px solid var(--color-border-light);
+}
+
+.latex-render-settings .setting-row:last-child {
+    border-bottom: 0;
 }
 
 .equiv-config-list {
@@ -734,6 +840,15 @@ function toggle_display_mode(): void {
     .setting-control {
         width: 100%;
         min-width: 0;
+    }
+
+    .setting-segment {
+        width: 100%;
+    }
+
+    .setting-segment button {
+        min-width: 0;
+        flex: 1;
     }
 
     .setting-inline-number--range {

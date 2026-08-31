@@ -115,6 +115,14 @@ function load_settings(): Partial<Settings> {
             delete parsed.display_html_mode;
         }
 
+        // Migrate the former shorthand-parser preview to raw LaTeX. Parser-
+        // specific switches are dropped because analysis is now rendered as authored.
+        if ('show_latex' in parsed && !('analysis_latex_preview' in parsed)) {
+            parsed.analysis_latex_preview = Boolean(parsed.show_latex);
+        }
+        delete parsed.show_latex;
+        delete parsed.latex_analysis;
+
         // 迁移: 移除已废弃的 shown_notations
         delete (parsed as any).shown_notations;
 

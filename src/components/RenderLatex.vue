@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, inject, onMounted, ref } from 'vue';
 import { get_katex, load_katex } from '@/composables/use_katex.ts';
+import { SETTINGS_KEY } from '@/composables/use_settings.ts';
+import { escape_latex_fallback, render_latex } from '@/core/latex_renderer.ts';
 
 const props = defineProps<{ latex: string }>();
+const settings = inject(SETTINGS_KEY)!;
 
 const ready = ref(false);
 
@@ -13,12 +16,9 @@ onMounted(() => {
 });
 
 const html = computed(() => {
-    if (!ready.value) return props.latex;
-    try {
-        return get_katex()!.renderToString(props.latex, { throwOnError: false, displayMode: false });
-    } catch {
-        return props.latex;
-    }
+    const engine = get_katex();
+    if (!ready.value || !engine) return escape_latex_fallback(props.latex);
+    return render_latex(props.latex, settings.latex_commands, engine);
 });
 </script>
 

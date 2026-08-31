@@ -22,7 +22,6 @@ const show_reset = ref(false);
 const show_user_defined = ref(false);
 const show_user_defined_nav = ref(false);
 const user_defined_active_tab = ref(0);
-const show_latex_analysis = ref(false);
 const show_api_doc = ref(false);
 const show_diagram_settings = ref(false);
 // 说明是否显示 (非持久): 仅当前会话有效, 点击说明文字可切换
@@ -71,7 +70,6 @@ export function use_ui_states() {
         show_user_defined,
         show_user_defined_nav,
         user_defined_active_tab,
-        show_latex_analysis,
         show_api_doc,
         show_diagram_settings,
         description_visible,

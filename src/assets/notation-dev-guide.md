@@ -61,18 +61,18 @@ Notation Explorer 是一个 Vue 3 应用，用于**展开**各种大数/序数�
 
 **两个全局注册表：**
 
-| 数组 | 用途 |
-|------|------|
-| `register` | 主列表中的记号（可展开/可导航） |
+| 数组                | 用途                                         |
+| ------------------- | -------------------------------------------- |
+| `register`          | 主列表中的记号（可展开/可导航）              |
 | `analysis_register` | 分析窗口中的记号（用于分析被展开序列的强度） |
 
 注册表保留数组兼容接口；现有记号文件仍通过 `register.push({...})` 或 `analysis_register.push({...})` 注册自己，也可用 `get(id)` 按稳定 ID 查找。唯一的 `NotationRegistry` 同时接受本地注册对象和 `ne-rewritten` 定义，并在注册边界把后者归一化为同一个运行时记号契约；不存在第二套 registry 或专用适配器。主记号和分析记号使用独立的 ID 命名空间，因此同一个 ID 可以各出现一次，但同一注册表中不允许重复。
 
 ### 内置记号与本地记号文件
 
-| 类型 | 方法 | 管理方式 |
-|------|------|----------|
-| **内置记号** | 放入对应谱系目录，由清单生成器递归发现 | 随应用加载，不出现在本地文件管理器中 |
+| 类型             | 方法                                           | 管理方式                                              |
+| ---------------- | ---------------------------------------------- | ----------------------------------------------------- |
+| **内置记号**     | 放入对应谱系目录，由清单生成器递归发现         | 随应用加载，不出现在本地文件管理器中                  |
 | **本地记号文件** | Settings → Local notation files → Upload `.js` | 保存在 `localStorage`，可编辑、启用、禁用、下载和删除 |
 
 两种方式使用相同的注册 API。本地管理以整个文件为单位，一个文件可以同时注册多个主记号和分析记号；启用、禁用或删除时会整体加载或卸载。启用文件的保存采用事务热替换，校验或 `init()` 失败时旧版本仍保持运行。
@@ -81,13 +81,13 @@ Notation Explorer 是一个 Vue 3 应用，用于**展开**各种大数/序数�
 
 以下函数由独立的 shared 文件提供，**不需要**在每个记号文件中重复定义：
 
-| 文件 | 函数 | 用途 |
-|------|------|------|
-| `00-shared-seq.js` | `sequence_compare(seq1, seq2)` | 按字典序比较两个数字序列 |
-| `00-shared-seq.js` | `sequence_display(expr)` | 将序列转为字符串：`Infinity`→`'Limit'`，否则 `''+expr` |
-| `01-shared-matrix.js` | `matrix_compare(m1, m2)` | 比较两个矩阵 |
-| `01-shared-matrix.js` | `matrix_display(expr)` | 矩阵转字符串：列用 `()` 包裹，如 `(0)(1)(2)` |
-| `01-shared-matrix.js` | `matrix_limit(m)` | 判断矩阵是否有极限：`m.length>0 && m[m.length-1][0]>0` |
+| 文件                  | 函数                           | 用途                                                   |
+| --------------------- | ------------------------------ | ------------------------------------------------------ |
+| `00-shared-seq.js`    | `sequence_compare(seq1, seq2)` | 按字典序比较两个数字序列                               |
+| `00-shared-seq.js`    | `sequence_display(expr)`       | 将序列转为字符串：`Infinity`→`'Limit'`，否则 `''+expr` |
+| `01-shared-matrix.js` | `matrix_compare(m1, m2)`       | 比较两个矩阵                                           |
+| `01-shared-matrix.js` | `matrix_display(expr)`         | 矩阵转字符串：列用 `()` 包裹，如 `(0)(1)(2)`           |
+| `01-shared-matrix.js` | `matrix_limit(m)`              | 判断矩阵是否有极限：`m.length>0 && m[m.length-1][0]>0` |
 
 清单按分类目录后按文件名字典序加载。根目录文件先于分类目录，数字前缀保证序列 helper 先于矩阵 helper，并且两者都先于谱系文件。
 
@@ -101,41 +101,41 @@ Notation Explorer 是一个 Vue 3 应用，用于**展开**各种大数/序数�
 
 ```js
 register.registerCategory({
-  id: 'category-example',
-  name: 'Example',
-  path: ['Example'],
-})
+    id: 'category-example',
+    name: 'Example',
+    path: ['Example'],
+});
 
 register.registerGenerator({
-  id: 'category-n-example',
-  category: {
     id: 'category-n-example',
-    name: 'n-Example',
-    parent_id: 'category-example',
-  },
-  start: 1,
-  initial: 3,
-  maximum: 64,
-  create: function (n) {
-    return {
-      id: n + '-example',
-      name: n + '-Example',
-      // display / able / compare / FS / init ...
-    }
-  },
-})
+    category: {
+        id: 'category-n-example',
+        name: 'n-Example',
+        parent_id: 'category-example',
+    },
+    start: 1,
+    initial: 3,
+    maximum: 64,
+    create: function (n) {
+        return {
+            id: n + '-example',
+            name: n + '-Example',
+            // display / able / compare / FS / init ...
+        };
+    },
+});
 ```
 
 注册时会创建 `start...initial`；若设置中保存了合法的当前上限，则恢复到该上限。
 框架和菜单只调用注册表的通用接口，不读取上游 bundle 或某个记号文件的私有生成器：
 
-| 方法 | 作用 |
-|------|------|
-| `register.generatorCurrent(id)` | 返回生成族当前已注册的最大整数参数 |
-| `register.generatorCanIncrement(id)` | 是否可以增加下一项 |
+| 方法                                 | 作用                                   |
+| ------------------------------------ | -------------------------------------- |
+| `register.generatorCurrent(id)`      | 返回生成族当前已注册的最大整数参数     |
+| `register.generatorCanIncrement(id)` | 是否可以增加下一项                     |
 | `register.generatorCanDecrement(id)` | 是否可以移除当前末项；始终保留 `start` |
-| `register.generatorAdd(id)` | 注册下一项并返回新记号对象 |
-| `register.generatorRemove(id)` | 注销当前末项并返回被移除的记号对象 |
+| `register.generatorAdd(id)`          | 注册下一项并返回新记号对象             |
+| `register.generatorRemove(id)`       | 注销当前末项并返回被移除的记号对象     |
 
 `generatorIncrement` / `generatorDecrement` 是 `generatorAdd` /
 `generatorRemove` 的兼容别名。若生成器产生的源码 ID 与本项目的稳定 ID 不同，可提供
@@ -158,30 +158,30 @@ ne-rewritten 字段映射、本地上传步骤和完整生成器示例见 `docs/
 
 ### 必填字段
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `id` | string | 当前注册表中的非空唯一标识符；应用状态和持久化数据均按此 ID 绑定 |
-| `name` | string | 显示在选项卡/菜单中的名称 |
-| `display` | `(expr) => string` | 把内部表达式转为显示字符串 |
-| `able` | `(expr) => boolean` | 判断表达式是否还可以再展开（是否有极限） |
-| `compare` | `(a, b) => -1 / 0 / 1` | 比较两个表达式的大小：`-1` 小于，`0` 相等，`1` 大于 |
-| `FS` | `(expr, n) => expr` | 基本列函数：返回 `expr` 的第 `n` 项（n 从 0 开始） |
-| `init` | `() => array` | 返回初始项列表（见下方「init 输入格式」） |
+| 字段      | 类型                   | 说明                                                             |
+| --------- | ---------------------- | ---------------------------------------------------------------- |
+| `id`      | string                 | 当前注册表中的非空唯一标识符；应用状态和持久化数据均按此 ID 绑定 |
+| `name`    | string                 | 显示在选项卡/菜单中的名称                                        |
+| `display` | `(expr) => string`     | 把内部表达式转为显示字符串                                       |
+| `able`    | `(expr) => boolean`    | 判断表达式是否还可以再展开（是否有极限）                         |
+| `compare` | `(a, b) => -1 / 0 / 1` | 比较两个表达式的大小：`-1` 小于，`0` 相等，`1` 大于              |
+| `FS`      | `(expr, n) => expr`    | 基本列函数：返回 `expr` 的第 `n` 项（n 从 0 开始）               |
+| `init`    | `() => array`          | 返回初始项列表（见下方「init 输入格式」）                        |
 
 ### 可选字段
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `latex` | `(expr) => string` | 返回不含 `$...$` 或 `\(...\)` 定界符的 KaTeX 数学源，仅用于表达式展示 |
-| `displayPlain` | `(expr) => string` | 主表示的纯文本形式；缺省时使用 `display` |
-| `display_equiv` | `Record<string, displaySpec>` | 同一记号的命名等价表示，详见下节 |
-| `fromDisplay` | `(str) => expr` | 将字符串解析为内部表达式（"From Display" 的反向）。用于「Navigate to notation」和导入分析 |
-| `fromDisplay_alter` | `(str) => expr` | 备选解析方式（兜底，`fromDisplay` 抛异常时尝试） |
-| `FSalter` | `(expr, n) => expr` | 备选基本列函数（勾选 "Use alternative (short) fundamental sequence" 时使用） |
-| `FSShort` | `(expr, n) => expr` | 短基本列（也是备选，与 `FSalter` 二选一，通过 `get_FS()` 确定优先级：`FSShort` → `FSalter` → `FS`） |
-| `semiable` | `(expr) => boolean` | 判断表达式"可语义化"（影响 UI 中某些处理） |
-| `drawDiagram` | `(expr) => diagramObject` | 返回画图对象（见「画图」部分）。在输入框获得焦点时调用，浮窗显示山图 |
-| `credit_text_id` | string | 记号级归属文本键；未知键不显示，不从文件或分类推断 |
+| 字段                | 类型                          | 说明                                                                                                |
+| ------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| `latex`             | `(expr) => string`            | 返回不含 `$...$` 或 `\(...\)` 定界符的 KaTeX 数学源，仅用于表达式展示                               |
+| `displayPlain`      | `(expr) => string`            | 主表示的纯文本形式；缺省时使用 `display`                                                            |
+| `display_equiv`     | `Record<string, displaySpec>` | 同一记号的命名等价表示，详见下节                                                                    |
+| `fromDisplay`       | `(str) => expr`               | 将字符串解析为内部表达式（"From Display" 的反向）。用于「Navigate to notation」和导入分析           |
+| `fromDisplay_alter` | `(str) => expr`               | 备选解析方式（兜底，`fromDisplay` 抛异常时尝试）                                                    |
+| `FSalter`           | `(expr, n) => expr`           | 备选基本列函数（勾选 "Use alternative (short) fundamental sequence" 时使用）                        |
+| `FSShort`           | `(expr, n) => expr`           | 短基本列（也是备选，与 `FSalter` 二选一，通过 `get_FS()` 确定优先级：`FSShort` → `FSalter` → `FS`） |
+| `semiable`          | `(expr) => boolean`           | 判断表达式"可语义化"（影响 UI 中某些处理）                                                          |
+| `drawDiagram`       | `(expr) => diagramObject`     | 返回画图对象（见「画图」部分）。在输入框获得焦点时调用，浮窗显示山图                                |
+| `credit_text_id`    | string                        | 记号级归属文本键；未知键不显示，不从文件或分类推断                                                  |
 
 ### init 的输入格式
 
@@ -189,11 +189,11 @@ ne-rewritten 字段映射、本地上传步骤和完整生成器示例见 `docs/
 
 ```js
 [
-  { expr: [Infinity],  low: [[]], subitems: [] },  // 最大项（极限）
-  { expr: [0,1,2,3,4], low: [[]], subitems: [] },  // 示例项
-  { expr: [0],          low: [[]], subitems: [] },  // 中间项
-  { expr: [],           low: [[]], subitems: [] },  // 最小项
-]
+    { expr: [Infinity], low: [[]], subitems: [] }, // 最大项（极限）
+    { expr: [0, 1, 2, 3, 4], low: [[]], subitems: [] }, // 示例项
+    { expr: [0], low: [[]], subitems: [] }, // 中间项
+    { expr: [], low: [[]], subitems: [] }, // 最小项
+];
 ```
 
 - `expr` — 内部表达式（数组、矩阵、字符串等）
@@ -206,12 +206,12 @@ ne-rewritten 字段映射、本地上传步骤和完整生成器示例见 `docs/
 
 根据记号不同，内部表达式主要有几种类型：
 
-| 记号系列 | 表达式类型 | 示例 |
-|----------|-----------|------|
-| ω-Y, 1-Y, PrSS, PPS | `number[]` 数字数组 | `[0,1,2,3]` |
-| BM, BHM, BSM, etc | `number[][]` 矩阵（列数组） | `[[0,0],[1,0]]` |
-| cOCF | `string` 字符串 | `'p(p(p(0)))'` |
-| TON, DEN | 混合（数组/对象） | 见各实现 |
+| 记号系列            | 表达式类型                  | 示例            |
+| ------------------- | --------------------------- | --------------- |
+| ω-Y, 1-Y, PrSS, PPS | `number[]` 数字数组         | `[0,1,2,3]`     |
+| BM, BHM, BSM, etc   | `number[][]` 矩阵（列数组） | `[[0,0],[1,0]]` |
+| cOCF                | `string` 字符串             | `'p(p(p(0)))'`  |
+| TON, DEN            | 混合（数组/对象）           | 见各实现        |
 
 > `Infinity` 是 JS 原生 `Infinity`，作为特判值处理极限。
 
@@ -280,6 +280,7 @@ FS: (() => {
 ```
 
 **缓存模式要点：**
+
 - `data` 在 IIFE 闭包内
 - `data[key][n]` 缓存指定 FS index 的结果
 - 先查缓存再计算
@@ -316,8 +317,8 @@ if ('' + expr === 'Infinity') {
 
 ```js
 const get_FS = (notation, use_short) => {
-  if (use_short) return notation.FSShort || notation.FS;
-  return notation.FS;
+    if (use_short) return notation.FSShort || notation.FS;
+    return notation.FS;
 };
 ```
 
@@ -331,9 +332,19 @@ const get_FS = (notation, use_short) => {
 
 ```js
 function safeFromDisplay(notation, str) {
-  if (notation.fromDisplay) try { return notation.fromDisplay(str); } catch (e) { /* fall through */ }
-  if (notation.fromDisplay_alter) try { return notation.fromDisplay_alter(str); } catch (e) { /* fall through */ }
-  return undefined;
+    if (notation.fromDisplay)
+        try {
+            return notation.fromDisplay(str);
+        } catch (e) {
+            /* fall through */
+        }
+    if (notation.fromDisplay_alter)
+        try {
+            return notation.fromDisplay_alter(str);
+        } catch (e) {
+            /* fall through */
+        }
+    return undefined;
 }
 ```
 
@@ -375,11 +386,11 @@ if (this.notation.drawDiagram != null) {
 
 **Action 类型：**
 
-| type | 字段 | 说明 |
-|------|------|------|
-| `circle` | `x, y, r` | 实心圆 |
-| `line` | `x1, y1, x2, y2, color` | 线段，颜色默认 `#666` |
-| `text` | `x, y, text, fontSize` | 文本标签 |
+| type     | 字段                    | 说明                  |
+| -------- | ----------------------- | --------------------- |
+| `circle` | `x, y, r`               | 实心圆                |
+| `line`   | `x1, y1, x2, y2, color` | 线段，颜色默认 `#666` |
+| `text`   | `x, y, text, fontSize`  | 文本标签              |
 
 ### ne-rewritten 图表兼容
 
@@ -390,6 +401,7 @@ if (this.notation.drawDiagram != null) {
 ### Diagram.js 双重加载
 
 `Diagram.js` 在两个环境中运行：
+
 1. **作为 Worker** — `new Worker("js/diagram/Diagram.js")`，接收 `render` 消息，绘制到 offscreen canvas
 2. **在主线程** — 同时也作为普通 `<script>` 加载，提供 `let canvas = null` 全局变量（`framework.js` 的 `mounted()` 通过 `document.getElementById('hoverCanvas').transferControlToOffscreen()` 获取）
 
@@ -497,30 +509,30 @@ Settings 的 **Export standalone application / 导出独立应用** 以“整个
 
 **存储的字段：**
 
-| 键名 | 类型 | 说明 |
-|------|------|------|
-| `darkMode` | boolean | 暗黑模式 |
-| `lang` | string | 语言 (`'en'` / `'zh'`) |
-| `displayMode` | string | 表达式渲染模式 (`'html'` / `'latex'`) |
-| `equivActive` | object | 以 `ownerId::notationId` 为键的活动等价表示 ID |
-| `equivHideOriginal` | object | 以 `ownerId::notationId` 为键的原表示隐藏状态；未记录时默认为隐藏 |
-| `latexCommands` | string | 用户自定义的 KaTeX 宏声明，默认空字符串 |
-| `analysisLatexPreview` | boolean | 是否在聚焦预览和基本列提示框中将分析文本渲染为 LaTeX |
-| `analysisLatexInline` | boolean | 是否在分析文本非编辑状态显示行内 LaTeX；依赖 `analysisLatexPreview` |
-| `analysisInputVisible` | boolean | 是否显示全部分析输入框 |
-| `analysisInputWidth` | number | 全局分析输入框宽度（60..600px） |
-| `diagramFollow` | boolean | 画布跟随鼠标 |
-| `autoScroll` | boolean | 焦点自动滚动/居中 |
-| `exportHide` | boolean | 导出包含隐藏状态 |
-| `useAlt` | boolean | 使用短基本列 |
-| `diagramScale` | number | 画布缩放 |
-| `tier` | number | 全局展开层级（不再按记号分别保存） |
-| `lengthLimit` | number | 自动展开项数限制 |
-| `fsShown` | number | 提示框 FS 最大下标（显示 `0..fsShown`，全局统一） |
-| `analysisId` | string | 当前分析记号 ID |
-| `mainId` | string | 当前主记号 ID |
-| `autoSaveInterval` | number | 自动保存分析的间隔秒数 |
-| `autoSaveHidden` | boolean | 自动保存时是否包含隐藏状态 |
+| 键名                     | 类型    | 说明                                                                  |
+| ------------------------ | ------- | --------------------------------------------------------------------- |
+| `darkMode`               | boolean | 暗黑模式                                                              |
+| `lang`                   | string  | 语言 (`'en'` / `'zh'`)                                                |
+| `displayMode`            | string  | 表达式渲染模式 (`'html'` / `'latex'`)                                 |
+| `equivActive`            | object  | 以 `ownerId::notationId` 为键的活动等价表示 ID                        |
+| `equivHideOriginal`      | object  | 以 `ownerId::notationId` 为键的原表示隐藏状态；未记录时默认为隐藏     |
+| `latex_commands`         | string  | 用户自定义的 KaTeX 宏声明，默认空字符串                               |
+| `analysis_latex_preview` | boolean | 是否在聚焦预览中将分析文本按原始 LaTeX 渲染                           |
+| `analysis_latex_inline`  | boolean | 是否在分析文本非编辑状态显示行内 LaTeX；依赖 `analysis_latex_preview` |
+| `analysisInputVisible`   | boolean | 是否显示全部分析输入框                                                |
+| `analysisInputWidth`     | number  | 全局分析输入框宽度（60..600px）                                       |
+| `diagramFollow`          | boolean | 画布跟随鼠标                                                          |
+| `autoScroll`             | boolean | 焦点自动滚动/居中                                                     |
+| `exportHide`             | boolean | 导出包含隐藏状态                                                      |
+| `useAlt`                 | boolean | 使用短基本列                                                          |
+| `diagramScale`           | number  | 画布缩放                                                              |
+| `tier`                   | number  | 全局展开层级（不再按记号分别保存）                                    |
+| `lengthLimit`            | number  | 自动展开项数限制                                                      |
+| `fsShown`                | number  | 提示框 FS 最大下标（显示 `0..fsShown`，全局统一）                     |
+| `analysisId`             | string  | 当前分析记号 ID                                                       |
+| `mainId`                 | string  | 当前主记号 ID                                                         |
+| `autoSaveInterval`       | number  | 自动保存分析的间隔秒数                                                |
+| `autoSaveHidden`         | boolean | 自动保存时是否包含隐藏状态                                            |
 
 所有设置仅在框架 (`framework.js`) 中管理，记号文件无需关心。
 
@@ -536,41 +548,42 @@ Notation Explorer 会自动保存和恢复用户的分析数据，包括展开�
 
 ```json
 {
-  "version": 3,
-  "savedAt": 1700000000000,
-  "notations": {
-    "@notation-explorer/builtin::omega-Y": {
-      "ownerId": "@notation-explorer/builtin",
-      "notationId": "omega-Y",
-      "items": [
-        { "expr": [0,1,2,3], "analysis": "ε₀", "hide": false },
-        { "expr": [0,1,2],   "analysis": "ω^ω" }
-      ]
+    "version": 3,
+    "savedAt": 1700000000000,
+    "notations": {
+        "@notation-explorer/builtin::omega-Y": {
+            "ownerId": "@notation-explorer/builtin",
+            "notationId": "omega-Y",
+            "items": [
+                { "expr": [0, 1, 2, 3], "analysis": "ε₀", "hide": false },
+                { "expr": [0, 1, 2], "analysis": "ω^ω" }
+            ]
+        }
+    },
+    "noteSheets": {
+        "@notation-explorer/builtin::omega-Y": [{ "name": "Sheet2", "text": "笔记内容..." }]
     }
-  },
-  "noteSheets": {
-    "@notation-explorer/builtin::omega-Y": [{ "name": "Sheet2", "text": "笔记内容..." }]
-  }
 }
 ```
 
-| 字段 | 说明 |
-|------|------|
-| `version` | 数据格式版本（当前为 3） |
-| `savedAt` | 保存时间戳 |
-| `notations` | 以 `ownerId::notationId` 为键的分析树归档 |
-| `notations[key].ownerId` | 内置 owner 或本地文件的稳定 ID |
-| `notations[key].notationId` | 注册表中的记号 ID |
+| 字段                            | 说明                                           |
+| ------------------------------- | ---------------------------------------------- |
+| `version`                       | 数据格式版本（当前为 3）                       |
+| `savedAt`                       | 保存时间戳                                     |
+| `notations`                     | 以 `ownerId::notationId` 为键的分析树归档      |
+| `notations[key].ownerId`        | 内置 owner 或本地文件的稳定 ID                 |
+| `notations[key].notationId`     | 注册表中的记号 ID                              |
 | `notations[key].sourceRevision` | 本地文件加载时的源码版本，用于拒绝恢复过期分析 |
-| `notations[key].items` | 有分析内容的节点列表 |
-| `items[].expr` | 内部表达式（原始引用，非序列化字符串） |
-| `items[].analysis` | 用户输入的分析文本 |
-| `items[].hide` | （可选）是否隐藏子项 |
-| `noteSheets` | 同样按 `ownerId::notationId` 保存的便利贴数据 |
+| `notations[key].items`          | 有分析内容的节点列表                           |
+| `items[].expr`                  | 内部表达式（原始引用，非序列化字符串）         |
+| `items[].analysis`              | 用户输入的分析文本                             |
+| `items[].hide`                  | （可选）是否隐藏子项                           |
+| `noteSheets`                    | 同样按 `ownerId::notationId` 保存的便利贴数据  |
 
 ### 读取时机
 
 应用启动时自动恢复（`loadAnalysis()` 在 `mounted()` 中调用）：
+
 1. 读取 `ne-analysis` JSON
 2. 按 owner 和记号 ID 匹配当前注册项；本地源码版本必须一致
 3. 对每个记号的 items，通过 `expr` 展开分析树
@@ -585,11 +598,13 @@ Notation Explorer 会自动保存和恢复用户的分析数据，包括展开�
 ### exports 导出/导入分析
 
 **导出（Export analysis）：**
+
 - 遍历当前记号的整个展开树
 - 用当前等价表示的 `plain(expr)` 生成表达式标识；未选择等价表示时使用主 `notation.display(expr)`，再与用户输入的 `analysis` 文本一起写入 xlsx
 - 便利贴内容以 Sheet2+ 形式导出
 
 **导入（Import analysis）：**
+
 - 读取 xlsx 的 Sheet1，每行 `[表达式字符串, 分析文本, 可选隐藏状态]`
 - 用当前等价表示的解析器还原为内部表达式；未选择等价表示时使用 `safeFromDisplay(notation, str)`
 - 执行展开直到匹配，填入分析文本
@@ -601,12 +616,12 @@ Notation Explorer 会自动保存和恢复用户的分析数据，包括展开�
 框架使用三个通用组件，不再根据记号 ID 动态注册组件：
 
 ```js
-app.component('notation-expression', { /* HTML/LaTeX 展示边界 */ });
-app.component('notation-tree', { /* 根列表 */ });
-app.component('notation-list-item', { /* 递归节点 */ });
+app.component('notation-expression', {/* HTML/LaTeX 展示边界 */});
+app.component('notation-tree', {/* 根列表 */});
+app.component('notation-list-item', {/* 递归节点 */});
 ```
 
-递归组件通过 `notationId` 从注册表读取当前定义，并把原始表达式对象交给 `notation-expression`。基本列提示框保留 `{ index, expr, comment }`，所有条目共享 index / expression / analysis 三列；即使某项没有分析文本也保留空的第三格，因此每项表达式左对齐，所有可见分号从最长表达式之后的同一位置开始。分析列的正文随 `analysisLatexPreview` 在原文本与 KaTeX 之间切换，分号始终保留在数学公式之外。主树中的分析输入始终挂载；启用 `analysisLatexInline` 后只用 `:focus-within` 在 raw 输入与同尺寸 KaTeX 层之间切换，因此方向键导航、自动聚焦和宽度调整仍使用原输入元素。
+递归组件通过记号 ID 从注册表读取当前定义，并把原始表达式对象交给统一的显示适配层。主树中的分析输入始终挂载；启用 `analysis_latex_inline` 后，在失焦时以同尺寸 KaTeX 层覆盖输入框，聚焦时恢复原始 LaTeX 文本，因此方向键导航、自动聚焦和宽度调整仍使用原输入元素。
 
 根树的 key 包含记号 ID 的运行时版本，因此同 ID 的本地源码替换会卸载旧组件实例并挂载新定义，而无关记号的树不受影响。渲染模式不属于这个 key，切换 HTML/LaTeX 不会重新挂载树。
 
@@ -656,12 +671,12 @@ app.component('notation-list-item', { /* 递归节点 */ });
 
 工具功能对应 `js/framework.js` 中的四个 Vue 方法：
 
-| 工具 | Vue 方法 | 后端逻辑 |
-|------|---------|---------|
+| 工具         | Vue 方法        | 后端逻辑                                                        |
+| ------------ | --------------- | --------------------------------------------------------------- |
 | 无穷降链检测 | `runInfChain()` | `window.debugTools.detectInfChain()`（定义在 `debug-tools.js`） |
-| DFS 差异对比 | `runDiff()` | 直接调用两个记号的 `FS` 比较 |
-| 直接展开 | `runExpand()` | 直接调用记号的 `FS` |
-| PPS 翻译 | `runPPS()` | 全局函数 `pps()`、`std()`、`tran()` |
+| DFS 差异对比 | `runDiff()`     | 直接调用两个记号的 `FS` 比较                                    |
+| 直接展开     | `runExpand()`   | 直接调用记号的 `FS`                                             |
+| PPS 翻译     | `runPPS()`      | 全局函数 `pps()`、`std()`、`tran()`                             |
 
 ## CLI 脚本
 
