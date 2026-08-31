@@ -5,8 +5,12 @@ import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { expand_all_pending } from '@/core/analysis.ts';
-import { COMPAT_URL, IS_COMPAT, IS_STANDALONE } from '@/core/deployment.ts';
-import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
+import {
+    COMPAT_URL,
+    IS_COMPAT,
+    IS_STANDALONE,
+    LOCAL_NOTATION_EXECUTION_DISABLED,
+} from '@/core/deployment.ts';
 import DiagramSettingsPanel from './DiagramSettingsPanel.vue';
 import StandaloneFilesPanel from './StandaloneFilesPanel.vue';
 import ColorThemePanel from './ColorThemePanel.vue';
@@ -23,7 +27,6 @@ const t = inject(I18N_KEY)!;
 const save_load = inject(SAVE_LOAD_KEY)!;
 const ui = use_ui_states();
 const { notation, root } = save_load;
-const local_runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
 
 type SettingsSection = 'general' | 'appearance' | 'analysis' | 'local' | 'export';
 
@@ -72,38 +75,6 @@ const current_section = computed(() => sections.value.find((section) => section.
 const has_diagram_settings = computed(() => (notation.value?.draw_diagram?.settings?.length ?? 0) > 0);
 const font_options = ['DEFAULT', 'Comic Sans MS', 'Consolas', 'Microsoft YaHei UI'];
 const DISPLAY_MODES = ['plain', 'html', 'latex'] as const;
-
-const user_scripts_recovered = ref(false);
-const local_files = computed(() => {
-    ui.registry_notifier.listen();
-    try {
-        return local_runtime.listFiles();
-    } catch {
-        return [];
-    }
-});
-const has_pending_scripts = computed(
-    () => !user_scripts_recovered.value && local_files.value.some((file) => file.enabled && file.trusted),
-);
-
-function resume_scripts(): void {
-    local_runtime.boot();
-    user_scripts_recovered.value = true;
-    ui.registry_notifier.notify();
-}
-
-function disable_all(): void {
-    for (const file of local_files.value) {
-        if (!file.enabled) continue;
-        try {
-            local_runtime.disable(file.id);
-        } catch (error) {
-            console.warn(`Could not disable ${file.name}.`, error);
-        }
-    }
-    user_scripts_recovered.value = true;
-    ui.registry_notifier.notify();
-}
 
 interface EquivOption {
     id: string;
@@ -418,16 +389,9 @@ watch(
             </div>
 
             <div v-else-if="active_section === 'local'" class="settings-list settings-list--workspace">
-                <div v-if="!IS_STANDALONE && has_pending_scripts" class="setting-row">
-                    <span class="setting-label">{{ t('user-defined.label') }}</span>
-                    <div class="setting-controls">
-                        <button class="setting-button" @mousedown="resume_scripts">
-                            {{ t('user-defined.resume') }}
-                        </button>
-                        <button class="setting-button" @mousedown="disable_all">
-                            {{ t('user-defined.disable-all') }}
-                        </button>
-                    </div>
+                <div v-if="!IS_STANDALONE && LOCAL_NOTATION_EXECUTION_DISABLED" class="setting-row">
+                    <span class="setting-label">{{ t('user-defined.safe-mode') }}</span>
+                    <span class="setting-note">{{ t('user-defined.safe-mode-description') }}</span>
                 </div>
                 <StandaloneFilesPanel v-if="IS_STANDALONE" />
                 <UserDefinedNotationPanel v-else-if="UserDefinedNotationPanel" inline />

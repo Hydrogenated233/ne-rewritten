@@ -16,7 +16,9 @@ provide listing, inspection, fundamental-sequence expansion, infinite-chain
 detection, notation diffing, and isolated source validation for the future AI
 and tools pages. Local files are persisted separately from application
 settings, use `.js` names, and are only executed after explicit trust and
-resume actions.
+enablement. Enabled, trusted files load automatically after the built-in
+registry is ready. `?no-local-files` skips local execution for the current page
+without changing file contents, trust, or enabled state.
 
 ## Constraints
 
@@ -33,7 +35,8 @@ resume actions.
 1. ~~Port the owner-aware local notation file store/runtime using native
    `register_notation` and `register_category` only.~~ Completed in the native
    `LocalNotationFileStore`/`LocalNotationRuntime` slice, including legacy
-   `settings.user_scripts` migration and transactional reload behavior.
+   `settings.user_scripts` migration, transactional reload behavior, automatic
+   startup loading, safe-mode boot, and the source editor.
 2. Port the page-level navigation and Tools workspace.
 3. Port AI generation, visible tool-loop activity, cancellation/restart, and
    persisted active/archive conversations.

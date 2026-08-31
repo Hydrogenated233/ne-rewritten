@@ -129,6 +129,47 @@ describe('LocalNotationRuntime', () => {
         expect(runtime.findByName('Bad.js')?.lastError?.code).toBe('SOURCE_INVALID');
     });
 
+    it('safe mode skips local execution without changing the persisted enabled state', () => {
+        const storage = new MemoryStorage();
+        const store = new LocalNotationFileStore({ storage, createId: () => 'safe-mode' });
+        const file = store.createFile({
+            name: 'SafeMode.js',
+            source: source_for('runtime-safe-mode'),
+            trusted: true,
+            enabled: true,
+        });
+
+        const safe_runtime = new LocalNotationRuntime({ storage, executionDisabled: true });
+        safe_runtime.boot();
+
+        expect(get_notation('runtime-safe-mode')).toBeUndefined();
+        expect(safe_runtime.getFile(file.id)?.enabled).toBe(true);
+        expect(safe_runtime.getFile(file.id)?.loadedRevision).toBe(0);
+    });
+
+    it('safe-mode edits stay inactive and load automatically on the next normal boot', () => {
+        const storage = new MemoryStorage();
+        const store = new LocalNotationFileStore({ storage, createId: () => 'safe-edit' });
+        const file = store.createFile({
+            name: 'SafeEdit.js',
+            source: source_for('runtime-before-safe-edit'),
+            trusted: true,
+            enabled: true,
+        });
+        const safe_runtime = new LocalNotationRuntime({ storage, executionDisabled: true });
+
+        safe_runtime.saveFile(file.id, file.name, source_for('runtime-after-safe-edit'));
+
+        expect(get_notation('runtime-before-safe-edit')).toBeUndefined();
+        expect(get_notation('runtime-after-safe-edit')).toBeUndefined();
+        expect(safe_runtime.getFile(file.id)).toMatchObject({ enabled: true, loadedRevision: 0 });
+
+        const normal_runtime = new LocalNotationRuntime({ storage });
+        normal_runtime.boot();
+        expect(get_notation('runtime-after-safe-edit')).toBeDefined();
+        expect(normal_runtime.getFile(file.id)?.loadedRevision).toBe(normal_runtime.getFile(file.id)?.sourceRevision);
+    });
+
     it('disabling and deleting removes the live notation while retaining file metadata until deletion', () => {
         const storage = new MemoryStorage();
         const runtime = new LocalNotationRuntime({ storage, createId: () => 'delete' });

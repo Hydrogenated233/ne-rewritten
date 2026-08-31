@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import app_source from '../App.vue?raw';
 import panel_source from '../components/UserDefinedNotationPanel.vue?raw';
-import codemirror_source from '../composables/use_codemirror.ts?raw';
+import editor_source from '../core/notation_editor.ts?raw';
 import theme_source from '../composables/use_color_theme.ts?raw';
 import package_source from '../../package.json?raw';
 
@@ -17,11 +17,16 @@ describe('local notation editor presentation', () => {
         expect(panel_source).not.toMatch(/\.ud-runtime-error\s*\{[^}]*flex:\s*0\s+0\s+100%/s);
     });
 
-    it('ports the source editor token palette into CodeMirror', () => {
-        expect(codemirror_source).toContain('HighlightStyle');
-        expect(codemirror_source).toContain("import('@lezer/highlight')");
-        expect(codemirror_source).toContain('notationHighlightStyle');
-        expect(panel_source).toContain('syntaxHighlighting(notationHighlightStyle, { fallback: true })');
+    it('ports the source overlay editor, tokenizer, line gutter, and bracket matching', () => {
+        expect(editor_source).toContain('export function tokenize');
+        expect(editor_source).toContain('export function find_bracket_match');
+        expect(editor_source).toContain('export function render_highlighted_source');
+        expect(panel_source).toContain('class="ne-local-editor__gutter"');
+        expect(panel_source).toContain('class="ne-local-editor__highlight"');
+        expect(panel_source).toContain('class="ne-local-editor__textarea"');
+        expect(panel_source).toContain('v-html="highlighted_source"');
+        expect(panel_source).toContain("event.key !== 'Tab'");
+        expect(panel_source).toContain("event.key.toLowerCase() === 's'");
 
         expect(app_source).toContain('--color-editor-keyword:');
         expect(app_source).toContain('--color-editor-number:');
@@ -37,10 +42,16 @@ describe('local notation editor presentation', () => {
         expect(theme_source).toContain("'--color-editor-comment': '#6a9955'");
     });
 
-    it('keeps every CodeMirror extension on the compatible 6.x package line', () => {
+    it('keeps enabled local files editable and persists drafts from input', () => {
+        expect(panel_source).toContain('v-model="editor_source"');
+        expect(panel_source).toContain('@input="on_editor_input"');
+        expect(panel_source).toContain('runtime.setDraft(file.id');
+        expect(panel_source).not.toContain(':disabled="current_file?.enabled"');
+        expect(panel_source).not.toContain('CodeMirror');
+    });
+
+    it('does not ship the replaced CodeMirror runtime', () => {
         const dependencies = JSON.parse(package_source).dependencies as Record<string, string>;
-        expect(dependencies).not.toHaveProperty('@codemirror/basic-setup');
-        expect(dependencies).not.toHaveProperty('codemirror');
         for (const name of [
             '@codemirror/autocomplete',
             '@codemirror/commands',
@@ -48,8 +59,9 @@ describe('local notation editor presentation', () => {
             '@codemirror/language',
             '@codemirror/state',
             '@codemirror/view',
+            '@lezer/highlight',
         ]) {
-            expect(dependencies[name]).toMatch(/^\^6\./);
+            expect(dependencies).not.toHaveProperty(name);
         }
     });
 });

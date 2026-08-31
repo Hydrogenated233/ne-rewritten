@@ -99,7 +99,7 @@ import { LocalNotationRuntime } from '@/core/local_notation_runtime.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { app_storage } from '@/core/storage.ts';
 import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
-import { IS_STANDALONE } from '@/core/deployment.ts';
+import { IS_STANDALONE, LOCAL_NOTATION_EXECUTION_DISABLED } from '@/core/deployment.ts';
 
 const SETTINGS_KEY_NAME = APP_STORAGE_KEYS.settings;
 
@@ -139,9 +139,10 @@ const settings: Settings = reactive({
 });
 
 // Migrate the former settings.user_scripts shape into the native local-file
-// store. Migration is metadata-only: enabled files remain pending until the
-// user explicitly resumes local notation execution in the settings bar.
-const local_notation_runtime = new LocalNotationRuntime();
+// store. Enabled files load automatically after the built-in registry is ready.
+const local_notation_runtime = new LocalNotationRuntime({
+    executionDisabled: LOCAL_NOTATION_EXECUTION_DISABLED,
+});
 let legacy_scripts_migrated = false;
 if (settings.user_scripts.length > 0) {
     try {
@@ -170,16 +171,6 @@ if (legacy_scripts_migrated) {
     } catch {
         // The migrated source remains in the native local-file store even if
         // the legacy settings record cannot be rewritten immediately.
-    }
-}
-
-// Standalone exports contain a fixed, trusted file set. Load it immediately;
-// the normal application still waits for the explicit resume action.
-if (IS_STANDALONE) {
-    try {
-        local_notation_runtime.boot();
-    } catch (error) {
-        console.warn('Could not load bundled local notation files.', error);
     }
 }
 
@@ -312,6 +303,15 @@ if (IS_STANDALONE) {
         const fallback = list_notations()[0];
         if (fallback) settings.current_notation_id = fallback.id;
     }
+}
+
+// Local files use the completed built-in registry as their dependency and ID
+// validation surface. `?no-local-files` makes this a no-op for the current page
+// without mutating the persisted file state.
+try {
+    local_notation_runtime.boot();
+} catch (error) {
+    console.warn('Could not load local notation files.', error);
 }
 
 window.notations ??= {};

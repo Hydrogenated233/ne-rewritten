@@ -299,3 +299,9 @@ function add_script_notation(index: number | undefined, id: string): void {
 export function get_script_notation_ids(index: number): string[] {
     return script_notation_ids.get(index) ?? [];
 }
+
+export function get_script_category_ids(index: number): string[] {
+    return (active_script_items.get(index) ?? [])
+        .filter((item): item is Extract<CollectedItem, { kind: 'category' }> => item.kind === 'category')
+        .map((item) => item.def.id);
+}

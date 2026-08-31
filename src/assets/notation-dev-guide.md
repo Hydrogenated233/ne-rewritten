@@ -474,11 +474,13 @@ Settings 中的 **Local notation files** 工作区将文件和草稿保存在 `l
 6. **Download**：下载单个文件；存在未保存草稿时可选择保存、直接下载草稿或取消。
 7. 删除：确认后永久删除文件源码、草稿及该文件拥有的分析和笔记。
 
+已启用且已信任的本地文件会在内置记号注册完成后自动加载，不需要每次启动手动恢复。当某个文件启动失败时，只禁用并记录该文件的错误，其他有效文件继续加载。在 URL 加上 `?no-local-files` 可仅对当前页面跳过本地代码执行；该参数不会修改源码、草稿、信任或启用状态，移除参数后下次加载自动恢复。
+
 **工作原理：**
 
 ```
-文件源码 → 隔离函数作用域中执行 register.push()/register_notation()/register_category()/analysis_register.push()
-  → 暂存并验证两个注册表、每个主记号的 init()
+文件源码 → 隔离函数作用域中执行 register_notation()/register_category()
+  → 暂存并验证注册项与每个主记号的 init()
   → 在一次 localStorage 写入中更新源码并清除草稿，再原子提交 owner 的全部注册
   → 按 ID 更新选择和受影响的数据树
 ```

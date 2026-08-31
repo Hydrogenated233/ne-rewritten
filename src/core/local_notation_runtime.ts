@@ -1,5 +1,10 @@
 import { get_notation } from '@/core/registry.ts';
-import { get_script_notation_ids, get_script_warnings, reload_all } from '@/core/user_defined_notation.ts';
+import {
+    get_script_category_ids,
+    get_script_notation_ids,
+    get_script_warnings,
+    reload_all,
+} from '@/core/user_defined_notation.ts';
 import type { UserScript } from '@/core/settings.ts';
 import {
     LocalNotationFileStore,
@@ -25,6 +30,11 @@ export interface LegacyNotationMigrationResult {
     skipped: string[];
 }
 
+export interface LocalNotationRuntimeOptions extends LocalNotationFileStoreOptions {
+    /** Persist files normally but never execute them during this page load. */
+    executionDisabled?: boolean;
+}
+
 export class LocalNotationRuntimeError extends Error {
     readonly code = 'SOURCE_INVALID';
 
@@ -45,9 +55,11 @@ function error_from_warnings(warnings: Map<string, string[]>): LocalNotationErro
 
 export class LocalNotationRuntime {
     readonly store: LocalNotationFileStore;
+    readonly executionDisabled: boolean;
 
-    constructor(options: LocalNotationFileStoreOptions = {}) {
+    constructor(options: LocalNotationRuntimeOptions = {}) {
         this.store = new LocalNotationFileStore(options);
+        this.executionDisabled = options.executionDisabled === true;
     }
 
     listFiles(): LocalNotationFile[] {
@@ -64,7 +76,7 @@ export class LocalNotationRuntime {
 
     /** Return the last committed notation manifest for one local file. */
     getNotationIds(id: string): string[] {
-        return [...(this.getFile(id)?.manifest.notations ?? [])];
+        return [...(this.getFile(id)?.manifest?.notations ?? [])];
     }
 
     setDraft(id: string, draft: Parameters<LocalNotationFileStore['setDraft']>[1]) {
@@ -149,6 +161,11 @@ export class LocalNotationRuntime {
         if (!file.trusted) throw new LocalNotationRuntimeError('Local notation file is not trusted yet.');
         if (file.enabled) return { file, enabled: true, sourceChanged: false };
 
+        if (this.executionDisabled) {
+            const persisted = this.store.updateFile(id, { enabled: true, lastError: null });
+            return { file: persisted, previous: file, enabled: true, sourceChanged: false };
+        }
+
         const previous = this.listFiles();
         const candidateFile = this.with_file_patch(file, { enabled: true });
         const candidate = previous.map((item) => (item.id === id ? candidateFile : item));
@@ -166,8 +183,7 @@ export class LocalNotationRuntime {
         try {
             persisted = this.store.updateFile(id, {
                 enabled: true,
-                loadedRevision: file.sourceRevision,
-                manifest: this.manifest_for(id, candidate),
+                ...this.loaded_metadata(file, candidate, file.sourceRevision),
                 lastError: null,
             });
         } catch (error) {
@@ -185,6 +201,12 @@ export class LocalNotationRuntime {
     disable(id: string): LocalNotationMutationResult {
         const file = this.require_file(id);
         if (!file.enabled) return { file, enabled: false };
+
+        if (this.executionDisabled) {
+            const persisted = this.store.updateFile(id, { enabled: false, lastError: null });
+            return { file: persisted, previous: file, enabled: false };
+        }
+
         const previous = this.listFiles();
         const candidate = previous.map((item) =>
             item.id === id ? this.with_file_patch(file, { enabled: false }) : item,
@@ -209,7 +231,8 @@ export class LocalNotationRuntime {
         }
 
         const candidateFile = this.with_file_patch(file, { name, source });
-        if (file.enabled) {
+        const replace_live_source = file.enabled && !this.executionDisabled;
+        if (replace_live_source) {
             const candidate = this.listFiles().map((item) => (item.id === id ? candidateFile : item));
             try {
                 this.apply_or_throw(candidate);
@@ -228,11 +251,18 @@ export class LocalNotationRuntime {
                 name,
                 source,
                 lastError: null,
-                ...(file.enabled ? { enabled: true, loadedRevision: candidateFile.sourceRevision } : {}),
+                ...(replace_live_source
+                    ? {
+                          enabled: true,
+                          ...this.loaded_metadata(candidateFile, this.listFiles().map((item) =>
+                              item.id === id ? candidateFile : item,
+                          )),
+                      }
+                    : {}),
             });
             return { file: persisted, previous: file, enabled: persisted.enabled, sourceChanged };
         } catch (error) {
-            if (file.enabled) this.apply_or_throw(this.listFiles());
+            if (replace_live_source) this.apply_or_throw(this.listFiles());
             throw error;
         }
     }
@@ -244,12 +274,13 @@ export class LocalNotationRuntime {
     deleteFile(id: string): { file: LocalNotationFile; previous: LocalNotationFile; deleted: true } {
         const file = this.require_file(id);
         const previous = this.listFiles();
-        if (file.enabled) this.apply_or_throw(previous.filter((item) => item.id !== id));
+        const remove_live_source = file.enabled && !this.executionDisabled;
+        if (remove_live_source) this.apply_or_throw(previous.filter((item) => item.id !== id));
         try {
             const removed = this.store.deleteFile(id);
             return { file: removed, previous: file, deleted: true };
         } catch (error) {
-            if (file.enabled) this.apply_or_throw(previous);
+            if (remove_live_source) this.apply_or_throw(previous);
             throw error;
         }
     }
@@ -259,6 +290,11 @@ export class LocalNotationRuntime {
     }
 
     boot(): LocalNotationBootResult {
+        if (this.executionDisabled) {
+            reload_all([]);
+            return { warnings: new Map(), files: this.listFiles() };
+        }
+
         let files = this.listFiles();
         let warnings = this.apply(files);
         // A bad file must not prevent unrelated trusted files from loading.
@@ -280,10 +316,29 @@ export class LocalNotationRuntime {
             files = this.listFiles();
             warnings = this.apply(files);
         }
-        return { warnings, files: this.listFiles() };
+
+        files = this.listFiles();
+        try {
+            for (const file of files) {
+                if (!file.enabled || !file.trusted) continue;
+                const persisted = this.store.updateFile(file.id, {
+                    ...this.loaded_metadata(file, files),
+                    lastError: null,
+                });
+                files = files.map((item) => (item.id === persisted.id ? persisted : item));
+            }
+        } catch (error) {
+            reload_all([]);
+            throw error;
+        }
+        return { warnings, files };
     }
 
     reload(): LocalNotationBootResult {
+        if (this.executionDisabled) {
+            reload_all([]);
+            return { warnings: new Map(), files: this.listFiles() };
+        }
         const files = this.listFiles();
         const warnings = this.apply(files);
         return { warnings, files };
@@ -347,7 +402,18 @@ export class LocalNotationRuntime {
         const index = files.findIndex((file) => file.id === id);
         const notation_ids =
             index < 0 ? [] : get_script_notation_ids(index).filter((notation_id) => get_notation(notation_id));
-        return { notations: notation_ids, categories: [] };
+        const category_ids = index < 0 ? [] : get_script_category_ids(index);
+        return { notations: notation_ids, categories: category_ids };
+    }
+
+    private loaded_metadata(file: LocalNotationFile, files: LocalNotationFile[], revision = file.sourceRevision) {
+        const manifest = this.manifest_for(file.id, files);
+        return {
+            loadedRevision: revision,
+            manifest,
+            knownNotationIds: [...new Set([...file.knownNotationIds, ...manifest.notations])],
+            knownCategoryIds: [...new Set([...file.knownCategoryIds, ...manifest.categories])],
+        };
     }
 
     private require_file(id: string): LocalNotationFile {
