@@ -4,11 +4,9 @@ import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
-import { use_diagram } from '@/composables/use_diagram.ts';
-import { expand_all_pending, import_analysis_eager } from '@/core/analysis.ts';
+import { expand_all_pending } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { COMPAT_URL, IS_COMPAT } from '@/core/deployment.ts';
-import { focus_node_input } from '@/composables/use_focus_tracker.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import ModalDialog from './ModalDialog.vue';
 import DiagramSettingsPanel from './DiagramSettingsPanel.vue';
@@ -18,11 +16,9 @@ const t = inject(I18N_KEY)!;
 const save_load = inject(SAVE_LOAD_KEY)!;
 const ui = use_ui_states();
 const { notation, root } = save_load;
-const { hide, show: show_diagram, dispatch_action } = use_diagram();
 const local_runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
 
 const settings_collapsed = ref(true);
-const find_input = ref<HTMLInputElement>();
 const show_equiv_config = ref(false);
 const has_diagram_settings = computed(() => (notation.value?.draw_diagram?.settings?.length ?? 0) > 0);
 const font_options = ['DEFAULT', 'Comic Sans MS', 'Consolas', 'Microsoft YaHei UI'];
@@ -121,82 +117,6 @@ function toggle_display_mode() {
     settings.display_mode = DISPLAY_MODES[(idx + 1) % DISPLAY_MODES.length];
 }
 
-function handle_find() {
-    const n = notation.value;
-    const r = root.value;
-    const val = find_input.value?.value;
-    if (!n || !r || !val) return;
-    const equiv_name = settings.equiv_active[n.id];
-    const display_spec =
-        equiv_name && n.display_equiv?.[equiv_name]
-            ? resolve_display(n.display_equiv[equiv_name])
-            : resolve_display(n.display);
-    if (!display_spec.from_display) return;
-    try {
-        const expr = display_spec.from_display(val);
-        const matched = import_analysis_eager(r, [{ expr, analysis: [] }], n, settings.variant, settings.max_find_fs);
-        if (matched.length > 0) {
-            focus_node_input(matched[0]);
-        } else {
-            alert(t('import.error'));
-        }
-    } catch {
-        alert(t('import.error'));
-    }
-}
-
-function on_find_input() {
-    const n = notation.value;
-    const val = find_input.value?.value;
-    if (!n || !val) {
-        hide();
-        return;
-    }
-    const dc = n.draw_diagram;
-    if (!dc || !settings.show_diagram) return;
-    const equiv_name = settings.equiv_active[n.id];
-    const display_spec =
-        equiv_name && n.display_equiv?.[equiv_name]
-            ? resolve_display(n.display_equiv[equiv_name])
-            : resolve_display(n.display);
-    if (!display_spec.from_display) return;
-    try {
-        const expr = display_spec.from_display(val);
-        const el = find_input.value;
-        if (!el) return;
-        const rect = el.getBoundingClientRect();
-        show_diagram(dc, expr, rect.left, 60 + rect.height, equiv_name ?? undefined);
-    } catch {
-        hide();
-    }
-}
-
-function on_find_focus(e: FocusEvent) {
-    const el = e.target as HTMLInputElement;
-    const rect = el.getBoundingClientRect();
-    const target_scroll = rect.top + window.scrollY - 60;
-    window.scrollTo({ top: target_scroll, behavior: 'smooth' });
-    on_find_input();
-}
-
-function on_find_keydown(e: KeyboardEvent) {
-    if (e.key === 'Enter') {
-        e.preventDefault();
-        handle_find();
-    } else if (e.key === 'ArrowUp' && e.ctrlKey) {
-        e.preventDefault();
-        dispatch_action({ type: 'scroll', direction: 'up', step: 1 });
-    } else if (e.key === 'ArrowDown' && e.ctrlKey) {
-        e.preventDefault();
-        dispatch_action({ type: 'scroll', direction: 'down', step: 1 });
-    } else if (e.key === 'ArrowLeft' && e.ctrlKey) {
-        e.preventDefault();
-        dispatch_action({ type: 'scroll', direction: 'left', step: 1 });
-    } else if (e.key === 'ArrowRight' && e.ctrlKey) {
-        e.preventDefault();
-        dispatch_action({ type: 'scroll', direction: 'right', step: 1 });
-    }
-}
 </script>
 
 <template>
@@ -233,30 +153,6 @@ function on_find_keydown(e: KeyboardEvent) {
                         {{ t('nav-mode.' + settings.nav_mode) }}
                     </button>
                 </span>
-            </div>
-            <div class="toolbar-row">
-                <label class="find-label">
-                    {{ t('find-notation.label') }}
-                    <input
-                        ref="find_input"
-                        type="text"
-                        spellcheck="false"
-                        @focus="on_find_focus"
-                        @input="on_find_input"
-                        @keydown="on_find_keydown"
-                    />
-                    <button @mousedown.prevent="handle_find">{{ t('find-notation.find') }}</button>
-                </label>
-                <label>
-                    {{ t('find-notation.max-fs') }}
-                    <input
-                        type="number"
-                        min="1"
-                        max="9999"
-                        v-model.number="settings.max_find_fs"
-                        style="width: 60px; vertical-align: middle"
-                    />
-                </label>
             </div>
             <div class="toolbar-row">
                 <span style="margin-right: 8px">
@@ -341,12 +237,6 @@ function on_find_keydown(e: KeyboardEvent) {
                 <button @mousedown="ui.show_latex_analysis.value = true">{{ t('latex-analysis.title') }}</button>
             </div>
             <div class="toolbar-row">
-                <button class="reset-btn" @mousedown="ui.show_reset.value = true">{{ t('toolbar.reset') }}</button>
-                <button @mousedown="save_load.handle_export()">{{ t('toolbar.export') }}</button>
-                <button @mousedown="save_load.handle_import()">{{ t('toolbar.import') }}</button>
-                <button @mousedown="save_load.save_analysis()">{{ t('toolbar.save') }}</button>
-                <button @mousedown="ui.show_hotkeys.value = true">{{ t('toolbar.hotkeys') }}</button>
-                <button class="toolbar-btn-tips" @mousedown="ui.show_tips.value = true">{{ t('toolbar.tips') }}</button>
                 <button @mousedown="ui.show_color_theme.value = true">{{ t('toolbar.theme') }}</button>
                 <button v-if="!IS_COMPAT" @mousedown="go_compat">{{ t('toolbar.compat') }}</button>
             </div>
@@ -360,6 +250,16 @@ function on_find_keydown(e: KeyboardEvent) {
                         @change="on_expand_all_import_change"
                     />
                     {{ t('expand-all.on-import') }}
+                </label>
+                <label>
+                    {{ t('find-notation.max-fs') }}
+                    <input
+                        type="number"
+                        min="1"
+                        max="9999"
+                        v-model.number="settings.max_find_fs"
+                        style="width: 60px; vertical-align: middle"
+                    />
                 </label>
             </div>
             <div class="toolbar-row">

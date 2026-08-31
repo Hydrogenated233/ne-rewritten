@@ -41,6 +41,8 @@ export interface Settings {
     show_diagram: boolean;
     show_latex: boolean;
     show_description: boolean;
+    /** 导出分析时附带节点的折叠/隐藏子项状态。 */
+    export_hide: boolean;
     /** 导入时自动展开全部挂载条目。 */
     expand_all_on_import: boolean;
     /** 已勾选"不再显示"的提示 id。 */
@@ -73,6 +75,7 @@ export const DEFAULT_SETTINGS: Settings = {
     show_diagram: true,
     show_latex: false,
     show_description: true,
+    export_hide: true,
     expand_all_on_import: false,
     ignored_tip: {},
     max_find_fs: 10,

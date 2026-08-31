@@ -3,10 +3,15 @@ import type { AnalysisEntry } from '@/core/analysis.ts';
 export async function export_to_xlsx<T>(
     entries: AnalysisEntry<T>[],
     display: (expr: T) => string,
+    include_hide_child = false,
 ): Promise<ArrayBuffer> {
     // excel 库按需加载: 仅在导出时动态 import
     const { default: writeXlsxFile } = await import('write-excel-file/browser');
-    const rows = entries.map((entry) => [display(entry.expr), ...entry.analysis]);
+    const rows = entries.map((entry) => [
+        display(entry.expr),
+        ...entry.analysis,
+        ...(include_hide_child && entry.hide_child ? [true] : []),
+    ]);
     const result = await writeXlsxFile(rows);
     const blob = await result.toBlob();
     return await blob.arrayBuffer();
@@ -38,15 +43,23 @@ export async function import_from_xlsx<T>(
 
         if (expr === undefined) continue;
 
+        let end = values.length;
+        let hide_child = false;
+        const last = values[values.length - 1];
+        const is_legacy_hide_marker = values.length === 3 && String(last ?? '').trim().toLowerCase() === 'true';
+        if (last === true || is_legacy_hide_marker) {
+            hide_child = true;
+            end--;
+        }
         const analysis: string[] = [];
-        for (let i = 1; i < values.length; i++) {
+        for (let i = 1; i < end; i++) {
             const v = values[i];
             analysis.push(v === null || v === undefined ? '' : String(v));
         }
         // 读回时行被补齐到最大列宽, 修剪尾部空分析列以保持原始宽度
         while (analysis.length > 0 && analysis[analysis.length - 1] === '') analysis.pop();
 
-        entries.push({ expr, analysis });
+        entries.push({ expr, analysis, ...(hide_child ? { hide_child: true } : {}) });
     }
 
     return entries;

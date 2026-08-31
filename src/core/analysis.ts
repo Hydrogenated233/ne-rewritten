@@ -8,6 +8,8 @@ import { NotationDefinition, resolve_display } from '@/notation-definition.ts';
 export interface AnalysisEntry<T> {
     expr: T;
     analysis: string[];
+    /** 节点子项是否处于隐藏状态；仅在显式导出隐藏状态时使用。 */
+    hide_child?: boolean;
 }
 
 /** Infinity 的 JSON 序列化哨兵。JSON 不支持 Infinity, 会静默转成 null。 */
@@ -32,11 +34,15 @@ export function parse_analysis_entries<T>(text: string): AnalysisEntry<T>[] {
 }
 
 /** 将挂载条目提取为 AnalysisEntry（无 analysis 内容的条目返回 undefined）。 */
-function pending_to_entry<T>(p: PendingItem<T>): AnalysisEntry<T> | undefined {
+function pending_to_entry<T>(p: PendingItem<T>, include_hide_child = false): AnalysisEntry<T> | undefined {
     const ed = p.extraData as TreeNodeExtra | undefined;
     const analysis = ed?.analysis;
     if (!analysis?.some((a) => a !== undefined)) return undefined;
-    return { expr: p.expr, analysis: [...analysis] };
+    return {
+        expr: p.expr,
+        analysis: [...analysis],
+        ...(include_hide_child && ed?.hide_child !== undefined ? { hide_child: ed.hide_child } : {}),
+    };
 }
 
 /**
@@ -45,7 +51,7 @@ function pending_to_entry<T>(p: PendingItem<T>): AnalysisEntry<T> | undefined {
  * 每个节点的挂载条目 (pending_items) 位于其区间（最大子, 自身）内，
  * 因此在递增序中排在节点自身之前，先于节点导出。
  */
-export function export_analysis<T>(root: TreeNode<T>): AnalysisEntry<T>[] {
+export function export_analysis<T>(root: TreeNode<T>, include_hide_child = false): AnalysisEntry<T>[] {
     const result: AnalysisEntry<T>[] = [];
 
     function walk(nodes: TreeNode<T>[]) {
@@ -54,13 +60,17 @@ export function export_analysis<T>(root: TreeNode<T>): AnalysisEntry<T>[] {
             walk(node.children);
             if (node.pending_items) {
                 for (const p of node.pending_items) {
-                    const entry = pending_to_entry(p);
+                    const entry = pending_to_entry(p, include_hide_child);
                     if (entry) result.push(entry);
                 }
             }
             const ed = node.extraData as TreeNodeExtra | undefined;
             if (ed?.analysis?.some((a) => a !== undefined)) {
-                result.push({ expr: node.expr, analysis: [...ed.analysis] });
+                result.push({
+                    expr: node.expr,
+                    analysis: [...ed.analysis],
+                    ...(include_hide_child && ed.hide_child !== undefined ? { hide_child: ed.hide_child } : {}),
+                });
             }
         }
     }
@@ -102,6 +112,7 @@ export function import_analysis<T>(
             if (!Array.isArray(ed.analysis)) ed.analysis = [];
             ed.analysis.length = 0;
             ed.analysis.push(...entry.analysis);
+            if (entry.hide_child !== undefined) ed.hide_child = entry.hide_child;
             matched.push(node);
         } else {
             let arr = additions.get(node);
@@ -109,7 +120,13 @@ export function import_analysis<T>(
                 arr = [];
                 additions.set(node, arr);
             }
-            arr.push({ expr: entry.expr, extraData: { analysis: entry.analysis } });
+            arr.push({
+                expr: entry.expr,
+                extraData: {
+                    analysis: entry.analysis,
+                    ...(entry.hide_child !== undefined ? { hide_child: entry.hide_child } : {}),
+                },
+            });
         }
     }
 

@@ -16,6 +16,7 @@ const state = reactive<UiState>({
 
 const show_hotkeys = ref(false);
 const show_tips = ref(false);
+const show_notes = ref(false);
 const show_color_theme = ref(false);
 const show_reset = ref(false);
 const show_user_defined = ref(false);
@@ -64,6 +65,7 @@ export function use_ui_states() {
         stop_flash,
         show_hotkeys,
         show_tips,
+        show_notes,
         show_color_theme,
         show_reset,
         show_user_defined,

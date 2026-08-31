@@ -13,7 +13,6 @@ import type { NotationDefinition } from '@/notation-definition.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { download_buffer, export_to_xlsx, import_from_xlsx } from '@/core/xlsx_io.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
-import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 
 export interface SaveLoadInstance {
@@ -35,9 +34,11 @@ export const SAVE_LOAD_KEY: InjectionKey<SaveLoadInstance> = Symbol('save_load')
 
 const ANALYSIS_STORAGE_PREFIX = 'ne-analysis-';
 
-export function use_save_load(trees: Map<string, TreeNode<any>>) {
+export function use_save_load(
+    trees: Map<string, TreeNode<any>>,
+    t: (key: string, params?: Record<string, string>) => string,
+) {
     const settings = inject(SETTINGS_KEY)!;
-    const t = inject(I18N_KEY)!;
     const ui = use_ui_states();
 
     const current_id = computed(() => settings.current_notation_id);
@@ -104,13 +105,13 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
         const n = notation.value;
         const r = root.value;
         if (!n || !r) return;
-        const entries = export_analysis(r);
+        const entries = export_analysis(r, settings.export_hide);
         const equiv_name = settings.equiv_active[n.id];
         const display_fn =
             equiv_name && n.display_equiv?.[equiv_name]
                 ? resolve_display(n.display_equiv[equiv_name]).plain
                 : resolve_display(n.display).plain;
-        const buf = await export_to_xlsx(entries, display_fn);
+        const buf = await export_to_xlsx(entries, display_fn, settings.export_hide);
         download_buffer(buf, `${n.id}_analysis.xlsx`);
     }
 

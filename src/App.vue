@@ -26,6 +26,8 @@ import LaTeXViewer from '@/components/LaTeXViewer.vue';
 import MultiSelectBar from '@/components/MultiSelectBar.vue';
 import ConfigBar from '@/components/ConfigBar.vue';
 import NotationPicker from '@/components/NotationPicker.vue';
+import ExploreToolbar from '@/components/ExploreToolbar.vue';
+import NotesPanel from '@/components/NotesPanel.vue';
 import SettingsBar from '@/components/SettingsBar.vue';
 import { use_multi_select } from '@/composables/use_multi_select.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
@@ -57,7 +59,7 @@ const expand_dialog_state = use_expand_dialog();
 const multi_select = use_multi_select();
 const ui = use_ui_states();
 
-const save_load = use_save_load(reactive(new Map()));
+const save_load = use_save_load(reactive(new Map()), t);
 provide(SAVE_LOAD_KEY, save_load);
 const { trees, notation, root, save_indicator } = save_load;
 
@@ -228,6 +230,7 @@ function debug_compare_order(notation_id?: string) {
 
         <section v-if="active_page === 'explore'" class="page-panel" role="tabpanel">
             <NotationPicker />
+            <ExploreToolbar />
 
             <template v-if="notation?.description">
                 <div
@@ -295,6 +298,7 @@ function debug_compare_order(notation_id?: string) {
         <ExpandDialog :show="expand_dialog_state.visible.value" @close="expand_dialog_state.close()" />
         <TipPopup :show="tip.shown.value !== null" :tip="tip.shown.value" @close="tip.close()" @ignore="tip.ignore" />
         <TipsDialog :show="ui.show_tips.value" @close="ui.show_tips.value = false" />
+        <NotesPanel />
         <ColorThemePanel />
         <ResetPanel />
         <UserDefinedNotationPanel />
