@@ -131,4 +131,57 @@ describe('AI notation assistant', () => {
         expect(result.validation.valid).toBe(true);
         expect(events).toContain('model_output_stream');
     });
+
+    it('accepts an ordinary JSON document from an endpoint that ignored stream mode', async () => {
+        const encoder = new TextEncoder();
+        const payload = JSON.stringify({
+            choices: [{ message: { role: 'assistant', content: '```js\nregister_notation({id:"json-stream",name:"JSON stream",display:{plain:String},is_limit:()=>false,compare:()=>0,FS:x=>x,init:()=>[0]});\n```' } }],
+        });
+        const body = new ReadableStream<Uint8Array>({
+            start(controller) {
+                controller.enqueue(encoder.encode(payload.slice(0, 80)));
+                controller.enqueue(encoder.encode(payload.slice(80)));
+                controller.close();
+            },
+        });
+        const result = await generate_notation({
+            baseUrl: 'https://example.test',
+            apiKey: 'secret',
+            model: 'test',
+            prompt: 'make one',
+            fetchImpl: vi.fn().mockResolvedValue({ ok: true, status: 200, body }),
+        });
+        expect(result.validation.valid).toBe(true);
+    });
+
+    it('bounds retained reasoning text while reporting the full streamed character count', async () => {
+        const encoder = new TextEncoder();
+        const source = '```js\nregister_notation({id:"reasoning-stream",name:"Reasoning stream",display:{plain:String},is_limit:()=>false,compare:()=>0,FS:x=>x,init:()=>[0]});\n```';
+        const body = new ReadableStream<Uint8Array>({
+            start(controller) {
+                for (let index = 0; index < 130; index++) {
+                    controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: 'x'.repeat(1_000) } }] })}\n\n`));
+                }
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: { reasoning_content: source }, finish_reason: 'stop' }] })}\n\n`));
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                controller.close();
+            },
+        });
+        const events: Array<{ type: string; chars?: number; detail?: string }> = [];
+        const result = await generate_notation({
+            baseUrl: 'https://example.test',
+            apiKey: 'secret',
+            model: 'test',
+            prompt: 'make one',
+            fetchImpl: vi.fn().mockResolvedValue({ ok: true, status: 200, body }),
+            onProgress: (event) => events.push(event),
+        });
+        const reasoning = events.filter((event) => event.type === 'model_reasoning_stream');
+        const received = events.findLast((event) => event.type === 'model_response_received');
+        expect(result.validation.valid).toBe(true);
+        expect(result.raw.length).toBeLessThanOrEqual(120_001);
+        expect(reasoning.at(-1)?.chars).toBe(130_000 + source.length);
+        expect(reasoning.at(-1)?.detail?.length).toBeLessThanOrEqual(8_000);
+        expect(received?.chars).toBe(130_000 + source.length);
+    });
 });

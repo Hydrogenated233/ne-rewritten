@@ -68,6 +68,7 @@ export interface AIGenerateResult {
 interface ChatRoundResult {
     message: AIChatMessage;
     responseText: string;
+    responseChars: number;
 }
 
 export class AIRequestNetworkError extends Error {
@@ -87,6 +88,8 @@ const DEFAULT_BASE_URL = 'https://api.openai.com';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const MAX_OUTPUT_LENGTH = 120_000;
 const MAX_TOOL_OUTPUT_LENGTH = 30_000;
+const MAX_REASONING_BUFFER_LENGTH = 120_000;
+const MAX_STREAM_DETAIL_LENGTH = 8_000;
 const SESSION_KEYS = AI_SESSION_STORAGE_KEYS;
 
 function storage(): Storage | null {
@@ -321,19 +324,23 @@ async function parse_stream(response: Response, round: number, onProgress?: AIGe
         const payload = await response.json();
         const message = payload?.choices?.[0]?.message;
         if (!message) throw new Error('The Chat Completions response did not contain a message.');
-        return { message, responseText: JSON.stringify(payload) };
+        const responseText = JSON.stringify(payload);
+        return { message, responseText, responseChars: responseText.length };
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
-    let allText = '';
+    let fallbackText = '';
+    let sawSseData = false;
     let content = '';
     let reasoning = '';
+    let reasoningChars = 0;
     let finishReason: string | null = null;
     const calls = new Map<number, AIToolCall>();
     const consume = (block: string) => {
         for (const line of block.split(/\r?\n/)) {
             if (!line.startsWith('data:')) continue;
+            sawSseData = true;
             const raw = line.slice(5).trim();
             if (!raw || raw === '[DONE]') continue;
             let chunk: any;
@@ -344,12 +351,13 @@ async function parse_stream(response: Response, round: number, onProgress?: AIGe
             const delta = choice.delta ?? {};
             if (typeof delta.content === 'string') {
                 content += delta.content;
-                onProgress?.({ type: 'model_output_stream', round, protocol: 'chat_completions', chars: content.length, detail: content.slice(-8000) });
+                onProgress?.({ type: 'model_output_stream', round, protocol: 'chat_completions', chars: content.length, detail: content.slice(-MAX_STREAM_DETAIL_LENGTH) });
             }
             const reasoningDelta = typeof delta.reasoning_content === 'string' ? delta.reasoning_content : typeof delta.reasoning === 'string' ? delta.reasoning : '';
             if (reasoningDelta) {
-                reasoning += reasoningDelta;
-                onProgress?.({ type: 'model_reasoning_stream', round, protocol: 'chat_completions', chars: reasoning.length, detail: reasoning.slice(-8000) });
+                reasoningChars += reasoningDelta.length;
+                reasoning = `${reasoning}${reasoningDelta}`.slice(-MAX_REASONING_BUFFER_LENGTH);
+                onProgress?.({ type: 'model_reasoning_stream', round, protocol: 'chat_completions', chars: reasoningChars, detail: reasoning.slice(-MAX_STREAM_DETAIL_LENGTH) });
             }
             for (const part of Array.isArray(delta.tool_calls) ? delta.tool_calls : []) {
                 const index = Number(part.index) || 0;
@@ -358,7 +366,7 @@ async function parse_stream(response: Response, round: number, onProgress?: AIGe
                 if (part.function?.name) current.function.name += part.function.name;
                 if (part.function?.arguments) current.function.arguments += part.function.arguments;
                 calls.set(index, current);
-                onProgress?.({ type: 'tool_call_preparing', round, protocol: 'chat_completions', name: current.function.name || 'tool', chars: current.function.arguments.length, detail: current.function.arguments.slice(-8000) });
+                onProgress?.({ type: 'tool_call_preparing', round, protocol: 'chat_completions', name: current.function.name || 'tool', chars: current.function.arguments.length, detail: current.function.arguments.slice(-MAX_STREAM_DETAIL_LENGTH) });
             }
         }
     };
@@ -367,21 +375,31 @@ async function parse_stream(response: Response, round: number, onProgress?: AIGe
         const { value, done } = await reader.read();
         if (done) break;
         const decoded = decoder.decode(value, { stream: true });
-        allText += decoded;
         buffer += decoded;
         const blocks = buffer.split(/\r?\n\r?\n/);
         buffer = blocks.pop() ?? '';
-        blocks.forEach(consume);
+        for (const block of blocks) {
+            consume(block);
+            if (sawSseData) fallbackText = '';
+            else fallbackText += `${block}\n\n`;
+        }
     }
-    if (buffer) consume(buffer);
+    if (buffer) {
+        if (!sawSseData) fallbackText += buffer;
+        consume(buffer);
+        if (sawSseData) fallbackText = '';
+    }
     // A few OpenAI-compatible gateways ignore `stream: true` and return one
     // ordinary JSON document. Accept that response instead of treating it as
     // an empty stream.
-    if (!content && calls.size === 0) {
+    if (!sawSseData && !content && calls.size === 0) {
         try {
-            const payload = JSON.parse(allText.trim());
+            const payload = JSON.parse(fallbackText.trim());
             const message = payload?.choices?.[0]?.message;
-            if (message) return { message, responseText: JSON.stringify(payload) };
+            if (message) {
+                const responseText = JSON.stringify(payload);
+                return { message, responseText, responseChars: responseText.length };
+            }
         } catch {
             // Keep the normal empty-response error below.
         }
@@ -390,6 +408,7 @@ async function parse_stream(response: Response, round: number, onProgress?: AIGe
     return {
         message: { role: 'assistant', content: content || null, ...(tool_calls.length ? { tool_calls } : {}) },
         responseText: reasoning ? `${reasoning}\n${content}` : content,
+        responseChars: reasoningChars + content.length,
     };
 }
 
@@ -418,7 +437,7 @@ async function request_chat_round(options: AIGenerateOptions, messages: AIChatMe
     }
     if (!response.ok) throw response_error(response);
     const result = await parse_stream(response, round, onProgress, options.signal);
-    onProgress?.({ type: 'model_response_received', round, protocol: 'chat_completions', toolCallCount: result.message.tool_calls?.length ?? 0, chars: result.responseText.length, elapsedMs: Date.now() - started });
+    onProgress?.({ type: 'model_response_received', round, protocol: 'chat_completions', toolCallCount: result.message.tool_calls?.length ?? 0, chars: result.responseChars, elapsedMs: Date.now() - started });
     return result;
 }
 

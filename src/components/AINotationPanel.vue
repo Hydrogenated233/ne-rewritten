@@ -15,11 +15,7 @@ import {
     type AIChatMessage,
     type AIProgressEvent,
 } from '@/core/ai_notation_assistant.ts';
-
-interface ActivityEntry extends AIProgressEvent {
-    id: number;
-    timestamp: number;
-}
+import { compact_ai_activity, record_ai_activity, type AIActivityEntry as ActivityEntry } from '@/core/ai_activity_log.ts';
 
 interface Conversation {
     id: string;
@@ -54,7 +50,7 @@ const show_api_key = ref(false);
 const max_rounds = ref(64);
 const conversations = ref<Conversation[]>(load_conversations());
 const active_id = ref(conversations.value.find((item) => !item.archived)?.id ?? '');
-const next_activity_id = ref(1);
+const next_activity_id = ref(Math.max(0, ...conversations.value.flatMap((item) => item.activity.map((entry) => entry.id))) + 1);
 let controller: AbortController | null = null;
 const clock_now = ref(Date.now());
 let clock_timer: ReturnType<typeof setInterval> | null = null;
@@ -164,7 +160,11 @@ function load_conversations(): Conversation[] {
         const raw = app_storage()?.getItem(STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(parsed)) return [fresh_conversation()];
-        const restored = parsed.filter((item) => item && typeof item.id === 'string').map((item) => ({ ...fresh_conversation(), ...item, busy: false }));
+        const restored = parsed.filter((item) => item && typeof item.id === 'string').map((item) => {
+            const restored_item = { ...fresh_conversation(), ...item, busy: false };
+            restored_item.activity = compact_ai_activity(Array.isArray(restored_item.activity) ? restored_item.activity : []);
+            return restored_item;
+        });
         return restored.length ? restored : [fresh_conversation()];
     } catch {
         return [fresh_conversation()];
@@ -230,7 +230,7 @@ function clear_key(): void {
 }
 
 function progress(item: Conversation, event: AIProgressEvent): void {
-    item.activity.push({ ...event, id: next_activity_id.value++, timestamp: Date.now() });
+    record_ai_activity(item.activity, event, { id: next_activity_id.value++, timestamp: Date.now() });
     item.updatedAt = Date.now();
 }
 
