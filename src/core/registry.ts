@@ -227,9 +227,14 @@ export function generator_increment(cat_id: string): string | null {
     const next_n = cur + 1;
     const notation = cat.generator.create(next_n);
     if (typeof window !== 'undefined') {
-        const selected = (window as typeof window & { __NE_STANDALONE_BUILTIN_IDS__?: unknown })
-            .__NE_STANDALONE_BUILTIN_IDS__;
-        if (Array.isArray(selected) && !selected.includes(notation.id)) return null;
+        const standalone = window as typeof window & {
+            __NE_STANDALONE_BUILTIN_IDS__?: unknown;
+            __NE_STANDALONE_GENERATOR_CATEGORY_IDS__?: unknown;
+        };
+        const selected = standalone.__NE_STANDALONE_BUILTIN_IDS__;
+        const selected_generators = standalone.__NE_STANDALONE_GENERATOR_CATEGORY_IDS__;
+        const generator_selected = Array.isArray(selected_generators) && selected_generators.includes(cat_id);
+        if (Array.isArray(selected) && !selected.includes(notation.id) && !generator_selected) return null;
     }
     _register_notation(notation);
     gen_state[cat_id] = next_n;

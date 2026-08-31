@@ -642,7 +642,7 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
     <ModalDialog
         :show="inline || ui.show_user_defined.value"
         :inline="inline"
-        :title="t('user-defined.title')"
+        :title="inline ? undefined : t('user-defined.title')"
         @close="
             sync_editor();
             ui.show_user_defined.value = false;
@@ -1251,17 +1251,22 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 960px) {
     .ud-layout {
+        display: grid;
+        grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+        grid-template-rows: minmax(380px, 1fr) auto;
         min-width: 0;
-        height: 72vh;
+        height: min(680px, 72vh);
     }
 
     .ud-editor-area {
-        width: min(500px, 100%);
+        width: auto;
+        min-width: 0;
     }
 
     .ud-buttons {
+        grid-column: 1 / -1;
         flex-direction: row;
         flex-wrap: wrap;
     }
@@ -1272,6 +1277,48 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 
     .ud-guide-content {
         width: min(92vw, 820px);
+    }
+}
+
+@media (max-width: 600px) {
+    .ud-layout {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto minmax(280px, 44vh) auto;
+        height: auto;
+        min-height: 0;
+        gap: 10px;
+    }
+
+    .ud-tabs {
+        min-width: 0;
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 0 0 7px;
+        border-right: 0;
+        border-bottom: 1px solid var(--color-border-light);
+        scrollbar-width: thin;
+    }
+
+    .ud-tab,
+    .ud-btn-new {
+        min-width: max-content;
+        flex: 0 0 auto;
+    }
+
+    .ud-tab-name {
+        max-width: 150px;
+    }
+
+    .ud-editor-area {
+        min-height: 280px;
+    }
+
+    .ud-buttons {
+        grid-column: 1;
+    }
+
+    .ud-btn {
+        min-width: min(120px, 100%);
     }
 }
 </style>

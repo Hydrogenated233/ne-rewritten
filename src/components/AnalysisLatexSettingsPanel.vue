@@ -13,9 +13,9 @@ defineProps<{ inline?: boolean }>();
 
 <template>
     <ModalDialog
-        :show="ui.show_latex_analysis.value"
+        :show="inline || ui.show_latex_analysis.value"
         :inline="inline"
-        :inline-close="true"
+        :inline-close="false"
         :title="t('latex-analysis.title')"
         @close="ui.show_latex_analysis.value = false"
     >
@@ -58,10 +58,10 @@ defineProps<{ inline?: boolean }>();
 
 <style scoped>
 .las-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    min-width: 280px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 8px 16px;
+    min-width: 0;
 }
 
 .las-item {

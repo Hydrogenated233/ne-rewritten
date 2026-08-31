@@ -19,9 +19,9 @@ function select(id: string) {
 
 <template>
     <ModalDialog
-        :show="ui.show_color_theme.value"
+        :show="inline || ui.show_color_theme.value"
         :inline="inline"
-        :inline-close="true"
+        :inline-close="false"
         :title="t('toolbar.theme')"
         @close="ui.show_color_theme.value = false"
     >
@@ -64,9 +64,9 @@ function select(id: string) {
 
 <style scoped>
 .theme-grid {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 16px;
-    justify-content: center;
     padding: 8px 0;
 }
 
@@ -83,7 +83,7 @@ function select(id: string) {
     font-family: inherit;
     /* 继承主题变量到预览子元素 */
     font-size: 13px;
-    min-width: 180px;
+    min-width: 0;
 }
 
 .theme-card:hover {
@@ -199,5 +199,12 @@ function select(id: string) {
     font-size: 13px;
     color: var(--color-text);
     white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+    .theme-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
 }
 </style>

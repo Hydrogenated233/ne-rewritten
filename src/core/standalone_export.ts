@@ -1,4 +1,4 @@
-import { list_notations } from '@/core/registry.ts';
+import { get_category, get_category_children, get_notation, list_notations } from '@/core/registry.ts';
 import { app_storage } from '@/core/storage.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
 
@@ -298,11 +298,15 @@ function bootstrap_script(
     snapshot: Record<string, string>,
     files: Record<string, unknown>,
     builtinNotationIds: string[] | undefined,
+    builtinGeneratorCategoryIds: string[] | undefined,
 ): string {
     return (
         `(function(){\n` +
         `window.__NE_STANDALONE__=true;\n` +
         (builtinNotationIds ? `window.__NE_STANDALONE_BUILTIN_IDS__=${json_for_script(builtinNotationIds)};\n` : '') +
+        (builtinGeneratorCategoryIds
+            ? `window.__NE_STANDALONE_GENERATOR_CATEGORY_IDS__=${json_for_script(builtinGeneratorCategoryIds)};\n`
+            : '') +
         `var prefix=${json_for_script(`ne-standalone:${bundleId}:`)};\n` +
         `var seed=${json_for_script(snapshot)};\n` +
         `var localFiles=${json_for_script(files)};\n` +
@@ -315,6 +319,23 @@ function bootstrap_script(
         `window.NotationStorage={getItem:read,setItem:write,removeItem:remove};\n` +
         `})();`
     );
+}
+
+function selected_generator_categories(builtinNotationIds: string[] | undefined): string[] | undefined {
+    if (!builtinNotationIds) return undefined;
+    const selected = new Set(builtinNotationIds);
+    const category_ids = new Set<string>();
+    for (const notation_id of selected) {
+        const category_id = get_notation(notation_id)?.category_id;
+        if (!category_id || category_ids.has(category_id)) continue;
+        const category = get_category(category_id);
+        if (!category?.generator) continue;
+        const notation_ids = get_category_children(category_id)
+            .filter((item) => item.kind === 'notation')
+            .map((item) => item.id);
+        if (notation_ids.length > 0 && notation_ids.every((id) => selected.has(id))) category_ids.add(category_id);
+    }
+    return [...category_ids];
 }
 
 function standalone_html(title: string, css: string[], scripts: string[], bootstrap: string): string {
@@ -372,13 +393,14 @@ export async function build_standalone(options: StandaloneExportOptions): Promis
     const builtin_ids = options.builtinNotationIds
         ? [...new Set(options.builtinNotationIds)].filter((id) => available_builtin_ids.has(id))
         : undefined;
+    const generator_category_ids = selected_generator_categories(builtin_ids);
     const assets = await load_compat_assets(fetcher);
     const snapshot = snapshot_storage(options.includeData);
     const html = standalone_html(
         title,
         assets.css,
         assets.scripts,
-        bootstrap_script(bundleId, snapshot, local_file_state(selected), builtin_ids),
+        bootstrap_script(bundleId, snapshot, local_file_state(selected), builtin_ids, generator_category_ids),
     );
     return { html, fileName: encode_file_name(options.fileName), bundleId, selectedLocalFiles: selected };
 }

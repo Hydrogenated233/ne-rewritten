@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { build_standalone } from '@/core/standalone_export.ts';
-import { register_notation } from '@/core/registry.ts';
+import {
+    generator_increment,
+    init_generator,
+    register_category,
+    register_notation,
+    unregister_category,
+} from '@/core/registry.ts';
+import type { NotationCategoryDefinition } from '@/notation-definition.ts';
 
 function response(text: string, status = 200): any {
     return { ok: status >= 200 && status < 300, status, text: async () => text };
@@ -102,6 +109,60 @@ describe('standalone export boundary', () => {
         });
         expect(result.html).toContain('window.__NE_STANDALONE_BUILTIN_IDS__=["standalone-selection-fixture"]');
         delete (globalThis as any).window;
+    });
+
+    it('exports a selected generator category as an atomic cluster and keeps its generator active', async () => {
+        const category: NotationCategoryDefinition = {
+            id: 'standalone-generator-fixture',
+            name: 'Standalone generator fixture',
+            generator: {
+                start: 1,
+                initial: 2,
+                create: (n) => ({
+                    id: `standalone-generated-${n}`,
+                    name: `Generated ${n}`,
+                    category_id: 'standalone-generator-fixture',
+                    display: { plain: String },
+                    is_limit: () => false,
+                    compare: () => 0,
+                    FS: (value) => value,
+                    init: () => [n],
+                }),
+            },
+        };
+        register_category(category);
+        init_generator(category);
+        Object.defineProperty(globalThis, 'window', {
+            configurable: true,
+            value: { location: { href: 'https://example.test/ne-rewritten/' } },
+        });
+        const fetchImpl = vi.fn(async (url: string) => {
+            if (url.endsWith('/compat/index.html')) return response('<script src="/compat/assets/app.js"></script>');
+            if (url.endsWith('/compat/assets/app.js')) return response('window.__app_started__=true;');
+            return response('', 404);
+        });
+        try {
+            const result = await build_standalone({
+                localFiles: [],
+                builtinNotationIds: ['standalone-generated-1', 'standalone-generated-2'],
+                includeData: false,
+                fetchImpl: fetchImpl as any,
+            });
+            expect(result.html).toContain(
+                'window.__NE_STANDALONE_GENERATOR_CATEGORY_IDS__=["standalone-generator-fixture"]',
+            );
+
+            const standalone_window = globalThis.window as typeof window & {
+                __NE_STANDALONE_BUILTIN_IDS__?: string[];
+                __NE_STANDALONE_GENERATOR_CATEGORY_IDS__?: string[];
+            };
+            standalone_window.__NE_STANDALONE_BUILTIN_IDS__ = ['standalone-generated-1', 'standalone-generated-2'];
+            standalone_window.__NE_STANDALONE_GENERATOR_CATEGORY_IDS__ = ['standalone-generator-fixture'];
+            expect(generator_increment('standalone-generator-fixture')).toBe('standalone-generated-3');
+        } finally {
+            unregister_category('standalone-generator-fixture');
+            delete (globalThis as any).window;
+        }
     });
 
     it('rejects a Vite development index instead of downloading a non-standalone file', async () => {

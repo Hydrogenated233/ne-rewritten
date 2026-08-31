@@ -44,9 +44,9 @@ function on_number_change(s: DiagramControlSetting, e: Event) {
 
 <template>
     <ModalDialog
-        :show="ui.show_diagram_settings.value"
+        :show="props.inline || ui.show_diagram_settings.value"
         :inline="props.inline"
-        :inline-close="true"
+        :inline-close="false"
         :title="t('diagram.settings')"
         @close="ui.show_diagram_settings.value = false"
     >
@@ -83,7 +83,7 @@ function on_number_change(s: DiagramControlSetting, e: Event) {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    min-width: 300px;
+    min-width: 0;
     padding: 8px 0;
 }
 

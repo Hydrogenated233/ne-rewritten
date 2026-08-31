@@ -336,12 +336,12 @@ function debug_compare_order(notation_id?: string) {
         <TipPopup :show="tip.shown.value !== null" :tip="tip.shown.value" @close="tip.close()" @ignore="tip.ignore" />
         <TipsDialog :show="ui.show_tips.value" @close="ui.show_tips.value = false" />
         <NotesPanel />
-        <ColorThemePanel :inline="active_page === 'settings'" />
+        <ColorThemePanel />
         <ResetPanel />
-        <UserDefinedNotationPanel v-if="!is_standalone" :inline="active_page === 'settings'" />
+        <UserDefinedNotationPanel v-if="!is_standalone" />
         <UserDefinedApiPanel />
         <UserDefinedNavPanel />
-        <AnalysisLatexSettingsPanel :inline="active_page === 'settings'" />
+        <AnalysisLatexSettingsPanel />
         <MultiSelectBar />
         <ConfigBar />
     </div>
