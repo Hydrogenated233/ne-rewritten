@@ -513,7 +513,7 @@ function init_editor_inner(editable: boolean): void {
         drawSelection,
         highlightActiveLine,
         highlightActiveLineGutter,
-        defaultHighlightStyle,
+        notationHighlightStyle,
         syntaxHighlighting,
         bracketMatching,
         indentOnInput,
@@ -539,7 +539,7 @@ function init_editor_inner(editable: boolean): void {
                 drawSelection(),
                 highlightActiveLine(),
                 indentOnInput(),
-                syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+                syntaxHighlighting(notationHighlightStyle, { fallback: true }),
                 bracketMatching(),
                 closeBrackets(),
                 ec.of(EditorView.editable.of(editable)),
@@ -549,12 +549,12 @@ function init_editor_inner(editable: boolean): void {
                     '&': {
                         width: '100%',
                         maxWidth: '100%',
-                        minWidth: '100%',
+                        minWidth: '0',
                         backgroundColor: 'var(--color-bg)',
                         color: 'var(--color-text)',
                     },
-                    '.cm-scroller': { overflowX: 'auto', width: '100%', maxWidth: '100%', minWidth: '100%' },
-                    '.cm-content': { minWidth: '0' },
+                    '.cm-scroller': { overflow: 'auto', width: '100%', maxWidth: '100%', minWidth: '0' },
+                    '.cm-content': { minWidth: 'max-content' },
                     '.cm-gutters': {
                         backgroundColor: 'var(--color-bg-secondary)',
                         borderColor: 'var(--color-border)',
@@ -700,7 +700,7 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
                         @blur="finish_rename"
                     />
                 </div>
-                <div v-if="files.length > 0">
+                <div v-if="files.length > 0" class="ud-editor-shell">
                     <div v-if="cm_ready" ref="editor_ref" class="ud-cm-editor"></div>
                     <pre v-else class="ud-code-fallback"><code><span
                         v-for="(line, i) in code_lines"
@@ -850,19 +850,25 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 
 <style scoped>
 .ud-layout {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) minmax(96px, max-content);
     gap: 12px;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     min-height: 400px;
     height: 60vh;
-    min-width: 500px;
+    box-sizing: border-box;
 }
 
 /* ---- Left tabs ---- */
 .ud-tabs {
     display: flex;
+    grid-column: 1;
+    grid-row: 1;
     flex-direction: column;
     gap: 2px;
-    min-width: 120px;
+    min-width: 0;
     border-right: 1px solid var(--color-border-light);
     padding-right: 8px;
     overflow-y: auto;
@@ -923,10 +929,21 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 
 /* ---- Editor ---- */
 .ud-editor-area {
-    flex: none;
-    width: 500px;
     display: flex;
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    min-width: 0;
+    overflow: hidden;
     flex-direction: column;
+}
+
+.ud-editor-shell {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
 }
 
 .ud-rename-bar {
@@ -1050,6 +1067,10 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 }
 
 .ud-cm-editor {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
     flex: 1;
     border: 1px solid var(--color-border);
     border-radius: 4px;
@@ -1069,6 +1090,9 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 
 /* CodeMirror 未加载时的只读代码展示 (仿 CodeMirror 观感) */
 .ud-code-fallback {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
     flex: 1;
     margin: 0;
     box-sizing: border-box;
@@ -1111,9 +1135,12 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 /* ---- Right buttons ---- */
 .ud-buttons {
     display: flex;
+    grid-column: 3;
+    grid-row: 1;
     flex-direction: column;
     gap: 6px;
-    min-width: 80px;
+    min-width: 0;
+    overflow-y: auto;
 }
 
 .ud-btn {
@@ -1170,16 +1197,23 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
     color: var(--color-bg);
 }
 
+.ud-status-message,
+.ud-runtime-error {
+    grid-column: 1 / -1;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+}
+
 .ud-status-message {
-    flex: 0 0 100%;
     color: var(--color-success);
     font-size: 12px;
 }
 
 .ud-runtime-error {
     display: flex;
-    align-items: baseline;
-    flex: 0 0 100%;
+    align-items: flex-start;
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 4px;
@@ -1188,6 +1222,11 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
     border-radius: 4px;
     color: var(--color-danger);
     font-size: 12px;
+}
+
+.ud-runtime-error > span {
+    min-width: 0;
+    flex: 1 1 20rem;
 }
 
 .ud-error-location {
@@ -1253,10 +1292,7 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 
 @media (max-width: 960px) {
     .ud-layout {
-        display: grid;
         grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
-        grid-template-rows: minmax(380px, 1fr) auto;
-        min-width: 0;
         height: min(680px, 72vh);
     }
 
@@ -1267,8 +1303,10 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 
     .ud-buttons {
         grid-column: 1 / -1;
+        grid-row: 2;
         flex-direction: row;
         flex-wrap: wrap;
+        overflow-y: visible;
     }
 
     .ud-btn {
@@ -1290,6 +1328,8 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
     }
 
     .ud-tabs {
+        grid-column: 1;
+        grid-row: 1;
         min-width: 0;
         flex-direction: row;
         overflow-x: auto;
@@ -1310,11 +1350,14 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
     }
 
     .ud-editor-area {
+        grid-column: 1;
+        grid-row: 2;
         min-height: 280px;
     }
 
     .ud-buttons {
         grid-column: 1;
+        grid-row: 3;
     }
 
     .ud-btn {

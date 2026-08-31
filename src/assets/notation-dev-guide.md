@@ -250,7 +250,7 @@ display_equiv: {
 }
 ```
 
-选择按 `ownerId::notationId` 保存在 `ne-config`；内置记号和两个先后复用同一 ID 的本地文件互不污染。旧版裸 ID 配置会迁移到当前活动 owner。树使用当前等价表示，并可按用户设置在其后同时显示原表示；基本列提示框只显示当前表示。导航、xlsx 导入导出和直接展开使用当前表示的 `plain` / `from_display`。若某个等价表示没有解析器，输入功能会拒绝该表示，而不会退回 `fromDisplay`。自动分析存档、调试工具、缓存和旧代码仍使用原始表达式或主 `display`，因此切换表示不会重建树或清空分析。
+选择按 `ownerId::notationId` 保存在 `nerw-settings`；内置记号和两个先后复用同一 ID 的本地文件互不污染。旧版裸 ID 配置会迁移到当前活动 owner。树使用当前等价表示，并可按用户设置在其后同时显示原表示；基本列提示框只显示当前表示。导航、xlsx 导入导出和直接展开使用当前表示的 `plain` / `from_display`。若某个等价表示没有解析器，输入功能会拒绝该表示，而不会退回 `fromDisplay`。自动分析存档、调试工具、缓存和旧代码仍使用原始表达式或主 `display`，因此切换表示不会重建树或清空分析。
 
 `credit_text_id` 通过 `notation-credits.js` 解析，在当前树下显示中英文归属。归属属于单个注册记号；即使多个记号来自同一文件，也必须逐项声明。上游没有提供归属时保持空白。
 
@@ -458,9 +458,9 @@ npm run build:ne-rewritten-notations -- --source ../ne-rewritten-source
 npm run build:ne-rewritten-notations -- --source ../ne-rewritten-source --check
 ```
 
-构建脚本拒绝非固定 commit、带 tracked 修改的上游 checkout，以及进入 Vue/UI/registry/settings 等非算法模块的依赖。Bundle schema v2 保留纯算法 generator 的 `start`、`initial` 和 `create(index)`，但实际注册、注销、树初始化和持久化仍由本项目现有 registry 与 `ne-config` 管理。
+构建脚本拒绝非固定 commit、带 tracked 修改的上游 checkout，以及进入 Vue/UI/registry/settings 等非算法模块的依赖。Bundle schema v2 保留纯算法 generator 的 `start`、`initial` 和 `create(index)`，但实际注册、注销、树初始化和持久化仍由本项目现有 registry 与 `nerw-settings` 管理。
 
-下拉菜单按上游 `category_id` / `parent_id` 显示远端新增定义。带 generator 的文件夹显示 `- / 当前上限 / +`：初次加载 `start...initial`，`+` 只注册下一个整数变种，`-` 从当前上限开始注销且最低保留 `start`。当前上限保存在 `ne-config.generatorState`，并限制在 64 以内以防损坏的持久化数据在启动时批量创建无界记号。注销会卸载该记号的实时树但保留分析文本、折叠状态和便利贴；无法直接 JSON 表示的极限哨兵通过规范显示字符串恢复。再次增加同一变种时自动恢复。`CpS / n-CpS` 同样是生成文件夹，其中 `1-CpS`、`2-CpS`、... 是拥有独立展开树与 FS 缓存的不同主记号；旧版 `n-cps` 选择、分析文字和便利贴迁移到 `2-CpS`。
+下拉菜单按上游 `category_id` / `parent_id` 显示远端新增定义。带 generator 的文件夹显示 `- / 当前上限 / +`：初次加载 `start...initial`，`+` 只注册下一个整数变种，`-` 从当前上限开始注销且最低保留 `start`。当前上限保存在 `nerw-settings.generator_state`，并限制在 64 以内以防损坏的持久化数据在启动时批量创建无界记号。注销会卸载该记号的实时树但保留分析文本、折叠状态和便利贴；无法直接 JSON 表示的极限哨兵通过规范显示字符串恢复。再次增加同一变种时自动恢复。`CpS / n-CpS` 同样是生成文件夹，其中 `1-CpS`、`2-CpS`、... 是拥有独立展开树与 FS 缓存的不同主记号；旧版 `n-cps` 选择、分析文字和便利贴迁移到 `2-CpS`。
 
 ### 管理本地记号文件（无需修改 index.html）
 
@@ -491,7 +491,7 @@ Settings 的 **Export standalone application / 导出独立应用** 以“整个
 
 导出产物把应用 CSS、核心脚本、Diagram Worker 源码和记号源码编码进一个 HTML；Vue 3.2.31、XLSX 0.18.5 与 KaTeX 0.17.0 从固定版本的 jsDelivr 地址加载。Worker 从内嵌源码创建 Blob URL，因此直接用 `file://` 打开时不再请求相对 Worker 文件。CDN 失败会停留在简洁进度页并提供重试，故“单文件”不等于“完全离线”。
 
-默认导出干净应用；勾选 **Include current data / 包含当前数据** 后，会筛选并预置所含记号的 `ne-analysis`、`ne-config` 与便利贴位置。每次导出生成独立 package ID，框架通过 `window.NotationStorage` 将这些键映射到该 package 的 localStorage 命名空间，避免不同导出包与主应用串数据。生成类仍支持 `+/-` 并继续保存当前上限。
+默认导出干净应用；勾选 **Include current data / 包含当前数据** 后，会筛选并预置所含记号的 `nerw-analysis-*`、`nerw-settings`、`nerw-note-*` 与面板位置。每次导出生成独立 package ID，框架通过 `window.NotationStorage` 将这些键映射到该 package 的 localStorage 命名空间，避免不同导出包与主应用串数据。生成类仍支持 `+/-` 并继续保存当前上限。
 
 独立应用保留展开、分析、笔记、LaTeX、等价表示、Tools 与 xlsx 导入导出，但记号文件集合固定：本地文件管理器替换为只读清单。清单中的每个内置或本地记号文件都可以下载导出时嵌入的源码副本；下载不会修改应用状态，也不会把源码上传到远端。浏览器下载不能创建原目录，因此下载名会把 `/` 或 `\` 替换成 `__`，并在同名时追加编号。产物仍不包含编辑、重新上传、启用/禁用、删除或再次导出记号文件的入口。共享 helper 文件属于运行时内部资源，不作为用户可下载的记号文件显示。
 
@@ -505,7 +505,7 @@ Settings 的 **Export standalone application / 导出独立应用** 以“整个
 
 ## 设置信息持久化
 
-所有用户设置压缩为单个 `localStorage` 键 `ne-config`（JSON 格式），不再分多个键。
+所有用户设置保存在单个 `localStorage` 键 `nerw-settings`（JSON 格式）。本仓库的持久化数据统一使用 `nerw-*`，不会读取源仓库的 `ne-*` 键。
 
 **存储的字段：**
 
@@ -542,7 +542,7 @@ Notation Explorer 会自动保存和恢复用户的分析数据，包括展开�
 
 ### 存储方式
 
-分析数据存储在 `localStorage` 的 `ne-analysis` 键中（JSON 格式），与设置数据 (`ne-config`) 分开管理。
+每个记号的分析数据分别存储在 `localStorage` 的 `nerw-analysis-<notationId>` 键中（JSON 格式），与设置数据 (`nerw-settings`) 分开管理。
 
 ### 存储内容
 
@@ -584,7 +584,7 @@ Notation Explorer 会自动保存和恢复用户的分析数据，包括展开�
 
 应用启动时自动恢复（`loadAnalysis()` 在 `mounted()` 中调用）：
 
-1. 读取 `ne-analysis` JSON
+1. 读取当前记号对应的 `nerw-analysis-<notationId>` JSON
 2. 按 owner 和记号 ID 匹配当前注册项；本地源码版本必须一致
 3. 对每个记号的 items，通过 `expr` 展开分析树
 4. 将分析文本填入匹配的节点

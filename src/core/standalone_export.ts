@@ -1,6 +1,12 @@
 import { get_category, get_category_children, get_notation, list_notations } from '@/core/registry.ts';
 import { app_storage } from '@/core/storage.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
+import {
+    analysis_storage_key,
+    APP_STORAGE_KEYS,
+    APP_STORAGE_PREFIXES,
+    note_storage_key,
+} from '@/core/storage_keys.ts';
 
 export interface StandaloneExportOptions {
     localFiles: LocalNotationFile[];
@@ -31,8 +37,8 @@ interface StandaloneCdnAsset {
     kind: 'script' | 'style';
 }
 
-const SETTINGS_KEY = 'ne-settings';
-const LOCAL_FILES_KEY = 'ne-local-notation-files';
+const SETTINGS_KEY = APP_STORAGE_KEYS.settings;
+const LOCAL_FILES_KEY = APP_STORAGE_KEYS.localNotationFiles;
 const DEFAULT_TITLE = 'Notation Explorer';
 const DEFAULT_FILE_NAME = 'notation-explorer-standalone.html';
 const KATEX_VERSION = '0.17.0';
@@ -251,31 +257,35 @@ function snapshot_storage(includeData: boolean): Record<string, string> {
     if (typeof candidate.length === 'number' && typeof candidate.key === 'function') {
         for (let index = 0; index < candidate.length; index++) {
             const key = candidate.key(index);
-            if (
-                !key ||
-                !/^ne-(?:settings|analysis-|note-|summary-pos|direct-expand-panel-geometry|notes-panel-geometry)/.test(
-                    key,
-                )
-            )
-                continue;
+            if (!key || !is_snapshot_storage_key(key)) continue;
             const value = store.getItem(key);
             if (value !== null) result[key] = value;
         }
         return result;
     }
-    const known = [SETTINGS_KEY, 'ne-summary-pos', 'ne-direct-expand-panel-geometry', 'ne-notes-panel-geometry'];
+    const known = [SETTINGS_KEY, APP_STORAGE_KEYS.summaryPosition, APP_STORAGE_KEYS.notesPanelGeometry];
     for (const key of known) {
         const value = store.getItem(key);
         if (value !== null) result[key] = value;
     }
     for (const notation of list_notations()) {
-        for (const prefix of ['ne-analysis-', 'ne-note-']) {
-            const key = prefix + notation.id;
+        for (const key of [analysis_storage_key(notation.id), note_storage_key(notation.id)]) {
             const value = store.getItem(key);
             if (value !== null) result[key] = value;
         }
     }
     return result;
+}
+
+function is_snapshot_storage_key(key: string): boolean {
+    return (
+        key === APP_STORAGE_KEYS.settings ||
+        key === APP_STORAGE_KEYS.summaryPosition ||
+        key === APP_STORAGE_KEYS.notesPanelGeometry ||
+        key.startsWith(APP_STORAGE_PREFIXES.analysis) ||
+        key.startsWith(APP_STORAGE_PREFIXES.note) ||
+        key.startsWith(APP_STORAGE_PREFIXES.directExpandPanelGeometry)
+    );
 }
 
 interface AppStorageWithKeys {
@@ -307,7 +317,7 @@ function bootstrap_script(
         (builtinGeneratorCategoryIds
             ? `window.__NE_STANDALONE_GENERATOR_CATEGORY_IDS__=${json_for_script(builtinGeneratorCategoryIds)};\n`
             : '') +
-        `var prefix=${json_for_script(`ne-standalone:${bundleId}:`)};\n` +
+        `var prefix=${json_for_script(`${APP_STORAGE_PREFIXES.standalone}${bundleId}:`)};\n` +
         `var seed=${json_for_script(snapshot)};\n` +
         `var localFiles=${json_for_script(files)};\n` +
         `var memory={};\n` +

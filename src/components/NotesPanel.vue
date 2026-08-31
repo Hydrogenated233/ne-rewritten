@@ -5,6 +5,7 @@ import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { app_storage } from '@/core/storage.ts';
+import { APP_STORAGE_KEYS, note_storage_key } from '@/core/storage_keys.ts';
 
 const t = inject(I18N_KEY)!;
 const save_load = inject(SAVE_LOAD_KEY)!;
@@ -12,8 +13,10 @@ const ui = use_ui_states();
 const note = ref('');
 
 function storage_key(): string {
-    return `ne-note-${save_load.notation.value?.id ?? ''}`;
+    return note_storage_key(save_load.notation.value?.id ?? '');
 }
+
+const panel_storage_key = APP_STORAGE_KEYS.notesPanelGeometry;
 
 function load_note(): void {
     const id = save_load.notation.value?.id;
@@ -50,7 +53,7 @@ watch(note, (value) => {
     <FloatingPanel
         :show="ui.show_notes.value"
         :title="t('toolbar.notes')"
-        storage-key="ne-notes-panel-geometry"
+        :storage-key="panel_storage_key"
         :initial-width="480"
         :initial-height="360"
         :min-width="300"

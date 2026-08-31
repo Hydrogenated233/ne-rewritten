@@ -6,8 +6,8 @@ export interface AppStorageLike {
 
 /**
  * Standalone exports install a namespaced storage adapter before loading the
- * application bundle. The normal app continues to use the browser's local
- * storage without changing its persisted keys.
+ * application bundle. The normal app uses the browser's local storage with
+ * the target repository's own `nerw-*` keys.
  */
 export function app_storage(): AppStorageLike | null {
     if (typeof window !== 'undefined') {

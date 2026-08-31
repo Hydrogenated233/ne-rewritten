@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AIRequestNetworkError, clear_ai_session_api_key, generate_notation, normalize_chat_endpoint, run_ai_tool, tool_definitions, write_ai_session_settings } from '@/core/ai_notation_assistant';
+import { AI_SESSION_STORAGE_KEYS } from '@/core/storage_keys.ts';
 
 function jsonResponse(payload: unknown, status = 200): any {
     return { ok: status >= 200 && status < 300, status, statusText: '', body: null, json: async () => payload };
@@ -100,10 +101,10 @@ describe('AI notation assistant', () => {
             },
         });
         write_ai_session_settings({ baseUrl: 'http://localhost:1', apiKey: 'secret', model: 'test' });
-        expect(session.get('ne-ai-api-key')).toBe('secret');
+        expect(session.get(AI_SESSION_STORAGE_KEYS.apiKey)).toBe('secret');
         expect(local.size).toBe(0);
         clear_ai_session_api_key();
-        expect(session.has('ne-ai-api-key')).toBe(false);
+        expect(session.has(AI_SESSION_STORAGE_KEYS.apiKey)).toBe(false);
         delete (globalThis as any).sessionStorage;
         delete (globalThis as any).localStorage;
     });

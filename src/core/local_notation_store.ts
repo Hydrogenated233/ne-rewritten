@@ -1,7 +1,8 @@
-export const LOCAL_NOTATION_STORE_VERSION = 1;
-export const DEFAULT_LOCAL_NOTATION_STORE_KEY = 'ne-local-notation-files';
-
 import { app_storage } from '@/core/storage.ts';
+import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
+
+export const LOCAL_NOTATION_STORE_VERSION = 1;
+export const DEFAULT_LOCAL_NOTATION_STORE_KEY = APP_STORAGE_KEYS.localNotationFiles;
 
 export interface LocalNotationError {
     code: string;

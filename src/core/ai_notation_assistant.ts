@@ -3,6 +3,7 @@ import { validate_notation_source, type SourceValidationResult } from '@/core/so
 import { get_notation } from '@/core/registry.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { AI_BUILTIN_CONTEXT } from '@/core/ai_context.ts';
+import { AI_SESSION_STORAGE_KEYS } from '@/core/storage_keys.ts';
 
 export type AIProtocol = 'chat_completions';
 
@@ -86,11 +87,7 @@ const DEFAULT_BASE_URL = 'https://api.openai.com';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const MAX_OUTPUT_LENGTH = 120_000;
 const MAX_TOOL_OUTPUT_LENGTH = 30_000;
-const SESSION_KEYS = {
-    baseUrl: 'ne-ai-base-url',
-    apiKey: 'ne-ai-api-key',
-    model: 'ne-ai-model',
-} as const;
+const SESSION_KEYS = AI_SESSION_STORAGE_KEYS;
 
 function storage(): Storage | null {
     try {

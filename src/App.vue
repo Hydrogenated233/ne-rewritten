@@ -380,6 +380,11 @@ function debug_compare_order(notation_id?: string) {
     --color-shadow: rgba(0, 0, 0, 0.15);
     --color-overlay: rgba(0, 0, 0, 0.35);
     --color-modal-overlay: rgba(0, 0, 0, 0.4);
+    --color-editor-keyword: #7c3aed;
+    --color-editor-literal: #b42318;
+    --color-editor-number: #0550ae;
+    --color-editor-string: #116329;
+    --color-editor-comment: #6e7781;
 }
 
 .settings-box {

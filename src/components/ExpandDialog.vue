@@ -6,6 +6,7 @@ import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { resolve_name } from '@/notation-definition.ts';
 import type { Settings } from '@/core/settings.ts';
+import { direct_expand_panel_storage_key } from '@/core/storage_keys.ts';
 
 const settings = inject(SETTINGS_KEY)! as Settings;
 const t = inject(I18N_KEY)!;
@@ -39,7 +40,7 @@ function open_new(): void {
         :key="note.id"
         :show="true"
         :title="`${t('expand.title')} #${index + 1}`"
-        :storage-key="`ne-direct-expand-panel-geometry-${note.id}`"
+        :storage-key="direct_expand_panel_storage_key(note.id)"
         :initial-width="620"
         :initial-top="96 + (index % 6) * 28"
         :initial-right="64 + (index % 6) * 18"

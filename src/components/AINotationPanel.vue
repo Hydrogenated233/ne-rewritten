@@ -4,6 +4,8 @@ import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
+import { app_storage } from '@/core/storage.ts';
+import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
 import {
     AIRequestNetworkError,
     clear_ai_session_api_key,
@@ -43,7 +45,7 @@ const t = inject(I18N_KEY)!;
 const runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
 const ui = use_ui_states();
 
-const STORAGE_KEY = 'ne-ai-conversations';
+const STORAGE_KEY = APP_STORAGE_KEYS.aiConversations;
 const apiSettings = read_ai_session_settings();
 const base_url = ref(apiSettings.baseUrl || '');
 const api_key = ref(apiSettings.apiKey || '');
@@ -159,7 +161,7 @@ function fresh_conversation(): Conversation {
 
 function load_conversations(): Conversation[] {
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
+        const raw = app_storage()?.getItem(STORAGE_KEY);
         const parsed = raw ? JSON.parse(raw) : [];
         if (!Array.isArray(parsed)) return [fresh_conversation()];
         const restored = parsed.filter((item) => item && typeof item.id === 'string').map((item) => ({ ...fresh_conversation(), ...item, busy: false }));
@@ -171,7 +173,7 @@ function load_conversations(): Conversation[] {
 
 function persist(): void {
     try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations.value));
+        app_storage()?.setItem(STORAGE_KEY, JSON.stringify(conversations.value));
     } catch {
         // A full/private localStorage must not prevent the current run.
     }

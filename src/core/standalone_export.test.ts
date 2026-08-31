@@ -8,6 +8,7 @@ import {
     unregister_category,
 } from '@/core/registry.ts';
 import type { NotationCategoryDefinition } from '@/notation-definition.ts';
+import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
 
 function response(text: string, status = 200): any {
     return { ok: status >= 200 && status < 300, status, text: async () => text };
@@ -15,7 +16,10 @@ function response(text: string, status = 200): any {
 
 describe('standalone export boundary', () => {
     it('embeds the compat kernel, isolates storage, and seeds only loaded trusted files', async () => {
-        const local = new Map<string, string>([['ne-settings', JSON.stringify({ current_notation_id: 'bm4' })]]);
+        const local = new Map<string, string>([
+            [APP_STORAGE_KEYS.settings, JSON.stringify({ current_notation_id: 'bm4' })],
+            ['ne-settings', JSON.stringify({ current_notation_id: 'source-repository-value' })],
+        ]);
         Object.defineProperty(globalThis, 'window', {
             configurable: true,
             value: { location: { href: 'https://example.test/ne-rewritten/' } },
@@ -68,7 +72,9 @@ describe('standalone export boundary', () => {
             credentials: 'same-origin',
         });
         expect(result.html).toContain('window.__NE_STANDALONE__=true');
-        expect(result.html).toContain('ne-standalone:');
+        expect(result.html).toContain('nerw-standalone:');
+        expect(result.html).toContain('bm4');
+        expect(result.html).not.toContain('source-repository-value');
         expect(result.html).toContain('ok.js');
         expect(result.html).not.toContain('disabled.js');
         expect(result.html).toContain('.app{color:red}');

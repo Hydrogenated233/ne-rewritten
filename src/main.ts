@@ -98,9 +98,10 @@ import { create_notation_tools } from '@/core/notation_tools.ts';
 import { LocalNotationRuntime } from '@/core/local_notation_runtime.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { app_storage } from '@/core/storage.ts';
+import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
 import { IS_STANDALONE } from '@/core/deployment.ts';
 
-const SETTINGS_KEY_NAME = 'ne-settings';
+const SETTINGS_KEY_NAME = APP_STORAGE_KEYS.settings;
 
 function load_settings(): Partial<Settings> {
     try {

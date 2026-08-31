@@ -10,7 +10,7 @@ export interface CodeMirrorModule {
     highlightActiveLineGutter: typeof import('@codemirror/view').highlightActiveLineGutter;
     EditorState: typeof import('@codemirror/state').EditorState;
     Compartment: typeof import('@codemirror/state').Compartment;
-    defaultHighlightStyle: typeof import('@codemirror/language').defaultHighlightStyle;
+    notationHighlightStyle: import('@codemirror/language').HighlightStyle;
     syntaxHighlighting: typeof import('@codemirror/language').syntaxHighlighting;
     bracketMatching: typeof import('@codemirror/language').bracketMatching;
     indentOnInput: typeof import('@codemirror/language').indentOnInput;
@@ -32,7 +32,37 @@ export function load_codemirror(): Promise<CodeMirrorModule> {
             import('@codemirror/commands'),
             import('@codemirror/autocomplete'),
             import('@codemirror/lang-javascript'),
-        ]).then(([view, state, language, commands, autocomplete, js]) => {
+            import('@lezer/highlight'),
+        ]).then(([view, state, language, commands, autocomplete, js, highlight]) => {
+            const notationHighlightStyle = language.HighlightStyle.define([
+                {
+                    tag: highlight.tags.keyword,
+                    color: 'var(--color-editor-keyword)',
+                    fontWeight: '600',
+                },
+                {
+                    tag: [highlight.tags.bool, highlight.tags.null, highlight.tags.atom],
+                    color: 'var(--color-editor-literal)',
+                },
+                {
+                    tag: highlight.tags.number,
+                    color: 'var(--color-editor-number)',
+                },
+                {
+                    tag: [highlight.tags.string, highlight.tags.regexp],
+                    color: 'var(--color-editor-string)',
+                },
+                {
+                    tag: highlight.tags.comment,
+                    color: 'var(--color-editor-comment)',
+                    fontStyle: 'italic',
+                },
+                {
+                    tag: highlight.tags.invalid,
+                    color: 'var(--color-danger)',
+                    textDecoration: 'underline',
+                },
+            ]);
             cm_module = {
                 EditorView: view.EditorView,
                 keymap: view.keymap,
@@ -42,7 +72,7 @@ export function load_codemirror(): Promise<CodeMirrorModule> {
                 highlightActiveLineGutter: view.highlightActiveLineGutter,
                 EditorState: state.EditorState,
                 Compartment: state.Compartment,
-                defaultHighlightStyle: language.defaultHighlightStyle,
+                notationHighlightStyle,
                 syntaxHighlighting: language.syntaxHighlighting,
                 bracketMatching: language.bracketMatching,
                 indentOnInput: language.indentOnInput,
