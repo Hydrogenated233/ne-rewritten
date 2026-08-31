@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject, ref, watch } from 'vue';
-import ModalDialog from './ModalDialog.vue';
+import FloatingPanel from './FloatingPanel.vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
@@ -46,17 +46,28 @@ watch(note, (value) => {
 </script>
 
 <template>
-    <ModalDialog :show="ui.show_notes.value" :title="t('toolbar.notes')" @close="ui.show_notes.value = false">
+    <FloatingPanel
+        :show="ui.show_notes.value"
+        :title="t('toolbar.notes')"
+        storage-key="ne-notes-panel-geometry"
+        :initial-width="480"
+        :initial-height="360"
+        :min-width="300"
+        :min-height="220"
+        resizable
+        @close="ui.show_notes.value = false"
+    >
         <textarea v-model="note" class="notes-textarea" :placeholder="t('notes.placeholder')" spellcheck="false" />
-    </ModalDialog>
+    </FloatingPanel>
 </template>
 
 <style scoped>
 .notes-textarea {
     display: block;
-    width: min(680px, 80vw);
-    min-height: 260px;
-    resize: vertical;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    resize: none;
     box-sizing: border-box;
     padding: 8px 10px;
     border: 1px solid var(--color-border);

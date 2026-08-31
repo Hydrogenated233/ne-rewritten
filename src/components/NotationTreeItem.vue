@@ -386,14 +386,14 @@ function on_blur() {
             @mouseenter="on_enter"
             @mouseleave="on_leave"
         >
-            <span
-                v-if="node.children.length > 0"
-                class="fold-icon"
+            <input
+                v-model="ed.hide_child"
+                class="subtree-toggle"
+                type="checkbox"
+                :aria-label="t('hotkey.toggle-children')"
                 @mousedown.stop
-                @click.stop="ed.hide_child = !ed.hide_child"
-                >{{ ed.hide_child ? '▶' : '▼' }}</span
-            >
-            <span v-else class="fold-icon fold-icon--spacer"></span>
+                @click.stop
+            />
             <span v-if="pending_count > 0" class="pending-badge" @mousedown.stop @click.stop="on_pending_badge_click"
                 >({{ pending_count }})</span
             >

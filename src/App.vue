@@ -645,23 +645,14 @@ ul {
     border-left: 1px solid var(--color-border-light);
 }
 
-.fold-icon {
-    display: inline-block;
-    width: 1em;
+.subtree-toggle {
+    width: 13px;
+    height: 13px;
+    margin: 0 4px 0 0;
+    padding: 0;
     cursor: pointer;
-    user-select: none;
-    font-size: 0.75em;
-    color: var(--color-text-secondary);
     vertical-align: middle;
-}
-
-.fold-icon--spacer {
-    cursor: default;
-    visibility: hidden;
-}
-
-.fold-icon:hover {
-    color: var(--color-text);
+    accent-color: var(--color-accent);
 }
 
 .pending-badge {

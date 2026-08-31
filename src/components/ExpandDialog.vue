@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { inject } from 'vue';
-import ModalDialog from './ModalDialog.vue';
+import FloatingPanel from './FloatingPanel.vue';
 import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
@@ -30,7 +30,17 @@ function on_fill() {
 </script>
 
 <template>
-    <ModalDialog :show="show" :title="t('expand.title')" @close="emit('close')">
+    <FloatingPanel
+        :show="show"
+        :title="t('expand.title')"
+        storage-key="ne-direct-expand-panel-geometry"
+        :initial-width="620"
+        :initial-top="96"
+        :initial-right="64"
+        :min-width="360"
+        :min-height="0"
+        @close="emit('close')"
+    >
         <div class="expand-form" @keydown="on_keydown">
             <div class="expand-row">
                 <input
@@ -102,7 +112,7 @@ function on_fill() {
                 </button>
             </div>
         </div>
-    </ModalDialog>
+    </FloatingPanel>
 </template>
 
 <style scoped>
@@ -110,7 +120,8 @@ function on_fill() {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    min-width: 500px;
+    width: 100%;
+    min-width: 0;
 }
 .expand-row {
     display: flex;
