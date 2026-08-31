@@ -6,7 +6,7 @@ import { use_diagram } from '@/composables/use_diagram.ts';
 import { DiagramControl, DiagramControlSetting, resolve_name } from '@/notation-definition.ts';
 import ModalDialog from './ModalDialog.vue';
 
-const props = defineProps<{ control: DiagramControl<any, any> | null }>();
+const props = defineProps<{ control: DiagramControl<any, any> | null; inline?: boolean }>();
 
 const t = inject(I18N_KEY)!;
 const ui = use_ui_states();
@@ -45,6 +45,8 @@ function on_number_change(s: DiagramControlSetting, e: Event) {
 <template>
     <ModalDialog
         :show="ui.show_diagram_settings.value"
+        :inline="props.inline"
+        :inline-close="true"
         :title="t('diagram.settings')"
         @close="ui.show_diagram_settings.value = false"
     >

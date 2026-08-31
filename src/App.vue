@@ -15,12 +15,10 @@ import TipsDialog from '@/components/TipsDialog.vue';
 import ColorThemePanel from '@/components/ColorThemePanel.vue';
 import ResetPanel from '@/components/ResetPanel.vue';
 import AnalysisLatexSettingsPanel from '@/components/AnalysisLatexSettingsPanel.vue';
-import UserDefinedNotationPanel from '@/components/UserDefinedNotationPanel.vue';
 import UserDefinedApiPanel from '@/components/UserDefinedApiPanel.vue';
 import UserDefinedNavPanel from '@/components/UserDefinedNavPanel.vue';
 import { create_t, I18N_KEY } from '@/composables/use_i18n.ts';
 import ExpandDialog from '@/components/ExpandDialog.vue';
-import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { use_latex } from '@/composables/use_latex.ts';
 import LaTeXViewer from '@/components/LaTeXViewer.vue';
 import MultiSelectBar from '@/components/MultiSelectBar.vue';
@@ -40,6 +38,9 @@ import { IS_STANDALONE } from '@/core/deployment.ts';
 // exploration and can remain a separately loaded tab on GitHub Pages. The
 // standalone build must not bundle the AI workspace at all.
 const AINotationPanel = IS_STANDALONE ? null : defineAsyncComponent(() => import('@/components/AINotationPanel.vue'));
+const UserDefinedNotationPanel = IS_STANDALONE
+    ? null
+    : defineAsyncComponent(() => import('@/components/UserDefinedNotationPanel.vue'));
 const ToolsPanel = defineAsyncComponent(() => import('@/components/ToolsPanel.vue'));
 const is_standalone = IS_STANDALONE;
 
@@ -63,7 +64,6 @@ function on_description_click() {
     ui.description_visible.value = !ui.description_visible.value;
 }
 const latex_state = use_latex();
-const expand_dialog_state = use_expand_dialog();
 const multi_select = use_multi_select();
 const ui = use_ui_states();
 
@@ -332,16 +332,16 @@ function debug_compare_order(notation_id?: string) {
             {{ t('autosave.last-save', { time: save_indicator }) }}
         </div>
         <HotkeyDialog :show="ui.show_hotkeys.value" @close="ui.show_hotkeys.value = false" />
-        <ExpandDialog :show="expand_dialog_state.visible.value" @close="expand_dialog_state.close()" />
+        <ExpandDialog />
         <TipPopup :show="tip.shown.value !== null" :tip="tip.shown.value" @close="tip.close()" @ignore="tip.ignore" />
         <TipsDialog :show="ui.show_tips.value" @close="ui.show_tips.value = false" />
         <NotesPanel />
-        <ColorThemePanel />
+        <ColorThemePanel :inline="active_page === 'settings'" />
         <ResetPanel />
-        <UserDefinedNotationPanel />
+        <UserDefinedNotationPanel v-if="!is_standalone" :inline="active_page === 'settings'" />
         <UserDefinedApiPanel />
         <UserDefinedNavPanel />
-        <AnalysisLatexSettingsPanel />
+        <AnalysisLatexSettingsPanel :inline="active_page === 'settings'" />
         <MultiSelectBar />
         <ConfigBar />
     </div>

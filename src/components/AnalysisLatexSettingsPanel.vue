@@ -8,11 +8,14 @@ import ModalDialog from './ModalDialog.vue';
 const t = inject(I18N_KEY)!;
 const settings = inject(SETTINGS_KEY)!;
 const ui = use_ui_states();
+defineProps<{ inline?: boolean }>();
 </script>
 
 <template>
     <ModalDialog
         :show="ui.show_latex_analysis.value"
+        :inline="inline"
+        :inline-close="true"
         :title="t('latex-analysis.title')"
         @close="ui.show_latex_analysis.value = false"
     >

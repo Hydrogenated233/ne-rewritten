@@ -13,6 +13,7 @@ import GUIDE_MD from '@/assets/making-a-notation.md?raw';
 const t = inject(I18N_KEY)!;
 const runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
 const ui = use_ui_states();
+defineProps<{ inline?: boolean }>();
 
 const files = ref<LocalNotationFile[]>([]);
 const active_tab = ui.user_defined_active_tab;
@@ -639,7 +640,8 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
 
 <template>
     <ModalDialog
-        :show="ui.show_user_defined.value"
+        :show="inline || ui.show_user_defined.value"
+        :inline="inline"
         :title="t('user-defined.title')"
         @close="
             sync_editor();
@@ -661,16 +663,17 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
                     @drop="on_drop(idx)"
                     @click="select_file(file.id)"
                 >
-                    <span
-                        v-if="has_warning(file.name)"
-                        class="ud-warn"
-                        :title="warnings.get(file.name)?.join('\n')"
+                    <span v-if="has_warning(file.name)" class="ud-warn" :title="warnings.get(file.name)?.join('\n')"
                         >⚠</span
                     >
                     <span class="ud-tab-name">{{ file.name }}</span>
                     <span v-if="file.enabled" class="ud-tab-status">{{ t('user-defined.enable') }}</span>
                     <span v-else-if="!file.trusted" class="ud-tab-status">{{ t('user-defined.untrusted') }}</span>
-                    <span v-if="file.manifest.notations.length" class="ud-tab-ids" :title="file.manifest.notations.join(', ')">
+                    <span
+                        v-if="file.manifest.notations.length"
+                        class="ud-tab-ids"
+                        :title="file.manifest.notations.join(', ')"
+                    >
                         {{ file.manifest.notations.length }} ID
                     </span>
                     <span
@@ -679,7 +682,9 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
                     >
                         {{ t('user-defined.retained') }}
                     </span>
-                    <span v-if="current_file?.id === file.id && is_dirty" class="ud-tab-status ud-tab-dirty">{{ t('user-defined.dirty') }}</span>
+                    <span v-if="current_file?.id === file.id && is_dirty" class="ud-tab-status ud-tab-dirty">{{
+                        t('user-defined.dirty')
+                    }}</span>
                 </div>
                 <button class="ud-btn ud-btn-new" @mousedown.prevent="new_script">{{ t('user-defined.new') }}</button>
             </div>
@@ -709,7 +714,11 @@ onMounted(() => window.addEventListener('beforeunload', on_before_unload));
             <!-- Right: buttons -->
             <div class="ud-buttons">
                 <button class="ud-btn" @mousedown.prevent="open_guide">{{ t('user-defined.guide') }}</button>
-                <button class="ud-btn ud-btn-success" :disabled="!current_file || !is_dirty" @mousedown.prevent="save_selected">
+                <button
+                    class="ud-btn ud-btn-success"
+                    :disabled="!current_file || !is_dirty"
+                    @mousedown.prevent="save_selected"
+                >
                     {{ t('user-defined.save') }}
                 </button>
                 <button class="ud-btn" :disabled="!current_file || !is_dirty" @mousedown.prevent="discard_selected">

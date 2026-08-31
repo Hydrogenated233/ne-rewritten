@@ -38,6 +38,11 @@ jobs:
             - run: |
                   mkdir -p dist/compat
                   cp -r dist-compat/. dist/compat/
+            # 独立导出内核: 项目代码内嵌，第三方库由导出的 HTML 从 CDN 加载。
+            - run: npm run build:standalone
+            - run: |
+                  mkdir -p dist/standalone
+                  cp -r dist-standalone/. dist/standalone/
             - uses: actions/configure-pages@v5
             - uses: actions/upload-pages-artifact@v5
               with:

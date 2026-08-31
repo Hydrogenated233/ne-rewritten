@@ -1,31 +1,45 @@
 <script setup lang="ts">
-import { computed, inject, ref, watch } from 'vue';
+import { computed, inject, onMounted, ref, watch } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { build_standalone, download_standalone, estimate_standalone_bytes } from '@/core/standalone_export.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
+import { list_notations } from '@/core/registry.ts';
+import { resolve_name } from '@/notation-definition.ts';
 import ModalDialog from './ModalDialog.vue';
 
 const t = inject(I18N_KEY)!;
 const runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
+const props = defineProps<{ inline?: boolean }>();
 const show = ref(false);
 const include_data = ref(true);
 const title = ref('Notation Explorer');
 const file_name = ref('notation-explorer-standalone.html');
 const selected_ids = ref<string[]>([]);
+const selected_builtin_ids = ref<string[]>([]);
 const busy = ref(false);
 const error = ref('');
 const status = ref('');
 const files = ref<LocalNotationFile[]>([]);
 
-const selectable_files = computed(() => files.value.filter((file) => file.enabled && file.trusted && file.sourceRevision === file.loadedRevision));
+const selectable_files = computed(() =>
+    files.value.filter((file) => file.enabled && file.trusted && file.sourceRevision === file.loadedRevision),
+);
+const local_notation_ids = computed(() => new Set(files.value.flatMap((file) => file.manifest.notations)));
+const selectable_builtins = computed(() =>
+    list_notations().filter((notation) => !local_notation_ids.value.has(notation.id)),
+);
 const selected_count = computed(() => selected_ids.value.length);
+const selected_builtin_count = computed(() => selected_builtin_ids.value.length);
 
 function refresh(): void {
     files.value = runtime.listFiles();
     const available = new Set(selectable_files.value.map((file) => file.id));
     selected_ids.value = selected_ids.value.filter((id) => available.has(id));
     if (selected_ids.value.length === 0) selected_ids.value = [...available];
+    const available_builtin = new Set(selectable_builtins.value.map((notation) => notation.id));
+    selected_builtin_ids.value = selected_builtin_ids.value.filter((id) => available_builtin.has(id));
+    if (selected_builtin_ids.value.length === 0) selected_builtin_ids.value = [...available_builtin];
 }
 
 function open(): void {
@@ -53,6 +67,20 @@ function clear_selection(): void {
     selected_ids.value = [];
 }
 
+function select_all_builtins(): void {
+    selected_builtin_ids.value = selectable_builtins.value.map((notation) => notation.id);
+}
+
+function clear_builtin_selection(): void {
+    selected_builtin_ids.value = [];
+}
+
+function toggle_builtin(id: string): void {
+    selected_builtin_ids.value = selected_builtin_ids.value.includes(id)
+        ? selected_builtin_ids.value.filter((value) => value !== id)
+        : [...selected_builtin_ids.value, id];
+}
+
 async function export_html(): Promise<void> {
     if (busy.value) return;
     busy.value = true;
@@ -62,6 +90,7 @@ async function export_html(): Promise<void> {
         const selected = selectable_files.value.filter((file) => selected_ids.value.includes(file.id));
         const result = await build_standalone({
             localFiles: selected,
+            builtinNotationIds: selected_builtin_ids.value,
             includeData: include_data.value,
             title: title.value,
             fileName: file_name.value,
@@ -80,13 +109,17 @@ watch(show, (visible) => {
     if (visible) refresh();
 });
 
+onMounted(() => {
+    if (props.inline) refresh();
+});
+
 defineExpose({ open });
 </script>
 
 <template>
-    <button type="button" @mousedown="open">{{ t('standalone-export.open') }}</button>
-    <ModalDialog :show="show" :title="t('standalone-export.title')" @close="close">
-        <div class="standalone-export">
+    <button v-if="!inline" type="button" @mousedown="open">{{ t('standalone-export.open') }}</button>
+    <ModalDialog :show="inline || show" :inline="inline" :title="t('standalone-export.title')" @close="close">
+        <div class="standalone-export" :class="{ 'standalone-export--inline': inline }">
             <p class="standalone-export__hint">{{ t('standalone-export.description') }}</p>
             <div class="standalone-export__fields">
                 <label>
@@ -115,6 +148,28 @@ defineExpose({ open });
                     {{ t('standalone-export.no-local-files') }}
                 </p>
             </div>
+            <div class="standalone-export__selection standalone-export__builtin-selection">
+                <div class="standalone-export__selection-header">
+                    <strong>{{ t('standalone-export.builtin-notations') }}</strong>
+                    <span>{{ selected_builtin_count }}/{{ selectable_builtins.length }}</span>
+                    <span class="standalone-export__selection-actions">
+                        <button type="button" @click="select_all_builtins">
+                            {{ t('standalone-export.select-all') }}
+                        </button>
+                        <button type="button" @click="clear_builtin_selection">
+                            {{ t('standalone-export.clear') }}
+                        </button>
+                    </span>
+                </div>
+                <label v-for="notation in selectable_builtins" :key="notation.id" class="standalone-export__file">
+                    <input
+                        :checked="selected_builtin_ids.includes(notation.id)"
+                        type="checkbox"
+                        @change="toggle_builtin(notation.id)"
+                    />
+                    <span>{{ resolve_name(notation.simple_name ?? notation.name, t) ?? notation.id }}</span>
+                </label>
+            </div>
             <label class="standalone-export__snapshot">
                 <input v-model="include_data" type="checkbox" />
                 {{ t('standalone-export.include-data') }}
@@ -133,25 +188,141 @@ defineExpose({ open });
 </template>
 
 <style scoped>
-.standalone-export { min-width: min(560px, 80vw); max-width: 720px; }
-.standalone-export__hint, .standalone-export__note { margin: 0 0 12px; color: var(--color-text-secondary); font-size: 13px; }
-.standalone-export__fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.standalone-export__fields label { display: flex; flex-direction: column; gap: 4px; color: var(--color-text-secondary); font-size: 12px; }
-.standalone-export__fields input { min-width: 0; height: 30px; box-sizing: border-box; padding: 4px 8px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg); color: var(--color-text); font: inherit; }
-.standalone-export__selection { margin-top: 14px; border: 1px solid var(--color-border-light); border-radius: 5px; }
-.standalone-export__selection-header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--color-border-light); background: var(--color-bg-secondary); }
-.standalone-export__selection-header > span { color: var(--color-text-secondary); font-size: 12px; }
-.standalone-export__selection-actions { margin-left: auto; display: inline-flex; gap: 4px; }
-.standalone-export__selection-actions button { padding: 2px 6px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg); color: var(--color-text); cursor: pointer; font: inherit; font-size: 12px; }
-.standalone-export__file { display: flex; align-items: center; gap: 7px; padding: 6px 10px; font-size: 13px; }
-.standalone-export__file:hover { background: var(--color-bg-hover); }
-.standalone-export__empty { margin: 0; padding: 12px; color: var(--color-text-muted); font-size: 13px; }
-.standalone-export__snapshot { display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; }
-.standalone-export__status { margin: 10px 0 0; color: var(--color-success); font-size: 13px; }
-.standalone-export__error { margin: 10px 0 0; color: var(--color-danger); white-space: pre-wrap; font-size: 13px; }
-.standalone-export__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-.standalone-export__actions button { min-height: 30px; padding: 4px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg-secondary); color: var(--color-text); cursor: pointer; font: inherit; }
-.standalone-export__actions button:first-child { border-color: var(--color-accent); background: var(--color-accent); color: var(--color-bg); font-weight: 600; }
-.standalone-export__actions button:disabled { cursor: wait; opacity: .6; }
-@media (max-width: 560px) { .standalone-export { min-width: 0; } .standalone-export__fields { grid-template-columns: 1fr; } }
+.standalone-export {
+    min-width: min(560px, 80vw);
+    max-width: 720px;
+}
+.standalone-export--inline {
+    min-width: 0;
+    max-width: none;
+}
+.standalone-export__hint,
+.standalone-export__note {
+    margin: 0 0 12px;
+    color: var(--color-text-secondary);
+    font-size: 13px;
+}
+.standalone-export__fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.standalone-export__fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+.standalone-export__fields input {
+    min-width: 0;
+    height: 30px;
+    box-sizing: border-box;
+    padding: 4px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font: inherit;
+}
+.standalone-export__selection {
+    margin-top: 14px;
+    border: 1px solid var(--color-border-light);
+    border-radius: 5px;
+}
+.standalone-export__selection-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--color-border-light);
+    background: var(--color-bg-secondary);
+}
+.standalone-export__selection-header > span {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+}
+.standalone-export__selection-actions {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 4px;
+}
+.standalone-export__selection-actions button {
+    padding: 2px 6px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+}
+.standalone-export__file {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 10px;
+    font-size: 13px;
+}
+.standalone-export__file:hover {
+    background: var(--color-bg-hover);
+}
+.standalone-export__empty {
+    margin: 0;
+    padding: 12px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+}
+.standalone-export__snapshot {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    font-size: 13px;
+}
+.standalone-export__status {
+    margin: 10px 0 0;
+    color: var(--color-success);
+    font-size: 13px;
+}
+.standalone-export__error {
+    margin: 10px 0 0;
+    color: var(--color-danger);
+    white-space: pre-wrap;
+    font-size: 13px;
+}
+.standalone-export__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 16px;
+}
+.standalone-export__actions button {
+    min-height: 30px;
+    padding: 4px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text);
+    cursor: pointer;
+    font: inherit;
+}
+.standalone-export__actions button:first-child {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-bg);
+    font-weight: 600;
+}
+.standalone-export__actions button:disabled {
+    cursor: wait;
+    opacity: 0.6;
+}
+@media (max-width: 560px) {
+    .standalone-export {
+        min-width: 0;
+    }
+    .standalone-export__fields {
+        grid-template-columns: 1fr;
+    }
+}
 </style>

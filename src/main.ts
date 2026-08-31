@@ -29,12 +29,14 @@ import { BLM } from '@/notations/BM-like/BLM.ts';
 import { DSM } from '@/notations/BM-like/DSM.ts';
 import {
     get_generator_state,
+    get_notation,
     init_generator,
     list_notations,
     on_registry_change,
     register_category,
     register_notation,
     set_generator_state,
+    unregister_notation,
 } from '@/core/registry.ts';
 import { DEFAULT_SETTINGS, Settings } from '@/core/settings.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
@@ -284,6 +286,24 @@ register_notation(aSAN3);
 register_notation(aSAN_tilde3plus);
 register_category(category_translators);
 register_notation(Translator_BM_BOCF);
+
+// Standalone exports may trim the built-in registry after the compat kernel
+// has loaded. The source modules remain bundled, but unselected notations are
+// unavailable to the exported UI and cannot affect its storage or tree state.
+if (IS_STANDALONE) {
+    const selected = (window as typeof window & { __NE_STANDALONE_BUILTIN_IDS__?: unknown })
+        .__NE_STANDALONE_BUILTIN_IDS__;
+    if (Array.isArray(selected)) {
+        const selected_ids = new Set(selected.filter((id): id is string => typeof id === 'string'));
+        for (const notation of [...list_notations()]) {
+            if (!selected_ids.has(notation.id)) unregister_notation(notation.id);
+        }
+    }
+    if (!get_notation(settings.current_notation_id)) {
+        const fallback = list_notations()[0];
+        if (fallback) settings.current_notation_id = fallback.id;
+    }
+}
 
 window.notations ??= {};
 for (let notation of list_notations()) {

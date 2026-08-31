@@ -226,6 +226,11 @@ export function generator_increment(cat_id: string): string | null {
     const cur = gen_state[cat_id] ?? cat.generator.initial;
     const next_n = cur + 1;
     const notation = cat.generator.create(next_n);
+    if (typeof window !== 'undefined') {
+        const selected = (window as typeof window & { __NE_STANDALONE_BUILTIN_IDS__?: unknown })
+            .__NE_STANDALONE_BUILTIN_IDS__;
+        if (Array.isArray(selected) && !selected.includes(notation.id)) return null;
+    }
     _register_notation(notation);
     gen_state[cat_id] = next_n;
     notify_change();

@@ -10,6 +10,7 @@ const t = inject(I18N_KEY)!;
 const settings = inject(SETTINGS_KEY)!;
 const ui = use_ui_states();
 const { set_theme } = use_color_theme();
+defineProps<{ inline?: boolean }>();
 
 function select(id: string) {
     set_theme(id);
@@ -19,6 +20,8 @@ function select(id: string) {
 <template>
     <ModalDialog
         :show="ui.show_color_theme.value"
+        :inline="inline"
+        :inline-close="true"
         :title="t('toolbar.theme')"
         @close="ui.show_color_theme.value = false"
     >
