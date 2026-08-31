@@ -1,17 +1,15 @@
 import { get_category, get_category_children, get_notation, list_notations } from '@/core/registry.ts';
 import { app_storage } from '@/core/storage.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
-import {
-    analysis_storage_key,
-    APP_STORAGE_KEYS,
-    APP_STORAGE_PREFIXES,
-    note_storage_key,
-} from '@/core/storage_keys.ts';
+import type { BuiltinNotationSourceFile } from '@/core/builtin_notation_sources.ts';
+import { analysis_storage_key, APP_STORAGE_KEYS, APP_STORAGE_PREFIXES, note_storage_key } from '@/core/storage_keys.ts';
 
 export interface StandaloneExportOptions {
     localFiles: LocalNotationFile[];
     /** Built-in notation ids to keep in the exported runtime. Omit to keep all. */
     builtinNotationIds?: string[];
+    /** Source files corresponding to the selected built-in notations. */
+    builtinSourceFiles?: BuiltinNotationSourceFile[];
     includeData: boolean;
     title?: string;
     fileName?: string;
@@ -309,6 +307,7 @@ function bootstrap_script(
     files: Record<string, unknown>,
     builtinNotationIds: string[] | undefined,
     builtinGeneratorCategoryIds: string[] | undefined,
+    builtinSourceFiles: BuiltinNotationSourceFile[],
 ): string {
     return (
         `(function(){\n` +
@@ -317,6 +316,7 @@ function bootstrap_script(
         (builtinGeneratorCategoryIds
             ? `window.__NE_STANDALONE_GENERATOR_CATEGORY_IDS__=${json_for_script(builtinGeneratorCategoryIds)};\n`
             : '') +
+        `window.__NE_STANDALONE_BUILTIN_FILES__=${json_for_script(builtinSourceFiles)};\n` +
         `var prefix=${json_for_script(`${APP_STORAGE_PREFIXES.standalone}${bundleId}:`)};\n` +
         `var seed=${json_for_script(snapshot)};\n` +
         `var localFiles=${json_for_script(files)};\n` +
@@ -404,13 +404,23 @@ export async function build_standalone(options: StandaloneExportOptions): Promis
         ? [...new Set(options.builtinNotationIds)].filter((id) => available_builtin_ids.has(id))
         : undefined;
     const generator_category_ids = selected_generator_categories(builtin_ids);
+    const builtin_source_files = (options.builtinSourceFiles ?? []).filter(
+        (file) => typeof file?.name === 'string' && typeof file?.source === 'string',
+    );
     const assets = await load_compat_assets(fetcher);
     const snapshot = snapshot_storage(options.includeData);
     const html = standalone_html(
         title,
         assets.css,
         assets.scripts,
-        bootstrap_script(bundleId, snapshot, local_file_state(selected), builtin_ids, generator_category_ids),
+        bootstrap_script(
+            bundleId,
+            snapshot,
+            local_file_state(selected),
+            builtin_ids,
+            generator_category_ids,
+            builtin_source_files,
+        ),
     );
     return { html, fileName: encode_file_name(options.fileName), bundleId, selectedLocalFiles: selected };
 }

@@ -198,9 +198,12 @@ async function export_html(): Promise<void> {
     status.value = t('standalone-export.reading');
     try {
         const selected = selectable_files.value.filter((file) => selected_ids.value.includes(file.id));
+        const { select_builtin_notation_sources } = await import('@/core/builtin_notation_sources.ts');
+        const builtin_source_files = select_builtin_notation_sources(selected_builtin_ids.value);
         const result = await build_standalone({
             localFiles: selected,
             builtinNotationIds: selected_builtin_ids.value,
+            builtinSourceFiles: builtin_source_files,
             includeData: include_data.value,
             title: title.value,
             fileName: file_name.value,

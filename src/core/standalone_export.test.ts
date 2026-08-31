@@ -65,6 +65,7 @@ describe('standalone export boundary', () => {
         const excluded = { ...selected, id: 'local-disabled', name: 'disabled.js', enabled: false };
         const result = await build_standalone({
             localFiles: [selected, excluded],
+            builtinSourceFiles: [{ name: 'BM-like/BM.ts', source: 'export const BM4 = {};' }],
             includeData: true,
             fetchImpl: fetchImpl as any,
         });
@@ -77,6 +78,9 @@ describe('standalone export boundary', () => {
         expect(result.html).not.toContain('source-repository-value');
         expect(result.html).toContain('ok.js');
         expect(result.html).not.toContain('disabled.js');
+        expect(result.html).toContain('window.__NE_STANDALONE_BUILTIN_FILES__');
+        expect(result.html).toContain('BM-like/BM.ts');
+        expect(result.html).toContain('export const BM4 = {};');
         expect(result.html).toContain('.app{color:red}');
         expect(result.html).toContain('window.__app_started__=true;');
         expect(result.html).toContain('ne-standalone-loader-bar');

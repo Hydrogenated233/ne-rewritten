@@ -13,7 +13,7 @@ import ColorThemePanel from './ColorThemePanel.vue';
 import { get_katex, load_katex } from '@/composables/use_katex.ts';
 import { validate_latex_commands } from '@/core/latex_renderer.ts';
 
-const StandaloneExportPanel = defineAsyncComponent(() => import('./StandaloneExportPanel.vue'));
+const StandaloneExportPanel = IS_STANDALONE ? null : defineAsyncComponent(() => import('./StandaloneExportPanel.vue'));
 const UserDefinedNotationPanel = IS_STANDALONE
     ? null
     : defineAsyncComponent(() => import('./UserDefinedNotationPanel.vue'));
@@ -434,7 +434,7 @@ watch(
             </div>
 
             <div v-else-if="active_section === 'export'" class="settings-list settings-list--workspace">
-                <StandaloneExportPanel v-if="!IS_STANDALONE" inline />
+                <StandaloneExportPanel v-if="!IS_STANDALONE && StandaloneExportPanel" inline />
             </div>
         </section>
     </div>
