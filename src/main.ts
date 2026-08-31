@@ -92,6 +92,7 @@ import { weak_omega_Y } from '@/notations/Y/weak-omega-Y.ts';
 import { TUPMS } from '@/notations/BM-like/TUPMS.ts';
 import { category_upmn } from '@/notations/MN/UPMN/categories.ts';
 import { UP2MN_v1a } from '@/notations/MN/UPMN/UP2MN-v1a.ts';
+import { create_notation_tools } from '@/core/notation_tools.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -249,6 +250,10 @@ window.notations ??= {};
 for (let notation of list_notations()) {
     window.notations[notation.id] = notation;
 }
+
+// Stable integration surface for the future AI/tools workspace. These handlers
+// call the same registry and expansion core as the visible application.
+(window as any).notation_tools = create_notation_tools();
 
 const app = createApp(App);
 
