@@ -35,9 +35,14 @@ describe('local notation editor presentation', () => {
         expect(editor_source).toContain('export function find_bracket_match');
         expect(editor_source).toContain('export function render_highlighted_source');
         expect(panel_source).toContain('class="ne-local-editor__gutter"');
+        expect(panel_source).toContain('class="ne-local-editor__gutter-content"');
         expect(panel_source).toContain('class="ne-local-editor__highlight"');
         expect(panel_source).toContain('class="ne-local-editor__textarea"');
         expect(panel_source).toContain('v-html="highlighted_source"');
+        expect(panel_source).toContain('highlight_layer.value.style.transform = `translate3d(');
+        expect(panel_source).toContain('line_gutter_content.value.style.transform = `translate3d(');
+        expect(panel_source).not.toContain('highlight_layer.value.scrollTop = input.scrollTop');
+        expect(panel_source).not.toContain('line_gutter.value.scrollTop = input.scrollTop');
         expect(panel_source).toContain("event.key !== 'Tab'");
         expect(panel_source).toContain("event.key.toLowerCase() === 's'");
 

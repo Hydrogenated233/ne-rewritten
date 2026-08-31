@@ -19,7 +19,7 @@ const files = ref<LocalNotationFile[]>([]);
 const active_tab = ui.user_defined_active_tab;
 const source_input = ref<HTMLTextAreaElement | null>(null);
 const highlight_layer = ref<HTMLPreElement | null>(null);
-const line_gutter = ref<HTMLDivElement | null>(null);
+const line_gutter_content = ref<HTMLDivElement | null>(null);
 const show_delete_confirm = ref(false);
 const delete_target_id = ref('');
 const show_new_dialog = ref(false);
@@ -491,11 +491,14 @@ function update_caret(event?: Event): void {
 function sync_editor_scroll(): void {
     const input = source_input.value;
     if (!input) return;
+    // Mirror by translation because native textarea scrollbars can give the
+    // overlay layers a smaller maximum scroll offset on Windows.
     if (highlight_layer.value) {
-        highlight_layer.value.scrollTop = input.scrollTop;
-        highlight_layer.value.scrollLeft = input.scrollLeft;
+        highlight_layer.value.style.transform = `translate3d(${-input.scrollLeft}px, ${-input.scrollTop}px, 0)`;
     }
-    if (line_gutter.value) line_gutter.value.scrollTop = input.scrollTop;
+    if (line_gutter_content.value) {
+        line_gutter_content.value.style.transform = `translate3d(0, ${-input.scrollTop}px, 0)`;
+    }
 }
 
 function on_editor_keydown(event: KeyboardEvent): void {
@@ -788,13 +791,15 @@ onMounted(() => {
                         </div>
 
                         <div class="ne-local-editor" :class="{ 'has-focus': editor_focused }">
-                            <div ref="line_gutter" class="ne-local-editor__gutter" aria-hidden="true">
-                                <span
-                                    v-for="line in line_numbers"
-                                    :key="line"
-                                    :class="{ 'is-active': line === active_line }"
-                                    >{{ line }}</span
-                                >
+                            <div class="ne-local-editor__gutter" aria-hidden="true">
+                                <div ref="line_gutter_content" class="ne-local-editor__gutter-content">
+                                    <span
+                                        v-for="line in line_numbers"
+                                        :key="line"
+                                        :class="{ 'is-active': line === active_line }"
+                                        >{{ line }}</span
+                                    >
+                                </div>
                             </div>
                             <div class="ne-local-editor__code">
                                 <pre
@@ -1341,6 +1346,10 @@ onMounted(() => {
     line-height: 20px;
 }
 
+.ne-local-editor__gutter-content {
+    will-change: transform;
+}
+
 .ne-local-editor__gutter span.is-active {
     color: var(--color-accent);
     font-weight: 700;
@@ -1378,10 +1387,11 @@ onMounted(() => {
 
 .ne-local-editor__highlight {
     z-index: 1;
-    overflow: hidden;
+    overflow: visible;
     background: transparent;
     color: var(--color-text);
     pointer-events: none;
+    will-change: transform;
 }
 
 .ne-local-editor__textarea.ne-local-editor__textarea {
