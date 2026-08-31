@@ -6,15 +6,28 @@ import theme_source from '../composables/use_color_theme.ts?raw';
 import package_source from '../../package.json?raw';
 
 describe('local notation editor presentation', () => {
-    it('keeps the editor workspace and runtime errors inside the settings panel', () => {
+    it('uses the source project local-file workspace instead of the temporary three-column layout', () => {
+        expect(panel_source).toContain('class="ne-local-manager__header"');
+        expect(panel_source).toContain('class="ne-local-toolbar"');
+        expect(panel_source).toContain('class="ne-local-workspace"');
+        expect(panel_source).toContain('class="ne-local-workspace__sidebar"');
+        expect(panel_source).toContain('class="ne-local-file-list"');
+        expect(panel_source).toContain('class="ne-local-workspace__editor"');
+        expect(panel_source).toContain('class="ne-local-editor__header"');
+        expect(panel_source).toContain('class="ne-local-editor__actions"');
+        expect(panel_source).toContain('class="ne-local-file__toggle"');
+        expect(panel_source).toContain('class="ne-local-file__status"');
+        expect(panel_source).toContain('class="ne-local-file__manifest"');
+        expect(panel_source).toContain('class="ne-local-file__delete"');
         expect(panel_source).toMatch(
-            /\.ud-layout\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(120px,\s*180px\)\s+minmax\(0,\s*1fr\)\s+minmax\(96px,\s*max-content\);[^}]*width:\s*100%;[^}]*max-width:\s*100%;[^}]*min-width:\s*0;/s,
+            /\.ne-local-workspace\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*280px\s+minmax\(0,\s*1fr\);[^}]*overflow:\s*hidden;/s,
         );
-        expect(panel_source).toMatch(/\.ud-editor-area\s*\{[^}]*min-width:\s*0;[^}]*overflow:\s*hidden;/s);
         expect(panel_source).toMatch(
-            /\.ud-status-message,\s*\.ud-runtime-error\s*\{[^}]*grid-column:\s*1\s*\/\s*-1;[^}]*min-width:\s*0;[^}]*max-width:\s*100%;[^}]*box-sizing:\s*border-box;[^}]*overflow-wrap:\s*anywhere;/s,
+            /@media\s*\(max-width:\s*820px\)[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
         );
-        expect(panel_source).not.toMatch(/\.ud-runtime-error\s*\{[^}]*flex:\s*0\s+0\s+100%/s);
+        expect(panel_source).not.toContain('class="ud-tabs"');
+        expect(panel_source).not.toContain('class="ud-buttons"');
+        expect(panel_source).not.toContain('grid-template-columns: minmax(120px, 180px)');
     });
 
     it('ports the source overlay editor, tokenizer, line gutter, and bracket matching', () => {

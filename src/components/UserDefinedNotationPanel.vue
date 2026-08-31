@@ -122,6 +122,34 @@ function has_warning(file_name: string): boolean {
     return warnings.value.has(file_name);
 }
 
+function file_status(file: LocalNotationFile): string {
+    if (file.lastError) return t('user-defined.status-error');
+    return file.enabled ? t('user-defined.status-enabled') : t('user-defined.status-disabled');
+}
+
+function file_status_class(file: LocalNotationFile): string {
+    if (file.lastError) return 'is-error';
+    return file.enabled ? 'is-enabled' : 'is-disabled';
+}
+
+function file_has_draft(file: LocalNotationFile): boolean {
+    if (file.id === current_file.value?.id) return is_dirty.value;
+    try {
+        return !!runtime.getDraft(file.id);
+    } catch {
+        return false;
+    }
+}
+
+function retained_ids(file: LocalNotationFile): string[] {
+    const notation_ids = new Set(file.manifest?.notations ?? []);
+    const category_ids = new Set(file.manifest?.categories ?? []);
+    return [
+        ...(file.knownNotationIds ?? []).filter((id) => !notation_ids.has(id)),
+        ...(file.knownCategoryIds ?? []).filter((id) => !category_ids.has(id)),
+    ];
+}
+
 function select_file(id: string): void {
     const index = files.value.findIndex((file) => file.id === id);
     if (index < 0 || index === active_tab.value) return;
@@ -302,9 +330,9 @@ function add_template(): void {
     });
 }
 
-function toggle_enable(): void {
-    const file = current_file.value;
-    if (!file) return;
+function toggle_file(file: LocalNotationFile, event: Event): void {
+    const checkbox = event.target instanceof HTMLInputElement ? event.target : null;
+    if (checkbox) checkbox.checked = file.enabled;
     guard_pending_changes(() => {
         const latest = runtime.getFile(file.id) ?? file;
         if (!latest.enabled && !latest.trusted && !window.confirm(t('user-defined.trust-confirm'))) return;
@@ -312,26 +340,15 @@ function toggle_enable(): void {
             if (!latest.trusted) runtime.trustFile(latest.id);
             if (latest.enabled) runtime.disable(latest.id);
             else runtime.enable(latest.id);
-            refresh_files();
+            refresh_files(latest.id);
+            load_editor(latest.id);
             status_message.value = '';
         } catch (error) {
             record_error_safely(latest.id, error);
-            refresh_files();
+            refresh_files(latest.id);
             set_status(error);
         }
     });
-}
-
-function trust_file(): void {
-    if (!current_file.value) return;
-    if (!window.confirm(t('user-defined.trust-confirm'))) return;
-    try {
-        runtime.trustFile(current_file.value.id);
-        refresh_files();
-        status_message.value = '';
-    } catch (error) {
-        set_status(error);
-    }
 }
 
 function open_nav_panel(): void {
@@ -360,38 +377,6 @@ function resolve_dirty(choice: 'save' | 'discard' | 'cancel'): void {
         discard_selected();
         action();
     }
-}
-
-function move_tab(from: number, to: number): void {
-    if (to < 0 || to >= files.value.length) return;
-    const arr = files.value.map((file) => file.id);
-    const [moved] = arr.splice(from, 1);
-    arr.splice(to, 0, moved);
-    try {
-        runtime.reorderFiles(arr);
-        refresh_files();
-        active_tab.value = to;
-    } catch (error) {
-        set_status(error);
-    }
-}
-
-// Drag and drop
-let drag_idx: number | null = null;
-
-function on_dragstart(idx: number): void {
-    drag_idx = idx;
-}
-
-function on_dragover(e: DragEvent, idx: number): void {
-    e.preventDefault();
-    if (drag_idx === null || drag_idx === idx) return;
-}
-
-function on_drop(idx: number): void {
-    if (drag_idx === null || drag_idx === idx) return;
-    move_tab(drag_idx, idx);
-    drag_idx = null;
 }
 
 // File upload: follow the source application's trust/replace flow.
@@ -632,162 +617,235 @@ onMounted(() => {
             ui.show_user_defined.value = false;
         "
     >
-        <div class="ud-layout">
-            <!-- Left: tab list -->
-            <div class="ud-tabs">
-                <div
-                    v-for="(file, idx) in files"
-                    :key="file.id"
-                    class="ud-tab"
-                    :class="{ active: idx === active_tab, enabled: file.enabled }"
-                    :title="file.lastError?.message ?? ''"
-                    draggable="true"
-                    @dragstart="on_dragstart(idx)"
-                    @dragover="on_dragover($event, idx)"
-                    @drop="on_drop(idx)"
-                    @click="select_file(file.id)"
-                >
-                    <span v-if="has_warning(file.name)" class="ud-warn" :title="warnings.get(file.name)?.join('\n')"
-                        >⚠</span
+        <section class="ne-local-manager" :aria-label="t('user-defined.title')">
+            <header class="ne-local-manager__header">
+                <div class="ne-local-toolbar">
+                    <button type="button" class="ne-local-button ne-local-button--secondary" @click="open_guide">
+                        <span aria-hidden="true">&#128214;</span>
+                        <span>{{ t('user-defined.guide') }}</span>
+                    </button>
+                    <button
+                        type="button"
+                        class="ne-local-button ne-local-button--secondary"
+                        @click="ui.show_api_doc.value = true"
                     >
-                    <span class="ud-tab-name">{{ file.name }}</span>
-                    <span v-if="file.enabled" class="ud-tab-status">{{ t('user-defined.enable') }}</span>
-                    <span v-else-if="!file.trusted" class="ud-tab-status">{{ t('user-defined.untrusted') }}</span>
-                    <span
-                        v-if="(file.manifest?.notations ?? []).length"
-                        class="ud-tab-ids"
-                        :title="(file.manifest?.notations ?? []).join(', ')"
-                    >
-                        {{ (file.manifest?.notations ?? []).length }} ID
-                    </span>
-                    <span
-                        v-if="(file.knownNotationIds ?? []).some((id) => !(file.manifest?.notations ?? []).includes(id))"
-                        class="ud-tab-retained"
-                    >
-                        {{ t('user-defined.retained') }}
-                    </span>
-                    <span v-if="current_file?.id === file.id && is_dirty" class="ud-tab-status ud-tab-dirty">{{
-                        t('user-defined.dirty')
-                    }}</span>
+                        {{ t('user-defined.api-doc') }}
+                    </button>
+                    <button type="button" class="ne-local-button ne-local-button--secondary" @click="upload_file">
+                        <span aria-hidden="true">&#8679;</span>
+                        <span>{{ t('user-defined.upload') }}</span>
+                    </button>
+                    <button type="button" class="ne-local-button ne-local-button--secondary" @click="new_script">
+                        <span aria-hidden="true">+</span>
+                        <span>{{ t('user-defined.new') }}</span>
+                    </button>
+                    <button type="button" class="ne-local-button ne-local-button--primary" @click="add_template">
+                        <span aria-hidden="true">+</span>
+                        <span>{{ t('user-defined.new-prss') }}</span>
+                    </button>
                 </div>
-                <button class="ud-btn ud-btn-new" @mousedown.prevent="new_script">{{ t('user-defined.new') }}</button>
-            </div>
+            </header>
 
-            <!-- Center: source project's overlay editor -->
-            <div class="ud-editor-area">
-                <div v-if="current_file" class="ud-editor-header">
-                    <label class="ud-editor-filename-label">
-                        <span>{{ t('user-defined.file-name') }}</span>
-                        <input
-                            v-model="editor_name"
-                            class="ud-editor-filename"
-                            type="text"
-                            spellcheck="false"
-                            @input="schedule_draft"
-                            @keydown.ctrl.s.prevent.stop="save_selected"
-                            @keydown.meta.s.prevent.stop="save_selected"
-                        />
-                    </label>
-                    <span v-if="is_dirty" class="ud-editor-dirty">{{ t('user-defined.dirty') }}</span>
-                </div>
-                <div
-                    v-if="current_file"
-                    class="ne-local-editor"
-                    :class="{ 'has-focus': editor_focused }"
-                >
-                    <div ref="line_gutter" class="ne-local-editor__gutter" aria-hidden="true">
-                        <span
-                            v-for="line in line_numbers"
-                            :key="line"
-                            :class="{ 'is-active': line === active_line }"
-                        >{{ line }}</span>
-                    </div>
-                    <div class="ne-local-editor__code">
-                        <pre
-                            ref="highlight_layer"
-                            class="ne-local-editor__highlight"
-                            aria-hidden="true"
-                            v-html="highlighted_source"
-                        ></pre>
-                        <textarea
-                            ref="source_input"
-                            v-model="editor_source"
-                            class="ne-local-editor__textarea"
-                            :aria-label="t('user-defined.source')"
-                            wrap="off"
-                            spellcheck="false"
-                            autocomplete="off"
-                            autocapitalize="off"
-                            @input="on_editor_input"
-                            @keydown="on_editor_keydown"
-                            @keyup="update_caret"
-                            @click="update_caret"
-                            @select="update_caret"
-                            @mouseup="update_caret"
-                            @scroll="sync_editor_scroll"
-                            @focus="editor_focused = true; update_caret($event)"
-                            @blur="editor_focused = false"
-                        ></textarea>
-                    </div>
-                </div>
-                <div v-else class="ud-editor-empty">{{ t('user-defined.no-script') }}</div>
-            </div>
+            <div v-if="status_message" class="ne-local-manager__notice" role="status">{{ status_message }}</div>
 
-            <!-- Right: buttons -->
-            <div class="ud-buttons">
-                <button class="ud-btn" @mousedown.prevent="open_guide">{{ t('user-defined.guide') }}</button>
-                <button
-                    class="ud-btn ud-btn-success"
-                    :disabled="!current_file || !is_dirty"
-                    @mousedown.prevent="save_selected"
-                >
-                    {{ t('user-defined.save') }}
-                </button>
-                <button class="ud-btn" :disabled="!current_file || !is_dirty" @mousedown.prevent="discard_selected">
-                    {{ t('user-defined.discard') }}
-                </button>
-                <button class="ud-btn" :disabled="!current_file" @mousedown.prevent="download_selected">
-                    {{ t('user-defined.download') }}
-                </button>
-                <button
-                    v-if="current_file && !current_file.trusted"
-                    class="ud-btn ud-btn-success"
-                    @mousedown.prevent="trust_file"
-                >
-                    {{ t('user-defined.trust') }}
-                </button>
-                <button class="ud-btn" :disabled="!current_file" @mousedown.prevent="toggle_enable">
-                    {{ current_file?.enabled ? t('user-defined.disable') : t('user-defined.enable') }}
-                </button>
-                <button
-                    class="ud-btn ud-btn-danger"
-                    :disabled="!current_file"
-                    @mousedown.prevent="confirm_delete(current_file!.id)"
-                >
-                    {{ t('user-defined.delete') }}
-                </button>
-                <button class="ud-btn" @mousedown.prevent="upload_file">
-                    {{ t('user-defined.upload') }}
-                </button>
-                <button class="ud-btn" @mousedown.prevent="add_template">
-                    {{ t('user-defined.template') }}
-                </button>
-                <button class="ud-btn" @mousedown.prevent="ui.show_api_doc.value = true">
-                    {{ t('user-defined.view-api-doc') }}
-                </button>
-                <button class="ud-btn" :disabled="!current_file?.enabled" @mousedown.prevent="open_nav_panel">
-                    {{ t('user-defined.nav-to-notation') }}
-                </button>
+            <div class="ne-local-workspace">
+                <aside class="ne-local-workspace__sidebar">
+                    <p v-if="files.length === 0" class="ne-local-file-list__empty">{{ t('user-defined.no-script') }}</p>
+                    <ul v-else class="ne-local-file-list">
+                        <li
+                            v-for="file in files"
+                            :key="file.id"
+                            class="ne-local-file"
+                            :class="{
+                                'is-selected': file.id === current_file?.id,
+                                'has-error': !!file.lastError,
+                            }"
+                            :title="file.lastError?.message ?? ''"
+                        >
+                            <label
+                                class="ne-local-file__toggle"
+                                :title="file.enabled ? t('user-defined.disable') : t('user-defined.enable')"
+                            >
+                                <input
+                                    type="checkbox"
+                                    :checked="file.enabled"
+                                    :aria-label="file.enabled ? t('user-defined.disable') : t('user-defined.enable')"
+                                    @change="toggle_file(file, $event)"
+                                />
+                            </label>
+                            <button type="button" class="ne-local-file__select" @click="select_file(file.id)">
+                                <span class="ne-local-file__name">
+                                    <span
+                                        v-if="has_warning(file.name)"
+                                        class="ne-local-file__warning"
+                                        :title="warnings.get(file.name)?.join('\n')"
+                                        aria-label="Warning"
+                                        >!</span
+                                    >
+                                    {{ file.name }}
+                                </span>
+                                <span class="ne-local-file__status" :class="file_status_class(file)">
+                                    {{ file_status(file) }}
+                                </span>
+                                <span v-if="file_has_draft(file)" class="ne-local-file__badge is-draft">
+                                    {{ t('user-defined.dirty') }}
+                                </span>
+                                <span v-if="!file.trusted" class="ne-local-file__badge is-untrusted">
+                                    {{ t('user-defined.untrusted') }}
+                                </span>
+                                <span
+                                    v-if="retained_ids(file).length"
+                                    class="ne-local-file__badge is-retained"
+                                    :title="retained_ids(file).join(', ')"
+                                >
+                                    {{ t('user-defined.retained') }}
+                                </span>
+                                <span v-if="file.template" class="ne-local-file__badge is-template">
+                                    {{ t('user-defined.template-badge') }}
+                                </span>
+                                <span v-if="(file.manifest?.notations ?? []).length" class="ne-local-file__manifest">
+                                    {{ t('user-defined.notation-ids') }}:
+                                    {{ (file.manifest?.notations ?? []).join(', ') }}
+                                </span>
+                                <span v-if="(file.manifest?.categories ?? []).length" class="ne-local-file__manifest">
+                                    {{ t('user-defined.category-ids') }}:
+                                    {{ (file.manifest?.categories ?? []).join(', ') }}
+                                </span>
+                                <span
+                                    v-if="
+                                        !(file.manifest?.notations ?? []).length &&
+                                        !(file.manifest?.categories ?? []).length
+                                    "
+                                    class="ne-local-file__manifest is-empty"
+                                >
+                                    {{ t('user-defined.no-ids') }}
+                                </span>
+                            </button>
+                            <button
+                                type="button"
+                                class="ne-local-file__delete"
+                                :title="t('user-defined.delete')"
+                                :aria-label="`${t('user-defined.delete')}: ${file.name}`"
+                                @click.stop="confirm_delete(file.id)"
+                            >
+                                &times;
+                            </button>
+                        </li>
+                    </ul>
+                </aside>
+
+                <main class="ne-local-workspace__editor">
+                    <div v-if="!current_file" class="ne-local-editor__empty">{{ t('user-defined.no-script') }}</div>
+                    <template v-else>
+                        <div class="ne-local-editor__header">
+                            <label class="ne-local-editor__filename-label">
+                                <span>{{ t('user-defined.file-name') }}</span>
+                                <input
+                                    v-model="editor_name"
+                                    class="ne-local-editor__filename"
+                                    type="text"
+                                    spellcheck="false"
+                                    @input="schedule_draft"
+                                    @keydown.ctrl.s.prevent.stop="save_selected"
+                                    @keydown.meta.s.prevent.stop="save_selected"
+                                />
+                            </label>
+                            <span v-if="is_dirty" class="ne-local-editor__dirty">{{ t('user-defined.dirty') }}</span>
+                            <div class="ne-local-editor__actions">
+                                <button
+                                    type="button"
+                                    class="ne-local-button ne-local-button--primary"
+                                    :disabled="!is_dirty"
+                                    @click="save_selected"
+                                >
+                                    {{ t('user-defined.save') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="ne-local-button ne-local-button--secondary"
+                                    :disabled="!is_dirty"
+                                    @click="discard_selected"
+                                >
+                                    {{ t('user-defined.discard') }}
+                                </button>
+                                <button
+                                    type="button"
+                                    class="ne-local-button ne-local-button--secondary"
+                                    @click="download_selected"
+                                >
+                                    <span aria-hidden="true">&#8595;</span>
+                                    <span>{{ t('user-defined.download') }}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    class="ne-local-button ne-local-button--secondary"
+                                    :disabled="!current_file.enabled"
+                                    @click="open_nav_panel"
+                                >
+                                    {{ t('user-defined.nav-to-notation') }}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="ne-local-editor" :class="{ 'has-focus': editor_focused }">
+                            <div ref="line_gutter" class="ne-local-editor__gutter" aria-hidden="true">
+                                <span
+                                    v-for="line in line_numbers"
+                                    :key="line"
+                                    :class="{ 'is-active': line === active_line }"
+                                    >{{ line }}</span
+                                >
+                            </div>
+                            <div class="ne-local-editor__code">
+                                <pre
+                                    ref="highlight_layer"
+                                    class="ne-local-editor__highlight"
+                                    aria-hidden="true"
+                                    v-html="highlighted_source"
+                                ></pre>
+                                <textarea
+                                    ref="source_input"
+                                    v-model="editor_source"
+                                    class="ne-local-editor__textarea"
+                                    :aria-label="t('user-defined.source')"
+                                    wrap="off"
+                                    spellcheck="false"
+                                    autocomplete="off"
+                                    autocapitalize="off"
+                                    @input="on_editor_input"
+                                    @keydown="on_editor_keydown"
+                                    @keyup="update_caret"
+                                    @click="update_caret"
+                                    @select="update_caret"
+                                    @mouseup="update_caret"
+                                    @scroll="sync_editor_scroll"
+                                    @focus="
+                                        editor_focused = true;
+                                        update_caret($event);
+                                    "
+                                    @blur="editor_focused = false"
+                                ></textarea>
+                            </div>
+                        </div>
+
+                        <div v-if="current_error" class="ne-local-editor__error" role="alert">
+                            <div class="ne-local-editor__error-message">
+                                <strong>{{ current_error.code }}</strong>
+                                <span>{{ current_error.message }}</span>
+                            </div>
+                            <button
+                                v-if="current_error.line"
+                                type="button"
+                                class="ne-local-editor__error-location"
+                                @click="jump_to_error"
+                            >
+                                {{ error_location() }}
+                            </button>
+                        </div>
+                    </template>
+                </main>
             </div>
-            <div v-if="status_message" class="ud-status-message">{{ status_message }}</div>
-            <div v-if="current_error" class="ud-runtime-error" role="alert">
-                <strong>{{ current_error.code }}</strong>
-                <span>{{ current_error.message }}</span>
-                <button v-if="current_error.line" class="ud-error-location" @mousedown.prevent="jump_to_error">
-                    {{ error_location() }}
-                </button>
-            </div>
-        </div>
+        </section>
     </ModalDialog>
 
     <ModalDialog :show="show_delete_confirm" :title="t('user-defined.delete')" @close="show_delete_confirm = false">
@@ -816,13 +874,13 @@ onMounted(() => {
     <ModalDialog :show="show_dirty_confirm" :title="t('user-defined.dirty-title')" @close="resolve_dirty('cancel')">
         <p class="confirm-message">{{ t('user-defined.dirty-body') }}</p>
         <div class="confirm-buttons">
-            <button class="ud-btn ud-btn-success" @mousedown.prevent="resolve_dirty('save')">
+            <button class="ne-local-button ne-local-button--primary" @mousedown.prevent="resolve_dirty('save')">
                 {{ t('user-defined.save') }}
             </button>
-            <button class="ud-btn" @mousedown.prevent="resolve_dirty('discard')">
+            <button class="ne-local-button ne-local-button--secondary" @mousedown.prevent="resolve_dirty('discard')">
                 {{ t('user-defined.discard') }}
             </button>
-            <button class="ud-btn" @mousedown.prevent="resolve_dirty('cancel')">
+            <button class="ne-local-button ne-local-button--secondary" @mousedown.prevent="resolve_dirty('cancel')">
                 {{ t('user-defined.cancel') }}
             </button>
         </div>
@@ -835,13 +893,16 @@ onMounted(() => {
     >
         <p class="confirm-message">{{ t('user-defined.download-body') }}</p>
         <div class="confirm-buttons">
-            <button class="ud-btn ud-btn-success" @mousedown.prevent="save_then_download">
+            <button class="ne-local-button ne-local-button--primary" @mousedown.prevent="save_then_download">
                 {{ t('user-defined.save') }}
             </button>
-            <button class="ud-btn" @mousedown.prevent="download_draft">
+            <button class="ne-local-button ne-local-button--secondary" @mousedown.prevent="download_draft">
                 {{ t('user-defined.download-draft') }}
             </button>
-            <button class="ud-btn" @mousedown.prevent="show_download_confirm = false">
+            <button
+                class="ne-local-button ne-local-button--secondary"
+                @mousedown.prevent="show_download_confirm = false"
+            >
                 {{ t('user-defined.cancel') }}
             </button>
         </div>
@@ -852,7 +913,9 @@ onMounted(() => {
             <div v-if="guide_loading" class="ud-guide-state">{{ t('user-defined.guide-loading') }}</div>
             <div v-else-if="guide_error" class="ud-guide-state ud-guide-error">
                 {{ t('user-defined.guide-load-failed') }}: {{ guide_error }}
-                <button class="ud-btn" @mousedown.prevent="open_guide">{{ t('user-defined.retry') }}</button>
+                <button class="ne-local-button ne-local-button--secondary" @mousedown.prevent="open_guide">
+                    {{ t('user-defined.retry') }}
+                </button>
             </div>
             <article v-else class="ud-guide-article" v-html="guide_html" />
         </div>
@@ -860,255 +923,396 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.ud-layout {
-    display: grid;
-    grid-template-columns: minmax(120px, 180px) minmax(0, 1fr) minmax(96px, max-content);
-    gap: 12px;
+.ne-local-manager {
     width: 100%;
-    max-width: 100%;
     min-width: 0;
-    min-height: 400px;
-    height: 60vh;
+    margin-top: 16px;
+    color: var(--color-text);
+}
+
+.ne-local-manager,
+.ne-local-manager * {
     box-sizing: border-box;
 }
 
-/* ---- Left tabs ---- */
-.ud-tabs {
-    display: flex;
-    grid-column: 1;
-    grid-row: 1;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-    border-right: 1px solid var(--color-border-light);
-    padding-right: 8px;
-    overflow-y: auto;
-}
-
-.ud-tab {
+.ne-local-manager__header {
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 6px 8px;
-    border-radius: 4px;
+    justify-content: flex-end;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.ne-local-toolbar,
+.ne-local-editor__actions,
+.confirm-buttons,
+.delete-buttons,
+.new-buttons {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ne-local-toolbar {
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.ne-local-button.ne-local-button {
+    display: inline-flex;
+    min-height: 32px;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
     cursor: pointer;
-    font-size: 13px;
-    color: var(--color-text);
-    user-select: none;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 20px;
+    letter-spacing: 0;
+    white-space: nowrap;
 }
 
-.ud-tab:hover {
+.ne-local-button.ne-local-button--primary {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-bg);
+}
+
+.ne-local-button.ne-local-button--primary:hover:not(:disabled) {
+    filter: brightness(0.94);
+}
+
+.ne-local-button.ne-local-button--secondary:hover:not(:disabled) {
+    border-color: var(--color-text-muted);
     background: var(--color-bg-hover);
-}
-
-.ud-tab.active {
-    background: var(--color-primary-bg);
     color: var(--color-text);
 }
 
-.ud-tab.enabled {
-    opacity: 0.6;
+.ne-local-button.ne-local-button--danger {
+    border-color: var(--color-danger);
+    background: var(--color-danger);
+    color: var(--color-bg);
 }
 
-.ud-tab-name {
-    flex: 1;
+.ne-local-button.ne-local-button:focus-visible,
+.ne-local-file__select:focus-visible,
+.ne-local-file__delete:focus-visible,
+.ne-local-editor__error-location:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+}
+
+.ne-local-button.ne-local-button:disabled,
+.ne-local-file__select:disabled,
+.ne-local-file__delete:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.ne-local-manager__notice {
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    border: 1px solid color-mix(in srgb, var(--color-success) 52%, var(--color-border));
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--color-success) 8%, var(--color-bg));
+    color: var(--color-success);
+    font-size: 12px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+}
+
+.ne-local-workspace {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    min-width: 0;
     overflow: hidden;
+    border: 1px solid var(--color-border);
+    border-radius: 7px;
+    background: var(--color-bg);
+}
+
+.ne-local-workspace__sidebar {
+    min-width: 0;
+    height: 608px;
+    overflow: auto;
+    border-right: 1px solid var(--color-border);
+    background: var(--color-bg-secondary);
+}
+
+.ne-local-file-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ne-local-file-list__empty,
+.ne-local-editor__empty {
+    margin: 0;
+    padding: 24px 16px;
+    color: var(--color-text-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.ne-local-file {
+    display: grid;
+    grid-template-columns: 34px minmax(0, 1fr) 34px;
+    min-width: 0;
+    border-bottom: 1px solid var(--color-border-light);
+    background: transparent;
+}
+
+.ne-local-file:last-child {
+    border-bottom: 0;
+}
+
+.ne-local-file.is-selected {
+    background: var(--color-accent-bg);
+    box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
+.ne-local-file.has-error {
+    box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+.ne-local-file.is-selected.has-error {
+    background: color-mix(in srgb, var(--color-danger) 9%, var(--color-bg));
+}
+
+.ne-local-file__toggle {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 14px;
+    cursor: pointer;
+}
+
+.ne-local-file__toggle input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--color-accent);
+}
+
+.ne-local-file__select.ne-local-file__select {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 2px;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    appearance: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.ne-local-file__select.ne-local-file__select:hover:not(:disabled) {
+    background: transparent;
+}
+
+.ne-local-file__name {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-text);
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 18px;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.ud-tab-status {
-    font-size: 11px;
-    color: var(--color-text-secondary);
-}
-
-.ud-tab-ids,
-.ud-tab-retained {
-    flex: 0 0 auto;
-    color: var(--color-text-secondary);
+.ne-local-file__warning {
+    display: inline-flex;
+    width: 15px;
+    height: 15px;
+    align-items: center;
+    justify-content: center;
+    margin-right: 3px;
+    border: 1px solid var(--color-danger);
+    border-radius: 50%;
+    color: var(--color-danger);
     font-size: 10px;
+    font-weight: 700;
+    line-height: 13px;
+    vertical-align: 1px;
 }
 
-.ud-tab-retained {
+.ne-local-file__status,
+.ne-local-file__badge {
+    align-self: start;
+    justify-self: end;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 16px;
+    white-space: nowrap;
+}
+
+.ne-local-file__status.is-enabled {
+    background: color-mix(in srgb, var(--color-success) 17%, var(--color-bg));
+    color: var(--color-success);
+}
+
+.ne-local-file__status.is-disabled {
+    background: var(--color-bg-hover);
+    color: var(--color-text-secondary);
+}
+
+.ne-local-file__status.is-error {
+    background: color-mix(in srgb, var(--color-danger) 15%, var(--color-bg));
+    color: var(--color-danger);
+}
+
+.ne-local-file__badge.is-draft {
+    justify-self: start;
+    background: color-mix(in srgb, #f59e0b 17%, var(--color-bg));
+    color: #b45309;
+}
+
+.ne-local-file__badge.is-untrusted {
+    background: color-mix(in srgb, var(--color-danger) 12%, var(--color-bg));
+    color: var(--color-danger);
+}
+
+.ne-local-file__badge.is-retained {
+    justify-self: start;
+    background: color-mix(in srgb, #0284c7 14%, var(--color-bg));
+    color: #0284c7;
+}
+
+.ne-local-file__badge.is-template {
+    background: color-mix(in srgb, var(--color-category) 14%, var(--color-bg));
     color: var(--color-category);
 }
 
-.ud-warn {
-    color: var(--color-danger);
-    font-size: 14px;
-}
-
-/* ---- Editor ---- */
-.ud-editor-area {
-    display: flex;
-    grid-column: 2;
-    grid-row: 1;
-    width: auto;
+.ne-local-file__manifest {
+    grid-column: 1 / -1;
     min-width: 0;
     overflow: hidden;
-    flex-direction: column;
+    color: var(--color-text-muted);
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 10px;
+    line-height: 15px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-.ud-editor-header {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
+.ne-local-file__manifest.is-empty {
+    color: color-mix(in srgb, var(--color-text-muted) 72%, transparent);
+    font-family: inherit;
+}
+
+.ne-local-file__delete.ne-local-file__delete {
+    align-self: start;
+    width: 28px;
+    height: 28px;
+    margin: 7px 3px 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    appearance: none;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 19px;
+    line-height: 28px;
+}
+
+.ne-local-file__delete.ne-local-file__delete:hover:not(:disabled) {
+    background: transparent;
+    color: var(--color-danger);
+}
+
+.ne-local-workspace__editor {
     min-width: 0;
-    padding-bottom: 8px;
+    padding: 14px;
+    background: var(--color-bg);
 }
 
-.ud-editor-filename-label {
+.ne-local-editor__header {
     display: grid;
-    flex: 1;
-    min-width: 0;
-    gap: 3px;
-    color: var(--color-text-secondary);
-    font-size: 11px;
+    grid-template-columns: minmax(180px, 1fr) auto;
+    gap: 8px 12px;
+    align-items: end;
+    min-height: 64px;
+    margin-bottom: 10px;
 }
 
-.ud-editor-filename {
+.ne-local-editor__filename-label {
+    display: grid;
+    min-width: 0;
+    gap: 4px;
+    color: var(--color-text-muted);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.ne-local-editor__filename.ne-local-editor__filename {
     width: 100%;
     min-width: 0;
-    box-sizing: border-box;
-    padding: 5px 8px;
+    height: 32px;
+    padding: 5px 9px;
     border: 1px solid var(--color-border);
-    border-radius: 4px;
+    border-radius: 5px;
     outline: none;
     background: var(--color-bg);
     color: var(--color-text);
-    font: inherit;
+    font-family: Consolas, 'Courier New', monospace;
     font-size: 13px;
+    line-height: 20px;
+    letter-spacing: 0;
 }
 
-.ud-editor-filename:focus {
+.ne-local-editor__filename.ne-local-editor__filename:focus {
     border-color: var(--color-accent);
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 15%, transparent);
 }
 
-.ud-editor-dirty {
-    flex: 0 0 auto;
+.ne-local-editor__dirty {
+    grid-column: 1;
+    align-self: start;
+    justify-self: start;
     padding: 1px 5px;
     border-radius: 3px;
-    background: var(--color-primary-bg);
-    color: var(--color-accent);
+    background: color-mix(in srgb, #f59e0b 17%, var(--color-bg));
+    color: #b45309;
     font-size: 10px;
     font-weight: 600;
     line-height: 16px;
 }
 
-.delete-message {
-    color: var(--color-text);
-    font-size: 14px;
-    margin: 0 0 16px;
-    line-height: 1.5;
-}
-
-.delete-buttons {
-    display: flex;
+.ne-local-editor__actions {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: end;
     justify-content: flex-end;
-    gap: 8px;
-}
-
-.delete-btn-confirm {
-    padding: 6px 16px;
-    border: 1px solid var(--color-danger);
-    border-radius: 5px;
-    background: var(--color-danger);
-    color: var(--color-bg);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.delete-btn-confirm:hover {
-    opacity: 0.85;
-}
-
-.delete-btn-cancel {
-    padding: 6px 16px;
-    border: 1px solid var(--color-border);
-    border-radius: 5px;
-    background: var(--color-bg-secondary);
-    color: var(--color-text);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 14px;
-}
-
-.delete-btn-cancel:hover {
-    background: var(--color-bg-hover);
-}
-
-.new-name-input {
-    width: 100%;
-    padding: 4px 8px;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    font-family: inherit;
-    font-size: 14px;
-    background: var(--color-bg);
-    color: var(--color-text);
-    outline: none;
-    box-sizing: border-box;
-    margin-bottom: 16px;
-}
-
-.new-name-input:focus {
-    border-color: var(--color-accent);
-}
-
-.new-buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
-.new-btn-confirm {
-    padding: 6px 16px;
-    border: 1px solid var(--color-accent);
-    border-radius: 5px;
-    background: var(--color-accent);
-    color: var(--color-bg);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.new-btn-confirm:hover {
-    opacity: 0.85;
-}
-
-.new-btn-cancel {
-    padding: 6px 16px;
-    border: 1px solid var(--color-border);
-    border-radius: 5px;
-    background: var(--color-bg-secondary);
-    color: var(--color-text);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 14px;
-}
-
-.new-btn-cancel:hover {
-    background: var(--color-bg-hover);
+    flex-wrap: wrap;
 }
 
 .ne-local-editor {
     display: grid;
     grid-template-columns: 54px minmax(0, 1fr);
     width: 100%;
-    max-width: 100%;
+    height: 500px;
     min-width: 0;
-    min-height: 0;
-    height: 100%;
-    flex: 1;
+    overflow: hidden;
     border: 1px solid var(--color-border);
     border-radius: 5px;
-    overflow: hidden;
     background: var(--color-bg);
-    box-sizing: border-box;
 }
 
 .ne-local-editor.has-focus {
@@ -1119,7 +1323,6 @@ onMounted(() => {
 .ne-local-editor__gutter {
     width: 54px;
     height: 100%;
-    box-sizing: border-box;
     padding: 12px 9px 12px 4px;
     overflow: hidden;
     border-right: 1px solid var(--color-border-light);
@@ -1157,7 +1360,6 @@ onMounted(() => {
     inset: 0;
     width: 100%;
     height: 100%;
-    box-sizing: border-box;
     margin: 0;
     padding: 12px 14px;
     border: 0;
@@ -1234,134 +1436,106 @@ onMounted(() => {
     color: var(--color-danger);
 }
 
-.ud-editor-empty {
-    flex: 1;
+.ne-local-editor__error {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px dashed var(--color-border);
-    border-radius: 4px;
-    color: var(--color-text-muted);
-    font-size: 14px;
-}
-
-/* ---- Right buttons ---- */
-.ud-buttons {
-    display: flex;
-    grid-column: 3;
-    grid-row: 1;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-    overflow-y: auto;
-}
-
-.ud-btn {
-    padding: 6px 12px;
-    border: 1px solid var(--color-border);
-    border-radius: 4px;
-    background: var(--color-bg-secondary);
-    color: var(--color-text);
-    cursor: pointer;
-    font-family: inherit;
-    font-size: 13px;
-    text-align: center;
-    white-space: nowrap;
-}
-
-.ud-btn:hover:not(:disabled) {
-    background: var(--color-bg-hover);
-}
-
-.ud-btn:disabled {
-    opacity: 0.4;
-    cursor: default;
-}
-
-.ud-btn-danger {
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 10px;
+    padding: 9px 10px;
+    border: 1px solid color-mix(in srgb, var(--color-danger) 55%, var(--color-border));
+    border-radius: 5px;
+    background: color-mix(in srgb, var(--color-danger) 8%, var(--color-bg));
     color: var(--color-danger);
-    border-color: var(--color-danger);
-}
-
-.ud-btn-danger:hover:not(:disabled) {
-    background: var(--color-danger);
-    color: var(--color-bg);
-}
-
-.ud-btn-success {
-    color: var(--color-success);
-    border-color: var(--color-success);
-}
-
-.ud-btn-success:hover:not(:disabled) {
-    background: var(--color-success);
-    color: var(--color-bg);
-}
-
-.ud-btn-new {
-    margin-top: 4px;
-    border-style: dashed;
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-}
-
-.ud-btn-new:hover {
-    background: var(--color-accent);
-    color: var(--color-bg);
-}
-
-.ud-status-message,
-.ud-runtime-error {
-    grid-column: 1 / -1;
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
+    font-size: 12px;
+    line-height: 1.45;
     overflow-wrap: anywhere;
 }
 
-.ud-status-message {
-    color: var(--color-success);
-    font-size: 12px;
-}
-
-.ud-runtime-error {
-    display: flex;
-    align-items: flex-start;
-    flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 4px;
-    padding: 7px 9px;
-    border: 1px solid var(--color-danger);
-    border-radius: 4px;
-    color: var(--color-danger);
-    font-size: 12px;
-}
-
-.ud-runtime-error > span {
+.ne-local-editor__error-message {
+    display: grid;
     min-width: 0;
-    flex: 1 1 20rem;
+    gap: 2px;
 }
 
-.ud-error-location {
-    padding: 2px 6px;
+.ne-local-editor__error-location.ne-local-editor__error-location {
+    flex: 0 0 auto;
+    padding: 3px 7px;
     border: 1px solid currentColor;
     border-radius: 4px;
-    background: transparent;
-    color: inherit;
+    background: var(--color-bg);
+    color: var(--color-danger);
     cursor: pointer;
     font: inherit;
+    font-size: 11px;
+    white-space: nowrap;
 }
 
+.delete-message,
 .confirm-message {
     margin: 0 0 14px;
+    color: var(--color-text);
+    font-size: 14px;
     line-height: 1.5;
 }
 
+.delete-buttons,
+.new-buttons,
 .confirm-buttons {
-    display: flex;
     justify-content: flex-end;
     flex-wrap: wrap;
-    gap: 8px;
+}
+
+.delete-btn-confirm,
+.delete-btn-cancel,
+.new-btn-confirm,
+.new-btn-cancel {
+    min-height: 32px;
+    padding: 5px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+}
+
+.delete-btn-confirm {
+    border-color: var(--color-danger);
+    background: var(--color-danger);
+    color: var(--color-bg);
+    font-weight: 600;
+}
+
+.new-btn-confirm {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-bg);
+    font-weight: 600;
+}
+
+.delete-btn-cancel:hover,
+.new-btn-cancel:hover {
+    background: var(--color-bg-hover);
+}
+
+.new-name-input {
+    width: 100%;
+    margin-bottom: 16px;
+    padding: 6px 9px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    outline: none;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 14px;
+}
+
+.new-name-input:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 15%, transparent);
 }
 
 .ud-guide-content {
@@ -1389,6 +1563,7 @@ onMounted(() => {
 .ud-guide-article :deep(h2),
 .ud-guide-article :deep(h3) {
     margin: 0.8em 0 0.4em;
+    letter-spacing: 0;
 }
 
 .ud-guide-article :deep(pre) {
@@ -1403,27 +1578,55 @@ onMounted(() => {
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
-@media (max-width: 960px) {
-    .ud-layout {
-        grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
-        height: min(680px, 72vh);
+@media (max-width: 820px) {
+    .ne-local-workspace {
+        grid-template-columns: minmax(0, 1fr);
     }
 
-    .ud-editor-area {
-        width: auto;
-        min-width: 0;
+    .ne-local-workspace__sidebar {
+        height: 220px;
+        border-right: 0;
+        border-bottom: 1px solid var(--color-border);
     }
 
-    .ud-buttons {
-        grid-column: 1 / -1;
-        grid-row: 2;
-        flex-direction: row;
+    .ne-local-editor {
+        height: 420px;
+    }
+}
+
+@media (max-width: 560px) {
+    .ne-local-manager__header,
+    .ne-local-editor__header {
+        display: flex;
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .ne-local-toolbar,
+    .ne-local-editor__actions {
         flex-wrap: wrap;
-        overflow-y: visible;
     }
 
-    .ud-btn {
+    .ne-local-toolbar .ne-local-button,
+    .ne-local-editor__actions .ne-local-button {
         flex: 1 1 auto;
+    }
+
+    .ne-local-editor__actions {
+        justify-content: stretch;
+    }
+
+    .ne-local-workspace__editor {
+        padding: 10px;
+    }
+
+    .ne-local-editor {
+        grid-template-columns: 46px minmax(0, 1fr);
+    }
+
+    .ne-local-editor__gutter {
+        width: 46px;
+        padding-right: 7px;
     }
 
     .ud-guide-content {
@@ -1431,50 +1634,16 @@ onMounted(() => {
     }
 }
 
-@media (max-width: 600px) {
-    .ud-layout {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-rows: auto minmax(280px, 44vh) auto;
-        height: auto;
-        min-height: 0;
-        gap: 10px;
-    }
-
-    .ud-tabs {
-        grid-column: 1;
-        grid-row: 1;
+@media (max-width: 390px) {
+    .ne-local-toolbar .ne-local-button,
+    .ne-local-editor__actions .ne-local-button {
+        flex-basis: calc(50% - 4px);
         min-width: 0;
-        flex-direction: row;
-        overflow-x: auto;
-        padding: 0 0 7px;
-        border-right: 0;
-        border-bottom: 1px solid var(--color-border-light);
-        scrollbar-width: thin;
+        white-space: normal;
     }
 
-    .ud-tab,
-    .ud-btn-new {
-        min-width: max-content;
-        flex: 0 0 auto;
-    }
-
-    .ud-tab-name {
-        max-width: 150px;
-    }
-
-    .ud-editor-area {
-        grid-column: 1;
-        grid-row: 2;
-        min-height: 280px;
-    }
-
-    .ud-buttons {
-        grid-column: 1;
-        grid-row: 3;
-    }
-
-    .ud-btn {
-        min-width: min(120px, 100%);
+    .ne-local-file {
+        grid-template-columns: 32px minmax(0, 1fr) 32px;
     }
 }
 </style>
