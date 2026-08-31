@@ -62,6 +62,11 @@ export class LocalNotationRuntime {
         return this.store.getDraft(id);
     }
 
+    /** Return the last committed notation manifest for one local file. */
+    getNotationIds(id: string): string[] {
+        return [...(this.getFile(id)?.manifest.notations ?? [])];
+    }
+
     setDraft(id: string, draft: Parameters<LocalNotationFileStore['setDraft']>[1]) {
         return this.store.setDraft(id, draft);
     }
@@ -159,14 +164,21 @@ export class LocalNotationRuntime {
             this.apply_or_throw(previous);
             throw error;
         }
-        return { file: persisted, previous: file, enabled: true, sourceChanged: file.loadedRevision !== file.sourceRevision };
+        return {
+            file: persisted,
+            previous: file,
+            enabled: true,
+            sourceChanged: file.loadedRevision !== file.sourceRevision,
+        };
     }
 
     disable(id: string): LocalNotationMutationResult {
         const file = this.require_file(id);
         if (!file.enabled) return { file, enabled: false };
         const previous = this.listFiles();
-        const candidate = previous.map((item) => (item.id === id ? this.with_file_patch(file, { enabled: false }) : item));
+        const candidate = previous.map((item) =>
+            item.id === id ? this.with_file_patch(file, { enabled: false }) : item,
+        );
         this.apply_or_throw(candidate);
         let persisted: LocalNotationFile;
         try {
@@ -280,7 +292,8 @@ export class LocalNotationRuntime {
 
     private apply_or_throw(files: LocalNotationFile[]): void {
         const warnings = this.apply(files);
-        if (warnings.size > 0) throw new LocalNotationRuntimeError('The notation source could not be loaded.', warnings);
+        if (warnings.size > 0)
+            throw new LocalNotationRuntimeError('The notation source could not be loaded.', warnings);
     }
 
     private error_from_exception(error: unknown): LocalNotationError {
@@ -299,13 +312,16 @@ export class LocalNotationRuntime {
             ...file,
             ...patch,
             sourceRevision:
-                patch.source !== undefined && patch.source !== file.source ? file.sourceRevision + 1 : file.sourceRevision,
+                patch.source !== undefined && patch.source !== file.source
+                    ? file.sourceRevision + 1
+                    : file.sourceRevision,
         };
     }
 
     private manifest_for(id: string, files: LocalNotationFile[]) {
         const index = files.findIndex((file) => file.id === id);
-        const notation_ids = index < 0 ? [] : get_script_notation_ids(index).filter((notation_id) => get_notation(notation_id));
+        const notation_ids =
+            index < 0 ? [] : get_script_notation_ids(index).filter((notation_id) => get_notation(notation_id));
         return { notations: notation_ids, categories: [] };
     }
 

@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { get_notation } from '@/core/registry';
 import { reload_all } from '@/core/user_defined_notation';
-import {
-    LocalNotationFileStore,
-    type StorageLike,
-} from '@/core/local_notation_store';
+import { LocalNotationFileStore, type StorageLike } from '@/core/local_notation_store';
 import { LocalNotationRuntime, LocalNotationRuntimeError } from '@/core/local_notation_runtime';
 
 class MemoryStorage implements StorageLike {
@@ -52,7 +49,13 @@ describe('LocalNotationRuntime', () => {
 
     it('reorders files while preserving stable file ids', () => {
         const storage = new MemoryStorage();
-        const runtime = new LocalNotationRuntime({ storage, createId: (() => { let n = 0; return () => `order-${++n}`; })() });
+        const runtime = new LocalNotationRuntime({
+            storage,
+            createId: (() => {
+                let n = 0;
+                return () => `order-${++n}`;
+            })(),
+        });
         const first = runtime.createUpload('First.js', '', false).file;
         const second = runtime.createUpload('Second.js', '', false).file;
         runtime.reorderFiles([second.id, first.id]);
@@ -70,6 +73,7 @@ describe('LocalNotationRuntime', () => {
         runtime.trustFile(created.file.id);
         runtime.enable(created.file.id);
         expect(get_notation('runtime-upload')).toBeDefined();
+        expect(runtime.getNotationIds(created.file.id)).toEqual(['runtime-upload']);
     });
 
     it('retains the active source when an enabled replacement is invalid', () => {
@@ -106,7 +110,13 @@ describe('LocalNotationRuntime', () => {
 
     it('boot isolates a bad enabled file and still loads valid files', () => {
         const storage = new MemoryStorage();
-        const store = new LocalNotationFileStore({ storage, createId: (() => { let n = 0; return () => `boot-${++n}`; })() });
+        const store = new LocalNotationFileStore({
+            storage,
+            createId: (() => {
+                let n = 0;
+                return () => `boot-${++n}`;
+            })(),
+        });
         store.createFile({ name: 'Bad.js', source: 'throw new Error("bad boot");', trusted: true, enabled: true });
         store.createFile({ name: 'Good.js', source: source_for('runtime-good'), trusted: true, enabled: true });
         const runtime = new LocalNotationRuntime({ storage });

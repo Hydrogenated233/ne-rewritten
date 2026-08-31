@@ -2,19 +2,23 @@
 import { computed, inject } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
+import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { resolve_name } from '@/notation-definition.ts';
 import { get_notation } from '@/core/registry.ts';
-import { get_script_notation_ids } from '@/core/user_defined_notation.ts';
 import ModalDialog from './ModalDialog.vue';
 
 const t = inject(I18N_KEY)!;
 const settings = inject(SETTINGS_KEY)!;
 const ui = use_ui_states();
+const runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
 
 const items = computed(() => {
     ui.registry_notifier.listen();
-    return get_script_notation_ids(ui.user_defined_active_tab.value)
+    const file = runtime.listFiles()[ui.user_defined_active_tab.value];
+    if (!file) return [];
+    return runtime
+        .getNotationIds(file.id)
         .map((id) => get_notation(id))
         .filter((n): n is NonNullable<typeof n> => n !== undefined);
 });

@@ -6,6 +6,16 @@ export const I18N_KEY: InjectionKey<(key: string, params?: Record<string, string
 
 const messages: Record<Language, Record<string, string>> = {
     zh: {
+        'page.navigation': '页面导航',
+        'page.explore': '探索',
+        'page.settings': '设置',
+        'notation-picker.label': '选择记号',
+        'notation-picker.search': '搜索记号或文件夹…',
+        'notation-picker.empty': '没有匹配的记号',
+        'notation-picker.builtin': '内置记号',
+        'notation-picker.local': '本地文件',
+        'notation-picker.generator-remove': '减少生成记号',
+        'notation-picker.generator-add': '增加生成记号',
         'notation-name.mode-label': '记号名模式:',
         'config-display.label': '配置记号显示:',
         'config-display.configure': '配置',
@@ -241,6 +251,16 @@ const messages: Record<Language, Record<string, string>> = {
         'hotkey.delete-clear': '清空分析文本（可在设置中开关）',
     },
     en: {
+        'page.navigation': 'Page navigation',
+        'page.explore': 'Explore',
+        'page.settings': 'Settings',
+        'notation-picker.label': 'Select notation',
+        'notation-picker.search': 'Search notations or folders…',
+        'notation-picker.empty': 'No matching notations',
+        'notation-picker.builtin': 'Built-in notations',
+        'notation-picker.local': 'Local files',
+        'notation-picker.generator-remove': 'Remove generated notation',
+        'notation-picker.generator-add': 'Add generated notation',
         'notation-name.mode-label': 'Notation name mode:',
         'config-display.label': 'Notation display:',
         'config-display.configure': 'Configure',

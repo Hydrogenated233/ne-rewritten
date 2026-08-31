@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, onMounted, onUnmounted, provide, reactive, watch } from 'vue';
+import { inject, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { get_notation } from '@/core/registry.ts';
 import { resolve_name } from '@/notation-definition.ts';
@@ -25,8 +25,7 @@ import { use_latex } from '@/composables/use_latex.ts';
 import LaTeXViewer from '@/components/LaTeXViewer.vue';
 import MultiSelectBar from '@/components/MultiSelectBar.vue';
 import ConfigBar from '@/components/ConfigBar.vue';
-import NotationNav from '@/components/NotationNav.vue';
-import NotationNavPlain from '@/components/NotationNavPlain.vue';
+import NotationPicker from '@/components/NotationPicker.vue';
 import SettingsBar from '@/components/SettingsBar.vue';
 import { use_multi_select } from '@/composables/use_multi_select.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
@@ -63,6 +62,7 @@ provide(SAVE_LOAD_KEY, save_load);
 const { trees, notation, root, save_indicator } = save_load;
 
 const tip = use_tip(settings);
+const active_page = ref<'explore' | 'settings'>('explore');
 
 watch(
     () => settings.font_family,
@@ -203,45 +203,72 @@ function debug_compare_order(notation_id?: string) {
 
 <template>
     <div>
-        <NotationNav v-if="settings.nav_mode === 'grouped'" />
-        <NotationNavPlain v-else />
-
-        <SettingsBar />
-
-        <template v-if="notation?.description">
-            <div
-                v-if="ui.description_visible.value"
-                class="description-line"
-                @mousedown="on_description_mousedown"
-                @click="on_description_click"
-                @dblclick.prevent
+        <nav class="page-tabs" role="tablist" :aria-label="t('page.navigation')">
+            <button
+                type="button"
+                class="page-tab"
+                :class="{ 'page-tab--active': active_page === 'explore' }"
+                role="tab"
+                :aria-selected="active_page === 'explore'"
+                @mousedown.prevent="active_page = 'explore'"
             >
-                <template v-if="Array.isArray(notation.description)">
-                    <div v-for="(d, i) in notation.description" :key="i">{{ resolve_name(d, t) }}</div>
-                </template>
-                <template v-else>{{ resolve_name(notation.description, t) }}</template>
-            </div>
-            <div
-                v-else
-                class="description-line"
-                @mousedown="on_description_mousedown"
-                @click="on_description_click"
-                @dblclick.prevent
+                {{ t('page.explore') }}
+            </button>
+            <button
+                type="button"
+                class="page-tab"
+                :class="{ 'page-tab--active': active_page === 'settings' }"
+                role="tab"
+                :aria-selected="active_page === 'settings'"
+                @mousedown.prevent="active_page = 'settings'"
             >
-                {{ t('description.show') }}
-            </div>
-        </template>
+                {{ t('page.settings') }}
+            </button>
+        </nav>
 
-        <div v-if="root && notation" class="preview-container">
-            <NotationTree :root="root" :notation="notation" :tier="settings.tier" />
-            <div v-if="notation.credit_text_id" class="credit-line">
-                <template v-if="Array.isArray(notation.credit_text_id)">
-                    <div v-for="key in notation.credit_text_id" :key="key">{{ t(key) }}</div>
-                </template>
-                <template v-else>{{ t(notation.credit_text_id) }}</template>
+        <section v-if="active_page === 'explore'" class="page-panel" role="tabpanel">
+            <NotationPicker />
+
+            <template v-if="notation?.description">
+                <div
+                    v-if="ui.description_visible.value"
+                    class="description-line"
+                    @mousedown="on_description_mousedown"
+                    @click="on_description_click"
+                    @dblclick.prevent
+                >
+                    <template v-if="Array.isArray(notation.description)">
+                        <div v-for="(d, i) in notation.description" :key="i">{{ resolve_name(d, t) }}</div>
+                    </template>
+                    <template v-else>{{ resolve_name(notation.description, t) }}</template>
+                </div>
+                <div
+                    v-else
+                    class="description-line"
+                    @mousedown="on_description_mousedown"
+                    @click="on_description_click"
+                    @dblclick.prevent
+                >
+                    {{ t('description.show') }}
+                </div>
+            </template>
+
+            <div v-if="root && notation" class="preview-container">
+                <NotationTree :root="root" :notation="notation" :tier="settings.tier" />
+                <div v-if="notation.credit_text_id" class="credit-line">
+                    <template v-if="Array.isArray(notation.credit_text_id)">
+                        <div v-for="key in notation.credit_text_id" :key="key">{{ t(key) }}</div>
+                    </template>
+                    <template v-else>{{ t(notation.credit_text_id) }}</template>
+                </div>
             </div>
-        </div>
-        <div v-else>{{ t('notation-tree.empty') }}</div>
+            <div v-else>{{ t('notation-tree.empty') }}</div>
+        </section>
+
+        <section v-else class="page-panel page-panel--settings" role="tabpanel">
+            <SettingsBar />
+        </section>
+
         <div
             v-if="visible && diagram"
             class="diagram-floating"
@@ -319,6 +346,52 @@ function debug_compare_order(notation_id?: string) {
     border-radius: 8px;
     padding: 8px 12px 4px;
     margin: 8px 0;
+}
+
+.page-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: -2px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.page-tab {
+    min-height: 32px;
+    padding: 5px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-bg-secondary);
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+.page-tab:hover {
+    background: var(--color-bg-hover);
+    color: var(--color-text);
+}
+
+.page-tab--active {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: var(--color-bg);
+    font-weight: 600;
+}
+
+.page-tab--active:hover {
+    background: var(--color-accent);
+    color: var(--color-bg);
+}
+
+.page-panel {
+    min-width: 0;
+}
+
+.page-panel--settings {
+    max-width: 1200px;
 }
 
 .collapse-btn {
