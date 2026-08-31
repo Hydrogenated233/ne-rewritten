@@ -36,6 +36,7 @@ export interface AIProgressEvent {
     protocol: AIProtocol;
     name?: string;
     chars?: number;
+    toolCallIndex?: number;
     toolCallCount?: number;
     ok?: boolean;
     detail?: string;
@@ -413,7 +414,7 @@ async function parse_stream(response: Response, round: number, onProgress?: AIGe
                 if (part.function?.name) current.function.name += part.function.name;
                 if (part.function?.arguments) current.function.arguments += part.function.arguments;
                 calls.set(index, current);
-                onProgress?.({ type: 'tool_call_preparing', round, protocol: 'chat_completions', name: current.function.name || 'tool', chars: current.function.arguments.length, detail: current.function.arguments.slice(-MAX_STREAM_DETAIL_LENGTH) });
+                onProgress?.({ type: 'tool_call_preparing', round, protocol: 'chat_completions', toolCallIndex: index, name: current.function.name || 'tool', chars: current.function.arguments.length, detail: current.function.arguments.slice(-MAX_STREAM_DETAIL_LENGTH) });
             }
         }
     };
@@ -528,16 +529,16 @@ export async function generate_notation(options: AIGenerateOptions): Promise<AIG
         }
         usedTools = true;
         messages.push({ role: 'assistant', content: message.content ?? null, tool_calls: calls });
-        for (const call of calls) {
+        for (const [toolCallIndex, call] of calls.entries()) {
             abort_if_needed(options.signal);
             let args: any;
             try { args = JSON.parse(call.function.arguments || '{}'); } catch { args = {}; }
             const started = Date.now();
-            options.onProgress?.({ type: 'tool_call_started', round: rounds, protocol: 'chat_completions', name: call.function.name, detail: stringify(args) });
+            options.onProgress?.({ type: 'tool_call_started', round: rounds, protocol: 'chat_completions', toolCallIndex, name: call.function.name, detail: stringify(args) });
             let toolResult: unknown;
             let ok = true;
             try { toolResult = run_ai_tool(call.function.name, args); } catch (error) { ok = false; toolResult = { error: error_message(error) }; }
-            options.onProgress?.({ type: 'tool_call_finished', round: rounds, protocol: 'chat_completions', name: call.function.name, ok, elapsedMs: Date.now() - started, detail: stringify(toolResult) });
+            options.onProgress?.({ type: 'tool_call_finished', round: rounds, protocol: 'chat_completions', toolCallIndex, name: call.function.name, ok, elapsedMs: Date.now() - started, detail: stringify(toolResult) });
             messages.push({ role: 'tool', tool_call_id: call.id, name: call.function.name, content: stringify(ok ? { ok: true, result: toolResult } : toolResult) });
         }
     }

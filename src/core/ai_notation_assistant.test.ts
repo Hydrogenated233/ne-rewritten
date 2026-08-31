@@ -42,6 +42,32 @@ describe('AI notation assistant', () => {
         expect(events).toContain('tool_call_finished');
     });
 
+    it('keeps a stable index on streamed parallel tool-call activity', async () => {
+        const encoder = new TextEncoder();
+        const body = new ReadableStream<Uint8Array>({
+            start(controller) {
+                for (const delta of [
+                    { tool_calls: [{ index: 0, id: 'c0', function: { name: 'list_notations', arguments: '' } }] },
+                    { tool_calls: [{ index: 1, id: 'c1', function: { name: 'list_notations', arguments: '' } }] },
+                    { tool_calls: [{ index: 0, function: { arguments: '{' } }, { index: 1, function: { arguments: '{' } }] },
+                    { tool_calls: [{ index: 0, function: { arguments: '}' } }, { index: 1, function: { arguments: '}' } }] },
+                ]) controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta }] })}\n\n`));
+                controller.enqueue(encoder.encode(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'tool_calls' }] })}\n\n`));
+                controller.enqueue(encoder.encode('data: [DONE]\n\n'));
+                controller.close();
+            },
+        });
+        const fetchImpl = vi.fn()
+            .mockResolvedValueOnce({ ok: true, status: 200, body })
+            .mockResolvedValueOnce(jsonResponse({ choices: [{ message: { role: 'assistant', content: '```js\nregister_notation({id:"indexed-tools",name:"Indexed tools",display:{plain:String},is_limit:()=>false,compare:()=>0,FS:x=>x,init:()=>[0]});\n```' } }] }));
+        const events: any[] = [];
+        await generate_notation({ baseUrl: 'https://example.test', apiKey: 'secret', model: 'test', prompt: 'make one', fetchImpl: fetchImpl as any, onProgress: (event) => events.push(event) });
+        const indexes = (type: string) => events.filter((event) => event.type === type).map((event) => event.toolCallIndex);
+        expect(new Set(indexes('tool_call_preparing'))).toEqual(new Set([0, 1]));
+        expect(indexes('tool_call_started')).toEqual([0, 1]);
+        expect(indexes('tool_call_finished')).toEqual([0, 1]);
+    });
+
     it('falls back to ordinary generation when the endpoint rejects tools', async () => {
         const fetchImpl = vi.fn()
             .mockResolvedValueOnce(jsonResponse({ error: { message: 'tools unsupported' } }, 400))
