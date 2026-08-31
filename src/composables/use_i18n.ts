@@ -264,7 +264,7 @@ const messages: Record<Language, Record<string, string>> = {
         'user-defined.safe-mode-description':
             '当前 URL 含 ?no-local-files，本次页面不会执行本地记号；文件和启用状态保持不变。',
         'user-defined.template': '添加模板',
-        'user-defined.new-prss': '新建 PrSS',
+        'user-defined.new-prss': '新建 PrSS + 生成类模板',
         'user-defined.template-badge': '模板',
         'user-defined.title': '本地记号文件',
         'user-defined.new': '新建',
@@ -603,7 +603,7 @@ const messages: Record<Language, Record<string, string>> = {
         'user-defined.safe-mode-description':
             'This URL contains ?no-local-files. Local notation code is not executed for this page; files and enabled states are unchanged.',
         'user-defined.template': 'Add Template',
-        'user-defined.new-prss': 'New PrSS',
+        'user-defined.new-prss': 'New PrSS + generator template',
         'user-defined.template-badge': 'Template',
         'user-defined.title': 'Local notation files',
         'user-defined.new': 'New',

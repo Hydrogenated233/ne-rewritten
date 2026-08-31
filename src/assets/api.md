@@ -1,286 +1,282 @@
-# 用户自定义记号 API 文档
+# ne-rewritten 记号注册 API
 
-可阅读文档来编写记号, 也可下载本文档提供给 AI 以帮助生成记号.
-此外, 还可查看或下载 `api.ts` 查看类型详细定义.
-
-常见问题汇总 (FAQ) 见本文档末尾.
-
-## 定义记号
-
-上传自定义记号时, 请在上传的 js 代码中调用如下的函数.
+本文档对应 2026-08-31 的 `src/notation-definition.ts` 与 `src/core/registry.ts`。本地 JavaScript 文件只调用：
 
 ```ts
-function register_notation<T>(notation: NotationDefinition<T>);
+register_notation<T>(definition: NotationDefinition<T>): void;
+register_category(definition: NotationCategoryDefinition): void;
 ```
 
-以下为字段的详细说明. 其中, 省略了部分不常用字段.
+本地文件不使用模块导入导出，也不调用内部注册表函数。完整可复制类型见 `api.ts`。
+
+## TextSpec
 
 ```ts
-export interface NotationDefinition<T> {
+type TextSpec = string | { id: string };
+```
+
+内置 TypeScript 可用 `{ id }` 引用 i18n。当前本地源码验证应使用普通非空字符串。
+
+## NotationDefinition
+
+```ts
+interface NotationDefinition<T> {
     id: string;
-    name: string;
-    simple_name?: string;
+    name: TextSpec;
+    simple_name?: TextSpec;
+    description?: TextSpec | TextSpec[];
     category_id?: string;
+
     display: NotationDisplaySpec<T>;
     display_equiv?: Record<string, NotationDisplaySpec<T>>;
-    init: () => T[];
-    is_limit: (a: T) => boolean;
-    compare: (a: T, b: T) => number;
-    FS: (a: T, index: number) => T;
-    FS_alter?: (a: T, index: number) => T;
-    FS_short?: (a: T, index: number) => T;
 
-    debug?: Record<string, any>;
+    is_limit: (expression: T) => boolean;
+    compare: (left: T, right: T) => number;
+    FS: (expression: T, index: number) => T;
+    FS_alter?: (expression: T, index: number) => T;
+    FS_short?: (expression: T, index: number) => T;
+    init: () => T[];
+
+    draw_diagram?: DiagramControl<T, unknown>;
+    credit_text_id?: string | string[];
+    debug?: Record<string, unknown>;
 }
 ```
-`T` 为记号的表达式类型.
 
-### 基础信息
+### `id`
 
-```ts
-    id: string;
-```
+非空稳定 ID。记号和分类共用同一个 ID 空间，且不能与内置项或其他启用的本地文件重复。
 
-`id` 为记号的唯一标识符, 不得与其他记号或记号类别重复.
+### `name`、`simple_name`、`description`
 
-```ts
-    name: string;
-    simple_name?: string;
-```
+- `name`：完整名称。
+- `simple_name`：可选简称。
+- `description`：可选说明，可为一条或多条文本。
 
-`name` 与 `simple_name` 分别为记号名的全称与简称,
-其中 `simple_name` 为可选字段.
-若省略简称, 则简称与全称相同.
+### `category_id`
+
+可选父分类 ID。该分类必须存在。若父分类带生成器，普通记号不能直接注册到它；记号必须由该分类的 `generator.create(index)` 返回。
+
+## NotationDisplaySpec
 
 ```ts
-category_id?: string;
-```
-`category_id` 可选字段表示记号的类别的 id.
-若类别未定义, 则该记号出现在顶层, 不在任何类别中.
-
-### 展示与等价记号
-
-```ts
-    display: NotationDisplaySpec<T>;
-```
-
-`display` 字段描述记号表达式如何转化为显示的字符串. 
-其中 `NotationDisplaySpec<T>` 类型如下定义:
-
-```ts
-type NotationDisplay<T> = (a: T) => string;
+type NotationDisplay<T> = (expression: T) => string;
 
 type NotationDisplaySpec<T> =
     | NotationDisplay<T>
     | {
-    plain: NotationDisplay<T>;
-    html?: NotationDisplay<T>;
-    latex?: NotationDisplay<T>;
-    from_display?: (str: string) => T;
-};
+          plain: NotationDisplay<T>;
+          html?: NotationDisplay<T>;
+          latex?: NotationDisplay<T>;
+          from_display?: (text: string) => T;
+          name?: TextSpec;
+          name_id?: string;
+      };
 ```
 
-`display` 字段有两种表示: 简化表示与完整表示.
-简化表示即提供单个 `(T) => string` 的函数.
+### 简写
 
-完整表示中, `plain` 字段为纯文本展示, 其输出结果直接按照纯文本展示.
+```js
+display: (expression) => String(expression)
+```
 
-`html` 可选字段为 html 展示, 其输出结果直接视为 html 来渲染.
-从而, 可以使用 `<sub><sup>` 等元素来实现上下标等功能.
-未提供时, 默认直接以纯文本的输出作为输出.
+该函数同时作为 `plain` 和默认 HTML；默认 LaTeX 从受支持的 HTML 子集转换。
 
-`latex` 可选字段为 latex 展示, 其输出结果直接视为 latex 公式源码来渲染.
-未提供时, 默认将 html 展示的结果转化为 latex, 该自动转化未必完全可靠.
-目前仅支持 `<sub><sup>` 标签的自动转化.
+### 完整形式
 
-`from_display` 可选字段语义上为将 `plain` 输出的纯文本字符串转化回表达式的函数.
-注意, ***导出为 xlsx*** 功能导出的表格使用 `plain` 纯文本表示;
-若想导入表格, 则必须提供 `from_display` 字段.
+```js
+display: {
+    plain: display_plain,
+    html: display_html,
+    latex: display_latex,
+    from_display: parse_expression,
+}
+```
+
+- `plain`：必填规范文本，用于工具、导出和 xlsx。
+- `html`：可选页面表示。
+- `latex`：可选 KaTeX 源，不含公式定界符。
+- `display.from_display`：可选解析器。输入非法时抛出异常。
+- `name` / `name_id`：主要用于为等价表示提供显示名称。
+
+## `display_equiv`
+
+```js
+display_equiv: {
+    compact: {
+        name: 'Compact',
+        plain: display_compact,
+        from_display: parse_compact,
+    },
+}
+```
+
+对象键是等价表示的稳定 ID。它只改变显示和输入解析，不改变内部表达式、比较或基本列。
+
+## `is_limit`
 
 ```ts
-    display_equiv?: Record<string, NotationDisplaySpec<T>>;
+is_limit(expression: T): boolean;
 ```
 
-`display_equiv` 可选字段描述了该记号的等价表示.
-等价表示原先指同一个记号的不同表示方法 
-(例如, LMN 可将 $\psi_0(\psi_0(\psi_1))$ 简化为 $0(0(1))$),
-但也可用于完全互译的两个等价记号
-(例如, BMS 有 0Y 等价表示).
+返回 `true` 表示表达式可在树中展开基本列。它不等同于“是否为顶层 Infinity”。
 
-`display_equiv` 对象的字段名称表示诸等价表示的 id.
-每个字段均与 `display` 的类型相同, 可以为单个函数的简单表示, 也可为完整表示.
-
-### 记号核心算法
+## `compare`
 
 ```ts
-    init: () => T[];
+compare(left: T, right: T): number;
 ```
-`init` 函数返回的数组即为初始时展示的表达式, 从大往小排列.
-首项必须为该记号的极限. 习惯上末项为零记号.
+
+只使用返回值符号：负数、小于；零、相等；正数、大于。实现必须覆盖表达式类型中的全部合法值。
+
+## `FS`、`FS_alter`、`FS_short`
 
 ```ts
-    is_limit: (a: T) => boolean;
+FS(expression: T, index: number): T;
 ```
 
-`is_limit` 函数表示判断表达式是否为极限序数.
-兼容性考虑, 该名称不作修改, 但更适宜的名称为 `is_limit_ordinal`.
-该函数**不是**判断一个表达式是否为该记号的极限表达式.
+`index` 是从 `0` 开始的基本列索引。三个变体签名相同：
+
+- `FS`：默认基本列。
+- `FS_alter`：可选替代展开。
+- `FS_short`：可选短展开；省略时界面回退到默认变体。
+
+实现不得修改输入表达式。使用 `Infinity` 作为顶层极限时应显式处理。非法索引应抛出异常。
+
+## `init()`
 
 ```ts
-    compare: (a: T, b: T) => number;
+init(): T[];
 ```
 
-`compare` 函数比较两个记号的大小. 返回值的符号表示比较结果.
-使用 `compare(a, b) > 0` 来判断 `a > b`.
+返回初始表达式数组，从大到小排列：
 
-```ts
-    FS: (a: T, index: number) => T;
-    FS_alter?: (a: T, index: number) => T;
-    FS_short?: (a: T, index: number) => T;
+```js
+init: () => [Infinity, []]
 ```
 
-`FS` 字段以及 `FS_alter`, `FS_short` 可选字段表示计算记号的基本列.
-它们对应设置项中的三种展开变体.
+不要返回展开树节点或 UI 状态。
 
-以矩阵记号或序列记号为例, 若完整提供, 
-则语义上 `FS` 与 `FS_alter` 为短展开与长展开.
+## `credit_text_id`
 
-`FS_short` 表示 lnz-1 模式, 
-使用更精细的基本列来减少展开到某一项需要取基本列的次数.
-例如, BMS 的 lnz-1 模式中, 第 $0$ 项为删去末列,
-第 $1$ 项为末列 lnz-1, 第 $2$ 项起为通常的短展开, 
-其中若与第 $1$ 项重复则删去一个重复项.
+内置记号可引用一条或多条 i18n credit 键：
 
-可以不定义 `FS_short` 字段, 这时在 lnz-1 模式下会默认使用 `FS` 字段.
-
-### debug
-
-```ts
-    debug: Record<string, any>
+```js
+credit_text_id: ['credit.author', 'credit.converter']
 ```
 
-`debug` 字段就是用于 debug 的, 向控制台暴露内部方法, 如 `compute_bad_root` 方法等.
-在输入框按 `Ctrl+D` 可以向控制台输出当前记号与表达式, 
-还会把记号与表达式挂载到全局 `notation` 和 `expr` 变量上,
-这时可以用 `notation.debug.xxx` 来获取暴露的函数并调试执行.
+本地文件没有自定义 i18n 表，通常使用 `description` 写普通字符串。
 
-## 定义记号类别
+## `debug`
 
-上传自定义记号时, 也可以在上传的 js 代码中调用如下的函数来定义记号类别.
+可选调试对象。应用算法不能依赖它：
 
-```ts
-function register_category(cat: NotationCategoryDefinition);
+```js
+debug: {
+    find_bad_root,
+    normalize,
+}
 ```
 
-记号类别用于在导航栏中分组记号.
+## NotationCategoryDefinition
 
 ```ts
 interface NotationCategoryDefinition {
     id: string;
-    name: string;
-    simple_name?: string;
+    name: TextSpec;
+    simple_name?: TextSpec;
     parent_id?: string;
     generator?: NotationCategoryGenerator;
 }
 ```
 
-### 基础信息
+- `id`：分类 ID，与所有记号和分类唯一。
+- `name`：完整名称。
+- `simple_name`：可选简称。
+- `parent_id`：可选父分类。内置源码必须先注册父分类。
+- `generator`：可选参数化记号生成器。
 
-```ts
-    id: string;
-```
-
-`id` 为类别的唯一标识符, 不得与其他记号或记号类别重复.
-
-```ts
-    name: string;
-    simple_name?: string;
-```
-
-`name` 与 `simple_name` 分别为类别的全称与简称,
-其中 `simple_name` 为可选字段.
-若省略简称, 则简称与全称相同.
-
-```ts
-    parent_id?: string;
-```
-
-`parent_id` 可选字段表示父类别的 id, 用于在导航栏中建立层级结构.
-若省略则类别出现在导航栏的最顶层.
-
-### 生成器
-
-类别可以具有一个生成器, 用于生成类似 `nMN` 这样的记号族.
-生成器根据序号 $n$ 生成对应的记号.
-
-有生成器的类别, 生成的记号所属的类别必须为该类别;
-该类别不应当有生成器生成的记号以外的记号, 也不应当有子类别.
-
-```ts
-    generator?: NotationCategoryGenerator;
-```
-
-`generator` 可选字段, 其类型如下定义:
+## NotationCategoryGenerator
 
 ```ts
 interface NotationCategoryGenerator {
     start: number;
     initial: number;
-    create: (n: number) => NotationDefinition<any>;
+    create: (index: number) => NotationDefinition<unknown>;
 }
 ```
 
+### `start`
+
+首次初始化时生成的最小安全整数索引。
+
+### `initial`
+
+首次初始化时生成到的索引，必须满足 `initial >= start`。它也是 UI 减号可回退到的基线。
+
+### `create`
+
+根据索引返回完整记号定义。返回记号的 `category_id` 必须等于该生成器分类 ID，ID 必须随索引保持唯一。
+
+当前生成器接口没有 `maximum` 字段。`+` 可以继续创建后续索引，因此 `create` 应自行校验安全整数和算法资源限制。
+
+## DiagramControl
+
 ```ts
-    start: number;
+interface DiagramControl<T, Data> {
+    default_data: Data;
+    draw_diagram: (expression: T, data: Data) => Diagram | undefined;
+    settings?: DiagramControlSetting[];
+    handle_action?: (data: Data, action: DiagramAction) => Data | null;
+}
 ```
 
-`start` 为生成器开始生成的序号.
+图表函数返回结构化数据，不直接操作 DOM 或 canvas。
+
+### Diagram
 
 ```ts
-    initial: number;
+interface Diagram {
+    width: number;
+    height: number;
+    elements: Element[];
+    extra_text: ExtraText[];
+}
 ```
 
-`initial` 为页面加载时默认展开到的序号.
+`Element` 支持圆、线和文本。颜色可直接给 RGBA，也可引用主题颜色：
 
 ```ts
-    create: (n: number) => NotationDefinition<any>;
+type ColorSpec = { type: string } | { color: Rgba };
 ```
 
-`create` 为根据序号 $n$ 生成记号定义的函数.
-该类别会在导航栏中以可交互的形式展示,
-允许用户增减序号来切换生成的记号.
+完整字段见 `api.ts`。
 
-## 常见问题汇总
+## 最小注册示例
 
-1. 如何支持表格导入?
+```js
+;(() => {
+    'use strict';
 
-A: 需要定义 from_display, 详见 '展示与等价记号' 章节.
+    register_category({
+        id: 'example-family',
+        name: 'Example family',
+    });
 
-2. 内置类别的 id
+    register_notation({
+        id: 'example-natural',
+        name: 'Natural example',
+        category_id: 'example-family',
+        display: {
+            plain: (expression) => (expression === Infinity ? 'Limit' : String(expression)),
+            from_display: (text) => (text.trim() === 'Limit' ? Infinity : Number(text)),
+        },
+        is_limit: (expression) => expression === Infinity,
+        compare: (left, right) => (left === right ? 0 : left < right ? -1 : 1),
+        FS: (expression, index) => (expression === Infinity ? index : Math.max(0, expression - 1)),
+        init: () => [Infinity, 0],
+    });
+})();
+```
 
-A: 以下为目前内置的记号类别及其层次结构:
-
-| id | 名称                                   |
-|----|--------------------------------------|
-| `category-ocf` | Ordinal Collapsing Function          |
-| `category-ocn` | OCF-like notation                    |
-| `category-y` | Y sequence                           |
-| &emsp;&#124; `category-y-omega` | &emsp;omega Y                        |
-| `category-bm-like` | Bashicu Matrix-like notation         |
-| &emsp;&#124; `category-minus1-y-nss-series` | &emsp;-1Y-nSS Series |
-| &emsp;&emsp;&#124; `category-bm-minus1-y-nss` | &emsp;&emsp;-1Y n-tuple Sequence System |
-| &emsp;&emsp;&#124; `category-bm-t-minus1-y-nss` | &emsp;&emsp;Transfinite -1Y-nSS |
-| &emsp;&emsp;&#124; `category-bm-bt-minus1-y-nss` | &emsp;&emsp;Branching Transfinite -1Y-nSS |
-| &emsp;&emsp;&#124; `category-bm-bt-star-minus1-y-nss` | &emsp;&emsp;Bubby3's Transfinite\* -1Y-nSS |
-| &emsp;&emsp;&#124; `category-bm-bt-star-minus1-y-nss'` | &emsp;&emsp;Bubby3's Transfinite\* -1Y-nSS' |
-| &emsp;&emsp;&#124; `category-bm-btl-minus1-y-nss` | &emsp;&emsp;Asheep's Transfinite nSS |
-| &emsp;&#124; `category-upms-partial` | &emsp;BMS(n rows) + UPMS |
-| `category-mn` | Mountain Notation                    |
-| &emsp;&#124; `category-n-mn` | &emsp;n-MN                           |
-| &emsp;&#124; `category-hypcos-w2mn` | &emsp;HypCos's omega2MN              |
-| &emsp;&#124; `category-smile-mn` | &emsp;Smile's omega2+MN              |
-| `category-den` | Defective Embedding Notation         |
-| `category-ton` | Taranovksy's ordinal notation        |
-| `category-asan` | Aarex's Superstrong Array Notation   |
-
-
+更完整的数组表达式、解析、等价显示、缓存和生成器示例见 `template.js`。
