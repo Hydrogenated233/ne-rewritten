@@ -8,6 +8,7 @@ export const APP_STORAGE_KEYS = {
     settings: app_key('settings'),
     localNotationFiles: app_key('local-notation-files'),
     aiConversations: app_key('ai-conversations'),
+    aiProviderSettings: app_key('ai-provider-settings'),
     summaryPosition: app_key('summary-pos'),
     notesPanelGeometry: app_key('notes-panel-geometry'),
 } as const;

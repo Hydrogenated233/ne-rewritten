@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, inject, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
@@ -47,7 +47,7 @@ const base_url = ref(apiSettings.baseUrl || '');
 const api_key = ref(apiSettings.apiKey || '');
 const model = ref(apiSettings.model || 'gpt-4o-mini');
 const show_api_key = ref(false);
-const max_rounds = ref(64);
+const max_rounds = ref(apiSettings.maxRounds ?? 64);
 const conversations = ref<Conversation[]>(load_conversations());
 const active_id = ref(conversations.value.find((item) => !item.archived)?.id ?? '');
 const next_activity_id = ref(Math.max(0, ...conversations.value.flatMap((item) => item.activity.map((entry) => entry.id))) + 1);
@@ -221,8 +221,15 @@ function delete_archived(item: Conversation): void {
 }
 
 function save_api_settings(): void {
-    write_ai_session_settings({ baseUrl: base_url.value, apiKey: api_key.value, model: model.value });
+    write_ai_session_settings({
+        baseUrl: base_url.value,
+        apiKey: api_key.value,
+        model: model.value,
+        maxRounds: max_rounds.value,
+    });
 }
+
+watch([base_url, api_key, model, max_rounds], save_api_settings, { flush: 'sync' });
 
 function clear_key(): void {
     api_key.value = '';

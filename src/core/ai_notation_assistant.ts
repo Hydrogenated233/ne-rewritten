@@ -3,7 +3,8 @@ import { validate_notation_source, type SourceValidationResult } from '@/core/so
 import { get_notation } from '@/core/registry.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { AI_BUILTIN_CONTEXT } from '@/core/ai_context.ts';
-import { AI_SESSION_STORAGE_KEYS } from '@/core/storage_keys.ts';
+import { app_storage } from '@/core/storage.ts';
+import { AI_SESSION_STORAGE_KEYS, APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
 
 export type AIProtocol = 'chat_completions';
 
@@ -86,13 +87,14 @@ export class AIRequestNetworkError extends Error {
 
 const DEFAULT_BASE_URL = 'https://api.openai.com';
 const DEFAULT_MODEL = 'gpt-4o-mini';
+const DEFAULT_MAX_ROUNDS = 64;
 const MAX_OUTPUT_LENGTH = 120_000;
 const MAX_TOOL_OUTPUT_LENGTH = 30_000;
 const MAX_REASONING_BUFFER_LENGTH = 120_000;
 const MAX_STREAM_DETAIL_LENGTH = 8_000;
 const SESSION_KEYS = AI_SESSION_STORAGE_KEYS;
 
-function storage(): Storage | null {
+function session_storage(): Storage | null {
     try {
         return typeof sessionStorage === 'undefined' ? null : sessionStorage;
     } catch {
@@ -100,37 +102,82 @@ function storage(): Storage | null {
     }
 }
 
-export function read_ai_session_settings(): { baseUrl: string; apiKey: string; model: string } {
-    const store = storage();
-    if (!store) return { baseUrl: '', apiKey: '', model: '' };
-    try {
-        return {
-            baseUrl: store.getItem(SESSION_KEYS.baseUrl) ?? '',
-            apiKey: store.getItem(SESSION_KEYS.apiKey) ?? '',
-            model: store.getItem(SESSION_KEYS.model) ?? '',
-        };
-    } catch {
-        return { baseUrl: '', apiKey: '', model: '' };
-    }
+export interface AIStoredSettings {
+    baseUrl: string;
+    apiKey: string;
+    model: string;
+    maxRounds: number;
 }
 
-export function write_ai_session_settings(settings: { baseUrl?: string; apiKey?: string; model?: string }): void {
-    const store = storage();
-    if (!store) return;
+function normalize_max_rounds(value: unknown): number {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(1, Math.min(128, Math.trunc(parsed))) : DEFAULT_MAX_ROUNDS;
+}
+
+export function read_ai_session_settings(): AIStoredSettings {
+    const session = session_storage();
+    let baseUrl = '';
+    let model = '';
+    let maxRounds = DEFAULT_MAX_ROUNDS;
+
     try {
-        for (const [field, key] of Object.entries(SESSION_KEYS) as Array<[keyof typeof settings, string]>) {
-            const value = settings[field];
-            if (value) store.setItem(key, String(value));
-            else store.removeItem(key);
+        const raw = app_storage()?.getItem(APP_STORAGE_KEYS.aiProviderSettings);
+        const parsed = raw ? JSON.parse(raw) : null;
+        if (parsed && typeof parsed === 'object') {
+            baseUrl = typeof parsed.baseUrl === 'string' ? parsed.baseUrl : '';
+            model = typeof parsed.model === 'string' ? parsed.model : '';
+            maxRounds = normalize_max_rounds(parsed.maxRounds);
         }
     } catch {
+        // Invalid or unavailable persistent storage falls back to defaults.
+    }
+
+    try {
+        baseUrl ||= session?.getItem(SESSION_KEYS.baseUrl) ?? '';
+        model ||= session?.getItem(SESSION_KEYS.model) ?? '';
+    } catch {
+        // Legacy session preferences are optional migration input.
+    }
+
+    let apiKey = '';
+    try {
+        apiKey = session?.getItem(SESSION_KEYS.apiKey) ?? '';
+    } catch {
+        // A blocked sessionStorage leaves the key in memory only.
+    }
+    return { baseUrl, apiKey, model, maxRounds };
+}
+
+export function write_ai_session_settings(settings: { baseUrl?: string; apiKey?: string; model?: string; maxRounds?: number }): void {
+    const current = read_ai_session_settings();
+    const preferences = {
+        baseUrl: settings.baseUrl === undefined ? current.baseUrl : String(settings.baseUrl).trim(),
+        model: settings.model === undefined ? current.model : String(settings.model).trim(),
+        maxRounds: settings.maxRounds === undefined ? current.maxRounds : normalize_max_rounds(settings.maxRounds),
+    };
+
+    try {
+        app_storage()?.setItem(APP_STORAGE_KEYS.aiProviderSettings, JSON.stringify(preferences));
+    } catch {
         // Private browsing and quota failures must not block in-memory use.
+    }
+
+    if (settings.apiKey !== undefined) {
+        try {
+            const session = session_storage();
+            if (settings.apiKey) session?.setItem(SESSION_KEYS.apiKey, settings.apiKey);
+            else session?.removeItem(SESSION_KEYS.apiKey);
+            session?.removeItem(SESSION_KEYS.baseUrl);
+            session?.removeItem(SESSION_KEYS.model);
+        } catch {
+            // A blocked sessionStorage leaves the key in memory only.
+        }
     }
 }
 
 export function clear_ai_session_api_key(): void {
     try {
-        storage()?.removeItem(SESSION_KEYS.apiKey);
+        session_storage()?.removeItem(SESSION_KEYS.apiKey);
     } catch {
         // Best effort; callers also clear their in-memory copy.
     }

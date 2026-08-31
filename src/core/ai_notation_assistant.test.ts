@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AIRequestNetworkError, clear_ai_session_api_key, generate_notation, normalize_chat_endpoint, run_ai_tool, tool_definitions, write_ai_session_settings } from '@/core/ai_notation_assistant';
-import { AI_SESSION_STORAGE_KEYS } from '@/core/storage_keys.ts';
+import { AIRequestNetworkError, clear_ai_session_api_key, generate_notation, normalize_chat_endpoint, read_ai_session_settings, run_ai_tool, tool_definitions, write_ai_session_settings } from '@/core/ai_notation_assistant';
+import { AI_SESSION_STORAGE_KEYS, APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
+import panel_source from '@/components/AINotationPanel.vue?raw';
 
 function jsonResponse(payload: unknown, status = 200): any {
     return { ok: status >= 200 && status < 300, status, statusText: '', body: null, json: async () => payload };
@@ -81,7 +82,7 @@ describe('AI notation assistant', () => {
         expect(fetchImpl).toHaveBeenCalledTimes(1);
     });
 
-    it('keeps provider settings out of localStorage and clears the session key', () => {
+    it('persists non-secret provider settings while keeping the API key session-only', () => {
         const session = new Map<string, string>();
         const local = new Map<string, string>();
         Object.defineProperty(globalThis, 'sessionStorage', {
@@ -100,13 +101,29 @@ describe('AI notation assistant', () => {
                 removeItem: (key: string) => local.delete(key),
             },
         });
-        write_ai_session_settings({ baseUrl: 'http://localhost:1', apiKey: 'secret', model: 'test' });
+        write_ai_session_settings({ baseUrl: 'http://localhost:1', apiKey: 'secret', model: 'test', maxRounds: 88 });
         expect(session.get(AI_SESSION_STORAGE_KEYS.apiKey)).toBe('secret');
-        expect(local.size).toBe(0);
+        expect(JSON.parse(local.get(APP_STORAGE_KEYS.aiProviderSettings)!)).toEqual({
+            baseUrl: 'http://localhost:1',
+            model: 'test',
+            maxRounds: 88,
+        });
+        expect(JSON.stringify([...local.entries()])).not.toContain('secret');
+        expect(read_ai_session_settings()).toEqual({
+            baseUrl: 'http://localhost:1',
+            apiKey: 'secret',
+            model: 'test',
+            maxRounds: 88,
+        });
         clear_ai_session_api_key();
         expect(session.has(AI_SESSION_STORAGE_KEYS.apiKey)).toBe(false);
         delete (globalThis as any).sessionStorage;
         delete (globalThis as any).localStorage;
+    });
+
+    it('saves provider field changes without requiring a generation request', () => {
+        expect(panel_source).toContain('watch([base_url, api_key, model, max_rounds], save_api_settings');
+        expect(panel_source).toContain('ref(apiSettings.maxRounds ?? 64)');
     });
 
     it('reports streamed model output while waiting for a final source', async () => {
