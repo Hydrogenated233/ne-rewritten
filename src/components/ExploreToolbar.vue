@@ -104,7 +104,7 @@ function open_direct_expand(): void {
 </script>
 
 <template>
-    <div class="explore-toolbar settings-box">
+    <div class="explore-toolbar settings-box toolbar">
         <div class="toolbar-row explore-export-row">
             <label class="export-hide-toggle">
                 <input type="checkbox" v-model="settings.export_hide" />
