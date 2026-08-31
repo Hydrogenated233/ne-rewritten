@@ -770,31 +770,69 @@ ul {
     overflow: hidden;
     resize: horizontal;
     min-width: 60px;
-    max-width: 600px;
+    max-width: min(600px, calc(100vw - 80px));
     vertical-align: middle;
+    flex: 0 0 auto;
 }
 
-.input-resize.has-inline-latex > input {
-    color: transparent;
+.tree-item .input-resize > input {
+    width: 100%;
+    min-width: 60px;
+    box-sizing: border-box;
+    padding: 1px 4px;
+    border-color: transparent;
+    border-radius: 3px;
+    background: transparent;
+    box-shadow: none;
+    font-family: Consolas, 'Courier New', monospace;
+    font-size: 13px;
+    transition:
+        border-color 0.15s,
+        background 0.15s,
+        opacity 0.1s;
+}
+
+.input-resize.has-inline-latex {
+    display: inline-grid;
+    align-items: center;
+}
+
+.input-resize.has-inline-latex > input,
+.input-resize.has-inline-latex > .analysis-inline-latex {
+    grid-area: 1 / 1;
+}
+
+.input-resize.has-inline-latex:not(:focus-within) > input {
+    opacity: 0;
 }
 
 .analysis-inline-latex {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    overflow: hidden;
-    align-items: center;
-    padding: 2px 8px;
-    border: 1px solid transparent;
     box-sizing: border-box;
+    min-width: 0;
+    width: 100%;
+    padding: 1px 4px;
+    overflow: hidden;
     color: var(--color-text);
-    line-height: 1.4;
+    cursor: text;
     pointer-events: none;
+    text-align: left;
     white-space: nowrap;
+    transition: opacity 0.1s;
 }
 
-.analysis-inline-latex .render-latex {
-    min-width: max-content;
+.analysis-inline-latex .katex {
+    font-size: 1em;
+}
+
+.input-resize.has-inline-latex:focus-within > .analysis-inline-latex {
+    opacity: 0;
+}
+
+.tree-item .input-resize > input:focus {
+    border-color: var(--color-accent);
+    background: var(--color-bg-secondary);
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 20%, transparent);
 }
 
 .input-resize.input-hidden {
@@ -804,6 +842,12 @@ ul {
 .tree-item input[type='text'] {
     width: 100%;
     margin: 0;
+}
+
+@media (max-width: 560px) {
+    .input-resize {
+        max-width: min(600px, calc(100vw - 120px));
+    }
 }
 
 .toolbar select {

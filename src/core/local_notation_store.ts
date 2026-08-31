@@ -92,6 +92,42 @@ function default_state(): StoreState {
     return { version: LOCAL_NOTATION_STORE_VERSION, nextOrder: 1, files: [], drafts: {} };
 }
 
+function string_array(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function normalize_file(value: unknown, index: number): LocalNotationFile {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new LocalNotationStorageError('STORAGE_CORRUPT', 'Stored local notation file data has an invalid shape.');
+    }
+    const file = value as Partial<LocalNotationFile>;
+    if (typeof file.id !== 'string' || typeof file.name !== 'string' || typeof file.source !== 'string') {
+        throw new LocalNotationStorageError('STORAGE_CORRUPT', 'Stored local notation file data is missing its ID, name, or source.');
+    }
+    const manifest = file.manifest && typeof file.manifest === 'object' ? file.manifest : undefined;
+    return {
+        ...file,
+        id: file.id,
+        name: file.name,
+        source: file.source,
+        enabled: file.enabled === true,
+        trusted: file.trusted === true,
+        template: file.template === true,
+        order: Number.isFinite(file.order) ? Number(file.order) : index + 1,
+        createdAt: Number.isFinite(file.createdAt) ? Number(file.createdAt) : 0,
+        updatedAt: Number.isFinite(file.updatedAt) ? Number(file.updatedAt) : 0,
+        sourceRevision: Number.isInteger(file.sourceRevision) && Number(file.sourceRevision) > 0 ? Number(file.sourceRevision) : 1,
+        loadedRevision: Number.isInteger(file.loadedRevision) && Number(file.loadedRevision) >= 0 ? Number(file.loadedRevision) : 0,
+        manifest: {
+            notations: string_array(manifest?.notations),
+            categories: string_array(manifest?.categories),
+        },
+        knownNotationIds: string_array(file.knownNotationIds),
+        knownCategoryIds: string_array(file.knownCategoryIds),
+        lastError: file.lastError && typeof file.lastError === 'object' ? file.lastError : null,
+    };
+}
+
 function default_id(): string {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
     return `local-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
@@ -323,7 +359,13 @@ export class LocalNotationFileStore {
         if (!Number.isInteger(value.nextOrder) || (value.nextOrder as number) < 1) {
             throw new LocalNotationStorageError('STORAGE_CORRUPT', 'Stored local notation ordering data is invalid.');
         }
-        return value as StoreState;
+        const files = value.files.map(normalize_file);
+        return {
+            version: LOCAL_NOTATION_STORE_VERSION,
+            nextOrder: Math.max(value.nextOrder as number, ...files.map((file) => file.order + 1)),
+            files,
+            drafts: value.drafts as Record<string, LocalNotationDraft>,
+        };
     }
 
     private mutate<T>(mutator: (state: StoreState) => T): T {

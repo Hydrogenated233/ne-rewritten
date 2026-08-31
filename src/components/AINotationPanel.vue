@@ -5,6 +5,7 @@ import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import {
+    AIRequestNetworkError,
     clear_ai_session_api_key,
     generate_notation,
     read_ai_session_settings,
@@ -232,6 +233,9 @@ function progress(item: Conversation, event: AIProgressEvent): void {
 }
 
 function error_text(error: unknown): string {
+    if (error instanceof AIRequestNetworkError && settings.language === 'zh') {
+        return `浏览器无法连接 ${error.endpoint}。这通常是网络或 CORS 拦截；Base URL 服务必须允许来自 ${error.origin} 的请求，并检查 HTTPS/TLS。静态 GitHub Pages 无法绕过服务端 CORS。`;
+    }
     return error instanceof Error ? error.message : String(error);
 }
 
@@ -373,7 +377,7 @@ onBeforeUnmount(() => {
                 <p v-if="!conversations.length" class="ai-empty">{{ copy.empty }}</p>
             </aside>
 
-            <div v-if="active" class="ai-main">
+            <form v-if="active" class="ai-main" autocomplete="off" @submit.prevent="generate">
                 <div class="ai-settings-grid">
                     <label>{{ copy.baseUrl }} <input v-model="base_url" type="url" autocomplete="url" placeholder="https://api.openai.com" /></label>
                     <label>{{ copy.apiKey }} <span class="ai-key-input"><input v-model="api_key" :type="show_api_key ? 'text' : 'password'" autocomplete="off" /><button type="button" class="ai-icon-button" @click="show_api_key = !show_api_key">{{ show_api_key ? '◉' : '○' }}</button></span></label>
@@ -389,7 +393,7 @@ onBeforeUnmount(() => {
                     <textarea v-model="active.prompt" :disabled="active.busy" :placeholder="copy.promptPlaceholder" rows="6" @keydown.ctrl.enter.prevent="generate"></textarea>
                 </label>
                 <div class="ai-actions ai-actions--primary">
-                    <button v-if="!active.busy" type="button" class="ai-primary" @click="generate">{{ copy.generate }}</button>
+                    <button v-if="!active.busy" type="submit" class="ai-primary">{{ copy.generate }}</button>
                     <button v-else type="button" class="ai-danger-button" @click="stop">{{ copy.stop }}</button>
                     <button v-if="active.cancelled && !active.busy" type="button" class="ai-secondary" @click="restart">{{ copy.restart }}</button>
                 </div>
@@ -413,7 +417,7 @@ onBeforeUnmount(() => {
                         </li>
                     </ol>
                 </section>
-            </div>
+            </form>
         </div>
     </section>
 </template>

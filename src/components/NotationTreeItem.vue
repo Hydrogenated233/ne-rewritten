@@ -129,7 +129,6 @@ const show_inline_analysis_latex = computed(
         settings.analysis_latex_preview &&
         settings.analysis_latex_inline &&
         settings.show_input &&
-        !focused.value &&
         analysis0.value.trim().length > 0,
 );
 

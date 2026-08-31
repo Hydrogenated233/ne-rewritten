@@ -65,6 +65,45 @@ describe('LocalNotationFileStore', () => {
         expect(store.getDraft(file.id)).toBeUndefined();
     });
 
+    it('normalizes legacy files that are missing derived manifest metadata', () => {
+        const storage = new MemoryStorage();
+        storage.data.set(
+            DEFAULT_LOCAL_NOTATION_STORE_KEY,
+            JSON.stringify({
+                version: LOCAL_NOTATION_STORE_VERSION,
+                nextOrder: 2,
+                files: [
+                    {
+                        id: 'legacy',
+                        name: 'Legacy.js',
+                        source: 'register_notation({ id: "legacy" });',
+                        enabled: false,
+                        trusted: true,
+                        template: false,
+                        order: 1,
+                        createdAt: 10,
+                        updatedAt: 20,
+                        sourceRevision: 1,
+                        loadedRevision: 0,
+                        lastError: null,
+                    },
+                ],
+                drafts: {},
+            }),
+        );
+
+        expect(new LocalNotationFileStore({ storage }).listFiles()).toEqual([
+            expect.objectContaining({
+                id: 'legacy',
+                name: 'Legacy.js',
+                source: 'register_notation({ id: "legacy" });',
+                manifest: { notations: [], categories: [] },
+                knownNotationIds: [],
+                knownCategoryIds: [],
+            }),
+        ]);
+    });
+
     it('reports corrupt, unsupported, and quota failures with stable codes', () => {
         const storage = new MemoryStorage();
         storage.data.set(DEFAULT_LOCAL_NOTATION_STORE_KEY, '{broken');

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { clear_ai_session_api_key, generate_notation, normalize_chat_endpoint, run_ai_tool, tool_definitions, write_ai_session_settings } from '@/core/ai_notation_assistant';
+import { AIRequestNetworkError, clear_ai_session_api_key, generate_notation, normalize_chat_endpoint, run_ai_tool, tool_definitions, write_ai_session_settings } from '@/core/ai_notation_assistant';
 
 function jsonResponse(payload: unknown, status = 200): any {
     return { ok: status >= 200 && status < 300, status, statusText: '', body: null, json: async () => payload };
@@ -58,6 +58,26 @@ describe('AI notation assistant', () => {
         expect(fetchImpl).toHaveBeenCalledTimes(2);
         expect(result.toolMode).toBe('plain');
         expect(events).toContain('fallback_started');
+    });
+
+    it('reports browser network and CORS failures without retrying', async () => {
+        const fetchImpl = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
+
+        const request = generate_notation({
+            baseUrl: 'https://www.sevnx.lol',
+            apiKey: 'secret',
+            model: 'test',
+            prompt: 'make one',
+            fetchImpl: fetchImpl as any,
+        });
+        await expect(request).rejects.toEqual(
+            expect.objectContaining({
+                code: 'NETWORK_OR_CORS',
+                endpoint: 'https://www.sevnx.lol/v1/chat/completions',
+            }),
+        );
+        await expect(request).rejects.toBeInstanceOf(AIRequestNetworkError);
+        expect(fetchImpl).toHaveBeenCalledTimes(1);
     });
 
     it('keeps provider settings out of localStorage and clears the session key', () => {

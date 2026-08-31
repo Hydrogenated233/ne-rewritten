@@ -69,6 +69,19 @@ interface ChatRoundResult {
     responseText: string;
 }
 
+export class AIRequestNetworkError extends Error {
+    readonly code = 'NETWORK_OR_CORS';
+
+    constructor(readonly endpoint: string, readonly origin: string, options?: { cause?: unknown }) {
+        super(
+            `AI request could not reach ${endpoint}. The browser blocked the request or the network failed. ` +
+                `The Base URL must allow CORS requests from ${origin}; also check TLS and mixed-content restrictions.`,
+            options,
+        );
+        this.name = 'AIRequestNetworkError';
+    }
+}
+
 const DEFAULT_BASE_URL = 'https://api.openai.com';
 const DEFAULT_MODEL = 'gpt-4o-mini';
 const MAX_OUTPUT_LENGTH = 120_000;
@@ -295,6 +308,12 @@ function response_error(response: Response): Error {
     return error;
 }
 
+function request_network_error(error: unknown, endpoint: string): Error {
+    if ((error as Error | undefined)?.name === 'AbortError') return error as Error;
+    const origin = typeof location !== 'undefined' && location.origin ? location.origin : 'this page';
+    return new AIRequestNetworkError(endpoint, origin, { cause: error });
+}
+
 function is_tools_unsupported(error: unknown): boolean {
     const status = (error as { status?: number })?.status;
     return status === 400 || status === 404 || status === 405 || status === 415 || status === 422 || status === 501 || /tool|function|unsupported/i.test(error_message(error));
@@ -379,21 +398,27 @@ async function parse_stream(response: Response, round: number, onProgress?: AIGe
 
 async function request_chat_round(options: AIGenerateOptions, messages: AIChatMessage[], tools: unknown[], round: number, onProgress?: AIGenerateOptions['onProgress']): Promise<ChatRoundResult> {
     const fetcher = options.fetchImpl ?? fetch;
+    const endpoint = normalize_chat_endpoint(options.baseUrl);
     const started = Date.now();
     onProgress?.({ type: 'model_request_started', round, protocol: 'chat_completions' });
     abort_if_needed(options.signal);
-    const response = await fetcher(normalize_chat_endpoint(options.baseUrl), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${options.apiKey}` },
-        body: JSON.stringify({
-            model: options.model || DEFAULT_MODEL,
-            messages,
-            temperature: 0.2,
-            stream: true,
-            ...(tools.length ? { tools, tool_choice: 'auto' } : {}),
-        }),
-        signal: options.signal,
-    });
+    let response: Response;
+    try {
+        response = await fetcher(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${options.apiKey}` },
+            body: JSON.stringify({
+                model: options.model || DEFAULT_MODEL,
+                messages,
+                temperature: 0.2,
+                stream: true,
+                ...(tools.length ? { tools, tool_choice: 'auto' } : {}),
+            }),
+            signal: options.signal,
+        });
+    } catch (error) {
+        throw request_network_error(error, endpoint);
+    }
     if (!response.ok) throw response_error(response);
     const result = await parse_stream(response, round, onProgress, options.signal);
     onProgress?.({ type: 'model_response_received', round, protocol: 'chat_completions', toolCallCount: result.message.tool_calls?.length ?? 0, chars: result.responseText.length, elapsedMs: Date.now() - started });
