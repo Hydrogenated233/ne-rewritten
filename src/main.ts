@@ -93,6 +93,8 @@ import { TUPMS } from '@/notations/BM-like/TUPMS.ts';
 import { category_upmn } from '@/notations/MN/UPMN/categories.ts';
 import { UP2MN_v1a } from '@/notations/MN/UPMN/UP2MN-v1a.ts';
 import { create_notation_tools } from '@/core/notation_tools.ts';
+import { LocalNotationRuntime } from '@/core/local_notation_runtime.ts';
+import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -123,6 +125,22 @@ const settings: Settings = reactive({
     ...load_settings(),
 });
 
+// Migrate the former settings.user_scripts shape into the native local-file
+// store. Migration is metadata-only: enabled files remain pending until the
+// user explicitly resumes local notation execution in the settings bar.
+const local_notation_runtime = new LocalNotationRuntime();
+let legacy_scripts_migrated = false;
+if (settings.user_scripts.length > 0) {
+    try {
+        const legacy = [...settings.user_scripts];
+        local_notation_runtime.migrateLegacyScripts(legacy);
+        settings.user_scripts = [];
+        legacy_scripts_migrated = true;
+    } catch (error) {
+        console.warn('Could not migrate legacy local notation scripts.', error);
+    }
+}
+
 set_generator_state(settings.generator_state ?? {});
 
 watch(
@@ -132,6 +150,15 @@ watch(
     },
     { deep: true },
 );
+
+if (legacy_scripts_migrated) {
+    try {
+        localStorage.setItem(SETTINGS_KEY_NAME, JSON.stringify(settings));
+    } catch {
+        // The migrated source remains in the native local-file store even if
+        // the legacy settings record cannot be rewritten immediately.
+    }
+}
 
 // registry 变更时同步 generator state 回 settings（由 settings 的 deep watch 自动保存）
 on_registry_change(() => {
@@ -258,5 +285,6 @@ for (let notation of list_notations()) {
 const app = createApp(App);
 
 app.provide(SETTINGS_KEY, settings);
+app.provide(LOCAL_NOTATION_RUNTIME_KEY, local_notation_runtime);
 
 app.mount('#app');

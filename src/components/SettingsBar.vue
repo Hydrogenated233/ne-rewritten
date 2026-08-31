@@ -9,7 +9,7 @@ import { expand_all_pending, import_analysis_eager } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { COMPAT_URL, IS_COMPAT } from '@/core/deployment.ts';
 import { focus_node_input } from '@/composables/use_focus_tracker.ts';
-import { reload_all } from '@/core/user_defined_notation.ts';
+import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import ModalDialog from './ModalDialog.vue';
 import DiagramSettingsPanel from './DiagramSettingsPanel.vue';
 
@@ -19,6 +19,7 @@ const save_load = inject(SAVE_LOAD_KEY)!;
 const ui = use_ui_states();
 const { notation, root } = save_load;
 const { hide, show: show_diagram, dispatch_action } = use_diagram();
+const local_runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
 
 const settings_collapsed = ref(true);
 const find_input = ref<HTMLInputElement>();
@@ -29,22 +30,36 @@ const DISPLAY_MODES = ['plain', 'html', 'latex'] as const;
 
 // 用户记号恢复：页面加载时不自动加载，等用户确认后再执行
 const user_scripts_recovered = ref(false);
+const local_files = computed(() => {
+    ui.registry_notifier.listen();
+    try {
+        return local_runtime.listFiles();
+    } catch {
+        return [];
+    }
+});
 const has_pending_scripts = computed(
-    () => !user_scripts_recovered.value && settings.user_scripts.some((s) => s.enabled),
+    () => !user_scripts_recovered.value && local_files.value.some((file) => file.enabled && file.trusted),
 );
 
 function resume_scripts(): void {
-    reload_all(settings.user_scripts);
+    local_runtime.boot();
     user_scripts_recovered.value = true;
     ui.registry_notifier.notify();
 }
 
 function disable_all(): void {
-    for (const sc of settings.user_scripts) {
-        sc.enabled = false;
+    for (const file of local_files.value) {
+        if (file.enabled) {
+            try {
+                local_runtime.disable(file.id);
+            } catch (error) {
+                console.warn(`Could not disable ${file.name}.`, error);
+            }
+        }
     }
-    settings.user_scripts = [...settings.user_scripts];
     user_scripts_recovered.value = true;
+    ui.registry_notifier.notify();
 }
 
 interface EquivOption {

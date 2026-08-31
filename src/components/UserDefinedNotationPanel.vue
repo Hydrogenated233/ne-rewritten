@@ -1,36 +1,57 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, ref, watch } from 'vue';
+import { computed, inject, nextTick, onUnmounted, ref, watch } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
-import { SETTINGS_KEY } from '@/composables/use_settings.ts';
+import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { get_codemirror, load_codemirror } from '@/composables/use_codemirror.ts';
-import { get_script_warnings, reload_all } from '@/core/user_defined_notation.ts';
-import type { UserScript } from '@/core/settings.ts';
+import { get_script_warnings } from '@/core/user_defined_notation.ts';
+import type { LocalNotationFile } from '@/core/local_notation_store.ts';
 import ModalDialog from './ModalDialog.vue';
 import TEMPLATE_JS from '@/assets/template.js?raw';
 
 const t = inject(I18N_KEY)!;
-const settings = inject(SETTINGS_KEY)!;
+const runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
 const ui = use_ui_states();
 
-const scripts = computed(() => settings.user_scripts);
+const files = ref<LocalNotationFile[]>([]);
 const active_tab = ui.user_defined_active_tab;
 const is_renaming = ref(false);
 const rename_input = ref('');
 const editor_ref = ref<HTMLDivElement | null>(null);
 const show_delete_confirm = ref(false);
-const delete_target_idx = ref(0);
+const delete_target_id = ref('');
 const show_new_dialog = ref(false);
 const new_script_name = ref('');
+const status_message = ref('');
 let editor_view: import('@codemirror/view').EditorView | null = null;
+let editor_file_id: string | null = null;
 
-const current_script = computed<UserScript | undefined>(() => scripts.value[active_tab.value]);
+const current_file = computed(() => files.value[active_tab.value]);
 
 // CodeMirror 按需加载: 未加载时用只读 pre 展示代码
 const cm_ready = ref(false);
 const cm_loading = ref(false);
 
-const code_lines = computed(() => (current_script.value?.code ?? '').split('\n'));
+const code_lines = computed(() => (current_file.value?.source ?? '').split('\n'));
+
+function refresh_files(): void {
+    try {
+        files.value = runtime.listFiles();
+        if (active_tab.value >= files.value.length) active_tab.value = Math.max(0, files.value.length - 1);
+    } catch (error) {
+        status_message.value = error instanceof Error ? error.message : String(error);
+        files.value = [];
+    }
+}
+
+function set_status(error: unknown): void {
+    status_message.value = error instanceof Error ? error.message : String(error);
+}
+
+function normalize_name(value: string): string {
+    const name = value.trim();
+    return /\.js$/i.test(name) ? name : `${name}.js`;
+}
 
 async function load_cm_editor(): Promise<void> {
     if (cm_ready.value) return;
@@ -54,16 +75,17 @@ function has_warning(file_name: string): boolean {
     return warnings.value.has(file_name);
 }
 
-function save_scripts(): void {
-    settings.user_scripts = [...scripts.value];
+function select_file(id: string): void {
+    const index = files.value.findIndex((file) => file.id === id);
+    if (index >= 0) active_tab.value = index;
 }
 
 function new_script(): void {
     sync_editor();
     const base = 'untitled';
     let n = 1;
-    while (scripts.value.some((s) => s.file_name === `${base}_${n}`)) n++;
-    new_script_name.value = `${base}_${n}`;
+    while (files.value.some((file) => file.name.toLowerCase() === `${base}_${n}.js`)) n++;
+    new_script_name.value = `${base}_${n}.js`;
     show_new_dialog.value = true;
     nextTick(() => {
         const input = document.querySelector('.new-name-input') as HTMLInputElement;
@@ -73,62 +95,76 @@ function new_script(): void {
 }
 
 function do_create_script(): void {
-    const name = new_script_name.value.trim();
+    const name = normalize_name(new_script_name.value);
     if (!name) return;
-    // 确保名称不重复
-    let final_name = name;
-    let n = 1;
-    while (scripts.value.some((s) => s.file_name === final_name)) {
-        final_name = `${name}_${n}`;
-        n++;
+    try {
+        const created = runtime.createUpload(name, '', false);
+        refresh_files();
+        select_file(created.file.id);
+        show_new_dialog.value = false;
+        status_message.value = '';
+    } catch (error) {
+        set_status(error);
     }
-    const new_s: UserScript = { file_name: final_name, code: '', enabled: false };
-    settings.user_scripts = [...scripts.value, new_s];
-    active_tab.value = scripts.value.length - 1;
-    show_new_dialog.value = false;
 }
 
 function sync_editor(): void {
-    if (!current_script.value || !editor_view) return;
-    current_script.value.code = editor_view.state.doc.toString();
+    if (!editor_file_id || !editor_view) return;
+    const file = runtime.getFile(editor_file_id);
+    if (!file || file.enabled) return;
+    const source = editor_view.state.doc.toString();
+    if (source === file.source) return;
+    try {
+        runtime.saveFile(file.id, file.name, source);
+        refresh_files();
+        status_message.value = '';
+    } catch (error) {
+        set_status(error);
+    }
 }
 
-function confirm_delete(idx: number): void {
+function confirm_delete(id: string): void {
     sync_editor();
-    delete_target_idx.value = idx;
+    delete_target_id.value = id;
     show_delete_confirm.value = true;
 }
 
 function do_delete(): void {
-    const idx = delete_target_idx.value;
+    const id = delete_target_id.value;
     show_delete_confirm.value = false;
-    if (scripts.value[idx]?.enabled) {
-        scripts.value[idx].enabled = false;
+    try {
+        runtime.deleteFile(id);
+        refresh_files();
+        status_message.value = '';
+    } catch (error) {
+        set_status(error);
     }
-    const new_scripts = scripts.value.filter((_, i) => i !== idx);
-    settings.user_scripts = new_scripts;
-    if (active_tab.value >= new_scripts.length) active_tab.value = Math.max(0, new_scripts.length - 1);
-    reload_all(settings.user_scripts);
 }
 
 function add_template(): void {
     sync_editor();
-    const name = 'template';
+    const base = 'template';
+    let name = `${base}.js`;
     let final_name = name;
     let n = 1;
-    while (scripts.value.some((s) => s.file_name === final_name)) {
-        final_name = `${name}_${n}`;
+    while (files.value.some((file) => file.name.toLowerCase() === final_name.toLowerCase())) {
+        final_name = `${base}_${n}.js`;
         n++;
     }
-    const new_s: UserScript = { file_name: final_name, code: TEMPLATE_JS, enabled: false };
-    settings.user_scripts = [...scripts.value, new_s];
-    active_tab.value = scripts.value.length - 1;
+    try {
+        const created = runtime.createTemplate(final_name, TEMPLATE_JS);
+        refresh_files();
+        select_file(created.id);
+        status_message.value = '';
+    } catch (error) {
+        set_status(error);
+    }
 }
 
 function start_rename(): void {
-    if (!current_script.value) return;
+    if (!current_file.value) return;
     is_renaming.value = true;
-    rename_input.value = current_script.value.file_name;
+    rename_input.value = current_file.value.name;
     nextTick(() => {
         const input = document.querySelector('.rename-input') as HTMLInputElement;
         input?.focus();
@@ -137,22 +173,44 @@ function start_rename(): void {
 }
 
 function finish_rename(): void {
-    if (!is_renaming.value || !current_script.value) return;
-    const new_name = rename_input.value.trim();
-    if (new_name) {
-        current_script.value.file_name = new_name;
-        save_scripts();
+    if (!is_renaming.value || !current_file.value) return;
+    const new_name = normalize_name(rename_input.value);
+    if (new_name && new_name !== current_file.value.name) {
+        try {
+            sync_editor();
+            runtime.saveFile(current_file.value.id, new_name, runtime.getFile(current_file.value.id)?.source ?? '');
+            refresh_files();
+            status_message.value = '';
+        } catch (error) {
+            set_status(error);
+        }
     }
     is_renaming.value = false;
 }
 
 function toggle_enable(): void {
-    const sc = current_script.value;
-    if (!sc) return;
+    const file = current_file.value;
+    if (!file) return;
     sync_editor();
-    sc.enabled = !sc.enabled;
-    save_scripts();
-    reload_all(settings.user_scripts);
+    try {
+        if (file.enabled) runtime.disable(file.id);
+        else runtime.enable(file.id);
+        refresh_files();
+        status_message.value = '';
+    } catch (error) {
+        set_status(error);
+    }
+}
+
+function trust_file(): void {
+    if (!current_file.value) return;
+    try {
+        runtime.trustFile(current_file.value.id);
+        refresh_files();
+        status_message.value = '';
+    } catch (error) {
+        set_status(error);
+    }
 }
 
 function open_nav_panel(): void {
@@ -161,13 +219,17 @@ function open_nav_panel(): void {
 }
 
 function move_tab(from: number, to: number): void {
-    if (to < 0 || to >= scripts.value.length) return;
-    const arr = [...scripts.value];
+    if (to < 0 || to >= files.value.length) return;
+    const arr = files.value.map((file) => file.id);
     const [moved] = arr.splice(from, 1);
     arr.splice(to, 0, moved);
-    settings.user_scripts = arr;
-    active_tab.value = to;
-    reload_all(settings.user_scripts);
+    try {
+        runtime.reorderFiles(arr);
+        refresh_files();
+        active_tab.value = to;
+    } catch (error) {
+        set_status(error);
+    }
 }
 
 // Drag and drop
@@ -199,10 +261,14 @@ function upload_file(): void {
         const reader = new FileReader();
         reader.onload = () => {
             const code = reader.result as string;
-            const file_name = file.name.replace(/\.js$/i, '');
-            const new_s: UserScript = { file_name, code, enabled: false };
-            settings.user_scripts = [...scripts.value, new_s];
-            active_tab.value = scripts.value.length - 1;
+            try {
+                const created = runtime.createUpload(file.name, code, false);
+                refresh_files();
+                select_file(created.file.id);
+                status_message.value = '';
+            } catch (error) {
+                set_status(error);
+            }
         };
         reader.readAsText(file);
     };
@@ -216,7 +282,7 @@ function upload_file(): void {
 
 function init_editor(): void {
     if (!editor_ref.value) return;
-    init_editor_inner(!(current_script.value?.enabled ?? false));
+    init_editor_inner(!(current_file.value?.enabled ?? false));
 }
 
 function init_editor_inner(editable: boolean): void {
@@ -245,7 +311,8 @@ function init_editor_inner(editable: boolean): void {
         javascript,
     } = cm;
 
-    const doc_code = current_script.value?.code ?? '';
+    const doc_code = current_file.value?.source ?? '';
+    editor_file_id = current_file.value?.id ?? null;
 
     // 每个 EditorView 实例使用独立的 Compartment
     const ec = new Compartment();
@@ -307,29 +374,25 @@ function init_editor_inner(editable: boolean): void {
     });
 }
 
-function set_editable(editable: boolean): void {
-    if (!editor_view) return;
-    init_editor_inner(editable);
-}
-
 // Tab 切换 —— 保存旧内容并重建编辑器
-watch(current_script, (new_sc, old_sc) => {
-    if (new_sc?.file_name !== old_sc?.file_name) {
-        nextTick(() => {
-            if (editor_view && old_sc) {
-                old_sc.code = editor_view.state.doc.toString();
-            }
-            init_editor_inner(!(new_sc?.enabled ?? false));
-        });
-    }
-});
+watch(
+    () => current_file.value?.id,
+    (new_id, old_id) => {
+        if (new_id !== old_id) {
+            sync_editor();
+            nextTick(() => init_editor_inner(!(current_file.value?.enabled ?? false)));
+        }
+    },
+);
 
 // 启用/停用 —— 切换编辑器的可编辑状态
 watch(
-    () => current_script.value?.enabled,
+    () => current_file.value?.enabled,
     (enabled) => {
         if (enabled === undefined) return;
-        nextTick(() => set_editable(!enabled));
+        nextTick(() => {
+            if (current_file.value) init_editor_inner(!enabled);
+        });
     },
 );
 
@@ -337,7 +400,10 @@ watch(
 watch(
     () => ui.show_user_defined.value,
     (show) => {
-        if (show) nextTick(init_editor);
+        if (show) {
+            refresh_files();
+            nextTick(init_editor);
+        }
     },
 );
 
@@ -346,6 +412,14 @@ watch(warnings, (w) => {
     for (const [file, msgs] of w) {
         console.log(`[WARN] ${file}:`, msgs);
     }
+});
+
+refresh_files();
+
+onUnmounted(() => {
+    sync_editor();
+    editor_view?.destroy();
+    editor_view = null;
 });
 </script>
 
@@ -362,10 +436,11 @@ watch(warnings, (w) => {
             <!-- Left: tab list -->
             <div class="ud-tabs">
                 <div
-                    v-for="(sc, idx) in scripts"
-                    :key="idx"
+                    v-for="(file, idx) in files"
+                    :key="file.id"
                     class="ud-tab"
-                    :class="{ active: idx === active_tab, enabled: sc.enabled }"
+                    :class="{ active: idx === active_tab, enabled: file.enabled }"
+                    :title="file.lastError?.message ?? ''"
                     draggable="true"
                     @dragstart="on_dragstart(idx)"
                     @dragover="on_dragover($event, idx)"
@@ -373,13 +448,14 @@ watch(warnings, (w) => {
                     @click="active_tab = idx"
                 >
                     <span
-                        v-if="has_warning(sc.file_name)"
+                        v-if="has_warning(file.name)"
                         class="ud-warn"
-                        :title="warnings.get(sc.file_name)?.join('\n')"
+                        :title="warnings.get(file.name)?.join('\n')"
                         >⚠</span
                     >
-                    <span class="ud-tab-name">{{ sc.file_name }}</span>
-                    <span v-if="sc.enabled" class="ud-tab-status">{{ t('user-defined.enable') }}</span>
+                    <span class="ud-tab-name">{{ file.name }}</span>
+                    <span v-if="file.enabled" class="ud-tab-status">{{ t('user-defined.enable') }}</span>
+                    <span v-else-if="!file.trusted" class="ud-tab-status">{{ t('user-defined.untrusted') }}</span>
                 </div>
                 <button class="ud-btn ud-btn-new" @mousedown.prevent="new_script">{{ t('user-defined.new') }}</button>
             </div>
@@ -395,7 +471,7 @@ watch(warnings, (w) => {
                         @blur="finish_rename"
                     />
                 </div>
-                <div v-if="scripts.length > 0">
+                <div v-if="files.length > 0">
                     <div v-if="cm_ready" ref="editor_ref" class="ud-cm-editor"></div>
                     <pre v-else class="ud-code-fallback"><code><span
                         v-for="(line, i) in code_lines"
@@ -408,16 +484,23 @@ watch(warnings, (w) => {
 
             <!-- Right: buttons -->
             <div class="ud-buttons">
-                <button class="ud-btn" :disabled="!current_script" @mousedown.prevent="toggle_enable">
-                    {{ current_script?.enabled ? t('user-defined.disable') : t('user-defined.enable') }}
+                <button
+                    v-if="current_file && !current_file.trusted"
+                    class="ud-btn ud-btn-success"
+                    @mousedown.prevent="trust_file"
+                >
+                    {{ t('user-defined.trust') }}
                 </button>
-                <button class="ud-btn" :disabled="!current_script" @mousedown.prevent="start_rename">
+                <button class="ud-btn" :disabled="!current_file || !current_file.trusted" @mousedown.prevent="toggle_enable">
+                    {{ current_file?.enabled ? t('user-defined.disable') : t('user-defined.enable') }}
+                </button>
+                <button class="ud-btn" :disabled="!current_file" @mousedown.prevent="start_rename">
                     {{ t('user-defined.rename') }}
                 </button>
                 <button
                     class="ud-btn ud-btn-danger"
-                    :disabled="!current_script"
-                    @mousedown.prevent="confirm_delete(active_tab)"
+                    :disabled="!current_file"
+                    @mousedown.prevent="confirm_delete(current_file!.id)"
                 >
                     {{ t('user-defined.delete') }}
                 </button>
@@ -430,7 +513,7 @@ watch(warnings, (w) => {
                 <button class="ud-btn" @mousedown.prevent="ui.show_api_doc.value = true">
                     {{ t('user-defined.view-api-doc') }}
                 </button>
-                <button class="ud-btn" :disabled="!current_script?.enabled" @mousedown.prevent="open_nav_panel">
+                <button class="ud-btn" :disabled="!current_file?.enabled" @mousedown.prevent="open_nav_panel">
                     {{ t('user-defined.nav-to-notation') }}
                 </button>
                 <button
@@ -442,6 +525,7 @@ watch(warnings, (w) => {
                     {{ cm_loading ? t('user-defined.editor-loading') : t('user-defined.editor-load') }}
                 </button>
             </div>
+            <div v-if="status_message" class="ud-status-message">{{ status_message }}</div>
         </div>
     </ModalDialog>
 

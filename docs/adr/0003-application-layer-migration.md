@@ -10,10 +10,13 @@ repository in vertical slices; the old classic-script runtime is not copied as
 the application runtime and `register.push(...)` is not accepted for new local
 sources.
 
-The first slice exposes `notation_tools` from the existing registry/tree/
-expander core. It provides listing, inspection, fundamental-sequence expansion,
-infinite-chain detection, notation diffing, and isolated source validation for
-the future AI and tools pages.
+The first slices expose `notation_tools` from the existing registry/tree/
+expander core and provide a native local-notation-file lifecycle. The tools
+provide listing, inspection, fundamental-sequence expansion, infinite-chain
+detection, notation diffing, and isolated source validation for the future AI
+and tools pages. Local files are persisted separately from application
+settings, use `.js` names, and are only executed after explicit trust and
+resume actions.
 
 ## Constraints
 
@@ -27,8 +30,10 @@ the future AI and tools pages.
 
 ## Follow-up slices
 
-1. Port the owner-aware local notation file store/runtime using native
-   `register_notation` and `register_category` only.
+1. ~~Port the owner-aware local notation file store/runtime using native
+   `register_notation` and `register_category` only.~~ Completed in the native
+   `LocalNotationFileStore`/`LocalNotationRuntime` slice, including legacy
+   `settings.user_scripts` migration and transactional reload behavior.
 2. Port the page-level navigation and Tools workspace.
 3. Port AI generation, visible tool-loop activity, cancellation/restart, and
    persisted active/archive conversations.
