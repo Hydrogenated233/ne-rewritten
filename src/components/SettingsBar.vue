@@ -4,7 +4,6 @@ import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
-import { expand_all_pending } from '@/core/analysis.ts';
 import {
     COMPAT_URL,
     IS_COMPAT,
@@ -111,17 +110,14 @@ function on_show_description_change(event: Event): void {
     ui.description_visible.value = checked;
 }
 
-function handle_expand_all(): void {
-    if (!notation.value || !root.value) return;
-    expand_all_pending(root.value, notation.value, settings.variant, settings.max_find_fs);
-}
-
-function on_expand_all_import_change(event: Event): void {
-    settings.expand_all_on_import = (event.target as HTMLInputElement).checked;
-}
-
 function go_compat(): void {
     location.href = COMPAT_URL;
+}
+
+function on_auto_save_interval_input(event: Event): void {
+    const raw = Number((event.target as HTMLInputElement).value);
+    if (!Number.isFinite(raw)) return;
+    settings.auto_save_interval = Math.min(86400, Math.max(10, Math.trunc(raw)));
 }
 
 const latex_commands_error = ref('');
@@ -315,15 +311,8 @@ watch(
                 <div class="setting-row setting-row--block">
                     <span class="setting-label">{{ t('expand-all.label') }}</span>
                     <div class="setting-controls">
-                        <button class="setting-button" @mousedown="handle_expand_all">
-                            {{ t('expand-all.expand') }}
-                        </button>
                         <label class="setting-check">
-                            <input
-                                type="checkbox"
-                                :checked="settings.expand_all_on_import"
-                                @change="on_expand_all_import_change"
-                            />
+                            <input v-model="settings.expand_all_on_import" type="checkbox" />
                             {{ t('expand-all.on-import') }}
                         </label>
                         <label class="setting-inline-number">
@@ -371,7 +360,13 @@ watch(
                         </label>
                         <label class="setting-inline-number">
                             {{ t('autosave.interval') }}
-                            <input v-model.number="settings.auto_save_interval" type="number" min="10" max="86400" />
+                            <input
+                                :value="settings.auto_save_interval"
+                                type="number"
+                                min="10"
+                                max="86400"
+                                @input="on_auto_save_interval_input"
+                            />
                         </label>
                         <label class="setting-check">
                             <input v-model="settings.auto_save_hidden" type="checkbox" />

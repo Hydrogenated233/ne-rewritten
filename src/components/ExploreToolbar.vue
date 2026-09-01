@@ -6,7 +6,7 @@ import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { use_diagram } from '@/composables/use_diagram.ts';
 import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
-import { import_analysis_eager } from '@/core/analysis.ts';
+import { expand_all_pending, import_analysis_eager } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { focus_node_input, get_last_focus, prepare_pointer_focus } from '@/composables/use_focus_tracker.ts';
 
@@ -108,6 +108,12 @@ function open_direct_expand(): void {
     const current = path ? document.querySelector<HTMLInputElement>(`[data-tree-path="${path}"]`)?.value ?? '' : '';
     expand_dialog_state.open(current, settings.expand);
 }
+
+function handle_expand_all(): void {
+    if (!notation.value || !root.value) return;
+    expand_all_pending(root.value, notation.value, settings.variant, settings.max_find_fs);
+    save_load.save_analysis();
+}
 </script>
 
 <template>
@@ -125,6 +131,7 @@ function open_direct_expand(): void {
             </button>
             <button @mousedown.prevent="save_load.handle_export()">{{ t('toolbar.export') }}</button>
             <button @mousedown.prevent="save_load.handle_import()">{{ t('toolbar.import') }}</button>
+            <button @mousedown.prevent="handle_expand_all">{{ t('expand-all.expand') }}</button>
             <button @mousedown.prevent="ui.show_notes.value = true">{{ t('toolbar.notes') }}</button>
             <button @mousedown.prevent="open_direct_expand">{{ t('toolbar.direct-expand') }}</button>
             <button class="toolbar-btn-tips" @mousedown.prevent="ui.show_tips.value = true">

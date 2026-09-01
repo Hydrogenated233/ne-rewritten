@@ -548,6 +548,10 @@ function on_blur() {
                             <RenderLatex v-if="settings.analysis_latex_preview" :latex="term.comment" />
                             <span v-else>{{ term.comment }}</span>
                         </span>
+                        <!-- Keep every tooltip row at three grid cells; without an empty
+                             comment cell, display:contents would place the next index
+                             into the current row's third column. -->
+                        <span v-else class="tooltip-cmnt tooltip-cmnt--empty" aria-hidden="true"></span>
                     </div>
                 </div>
             </div>

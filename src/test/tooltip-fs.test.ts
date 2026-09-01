@@ -5,6 +5,10 @@ import tree_source from '../core/tree.ts?raw';
 import diagram_source from '../components/DiagramViewer.vue?raw';
 import save_load_source from '../composables/use_save_load.ts?raw';
 import theme_source from '../composables/use_color_theme.ts?raw';
+import explore_toolbar_source from '../components/ExploreToolbar.vue?raw';
+import settings_bar_source from '../components/SettingsBar.vue?raw';
+import main_source from '../main.ts?raw';
+import app_source from '../App.vue?raw';
 
 describe('FS hover tooltip migration', () => {
     it('exposes a persisted tooltip item-count setting', () => {
@@ -17,6 +21,13 @@ describe('FS hover tooltip migration', () => {
         expect(tree_item_source).toContain('comment: comments.get(resolved_original.value.plain(fs_expr)) ??');
         expect(tree_item_source).toContain('class="tooltip-fs"');
         expect(tree_item_source).toContain('class="tooltip-cmnt"');
+        expect(tree_item_source).toContain('tooltip-cmnt--empty');
+    });
+
+    it('keeps long FS rows inside a bounded, left-anchored tooltip', () => {
+        expect(app_source).toContain('left: 0;');
+        expect(app_source).toContain('max-width: min(720px, calc(100vw - 24px));');
+        expect(app_source).toContain('overflow-x: auto;');
     });
 });
 
@@ -42,5 +53,19 @@ describe('Ctrl+Backspace tree deletion', () => {
         expect(theme_source).toContain("'--color-primary': '#2563eb'");
         expect(theme_source).toContain("id: 'source-dark'");
         expect(theme_source).toContain("'--color-bg': '#1a1a1a'");
+    });
+
+    it('puts the one-shot expansion action on Explore and keeps import expansion two-way bound', () => {
+        expect(explore_toolbar_source).toContain('handle_expand_all');
+        expect(explore_toolbar_source).toContain("t('expand-all.expand')");
+        expect(settings_bar_source).not.toContain('@mousedown="handle_expand_all"');
+        expect(settings_bar_source).toContain('v-model="settings.expand_all_on_import"');
+        expect(save_load_source).toContain('Persist imported analyses and any eager expansion immediately');
+    });
+
+    it('clamps the auto-save interval when loading persisted settings', () => {
+        expect(settings_bar_source).toContain('on_auto_save_interval_input');
+        expect(settings_bar_source).toContain('Math.max(10, Math.trunc(raw))');
+        expect(main_source).toContain('Math.max(10, Math.trunc(Number(settings.auto_save_interval)');
     });
 });

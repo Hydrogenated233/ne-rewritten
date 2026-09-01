@@ -665,6 +665,7 @@ function debug_compare_order(notation_id?: string) {
     position: absolute;
     z-index: 1073741824;
     bottom: 100%;
+    left: 0;
     padding: 8px;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
@@ -674,6 +675,10 @@ function debug_compare_order(notation_id?: string) {
     line-height: 1.4;
     font-size: 12px;
     box-sizing: border-box;
+    min-width: 120px;
+    max-width: min(720px, calc(100vw - 24px));
+    overflow-x: auto;
+    pointer-events: auto;
 }
 
 .tooltip-fs {
@@ -713,6 +718,10 @@ function debug_compare_order(notation_id?: string) {
     white-space: nowrap;
     color: var(--color-text-secondary);
     flex-shrink: 0;
+}
+
+.tooltip-cmnt--empty {
+    visibility: hidden;
 }
 
 ul {

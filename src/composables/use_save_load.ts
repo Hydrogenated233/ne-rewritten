@@ -212,6 +212,9 @@ export function use_save_load(
             if (settings.expand_all_on_import) {
                 expand_all_pending(r, n, settings.variant, settings.max_find_fs);
             }
+            // Persist imported analyses and any eager expansion immediately;
+            // otherwise the option appears to work only until a reload.
+            save_analysis();
             if (matched.length > 0) {
                 const last = matched[matched.length - 1];
                 const ed = (last.extraData ??= {}) as any;

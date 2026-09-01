@@ -138,6 +138,14 @@ const settings: Settings = reactive({
     ...load_settings(),
 });
 
+// Clamp numeric settings on load as well as in the controls, so older or
+// hand-edited storage values cannot schedule an unexpectedly fast save loop.
+settings.auto_save_interval = Math.min(
+    86400,
+    Math.max(10, Math.trunc(Number(settings.auto_save_interval) || DEFAULT_SETTINGS.auto_save_interval)),
+);
+settings.tooltip_fs = Math.min(999, Math.max(0, Math.trunc(Number(settings.tooltip_fs) || 0)));
+
 // Migrate the former settings.user_scripts shape into the native local-file
 // store. Enabled files load automatically after the built-in registry is ready.
 const local_notation_runtime = new LocalNotationRuntime({
