@@ -231,7 +231,9 @@ export class LocalNotationRuntime {
         }
 
         const candidateFile = this.with_file_patch(file, { name, source });
-        const replace_live_source = file.enabled && !this.executionDisabled;
+        // A name-only edit keeps the live registrations intact. The source
+        // replacement path is reserved for an actual source change.
+        const replace_live_source = sourceChanged && file.enabled && !this.executionDisabled;
         if (replace_live_source) {
             const candidate = this.listFiles().map((item) => (item.id === id ? candidateFile : item));
             try {

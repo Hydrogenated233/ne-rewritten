@@ -55,6 +55,11 @@ export interface AIGenerateOptions {
     maxRounds?: number;
     fetchImpl?: typeof fetch;
     onProgress?: (event: AIProgressEvent) => void;
+    toolContext?: AIToolContext;
+}
+
+export interface AIToolContext {
+    inspectLocalNotationFile?: (fileName: string) => unknown;
 }
 
 export interface AIGenerateResult {
@@ -264,6 +269,19 @@ export function tool_definitions(): unknown[] {
         {
             type: 'function',
             function: {
+                name: 'inspect_local_notation_file',
+                description: 'Read one local notation file by filename, including committed source, any editor draft, and enabled/trusted state. Use this before modifying an existing local file.',
+                parameters: {
+                    type: 'object',
+                    properties: { file_name: { type: 'string' } },
+                    required: ['file_name'],
+                    additionalProperties: false,
+                },
+            },
+        },
+        {
+            type: 'function',
+            function: {
                 name: 'expand',
                 description: 'Expand one notation expression at selected fundamental-sequence indexes.',
                 parameters: {
@@ -311,12 +329,16 @@ export function tool_definitions(): unknown[] {
     ];
 }
 
-export function run_ai_tool(name: string, args: any): unknown {
+export function run_ai_tool(name: string, args: any, context: AIToolContext = {}): unknown {
     switch (name) {
         case 'list_notations':
             return list_notation_summaries();
         case 'inspect_notation':
             return inspect_notation(String(args?.notation_id || ''));
+        case 'inspect_local_notation_file': {
+            if (!context.inspectLocalNotationFile) throw new Error('Local notation file inspection is unavailable.');
+            return context.inspectLocalNotationFile(String(args?.file_name || ''));
+        }
         case 'expand': {
             const indexes = Array.isArray(args?.indexes) ? args.indexes : [];
             if (!indexes.length || indexes.some((n: unknown) => !Number.isSafeInteger(n) || Number(n) < 0 || Number(n) > 1000)) {
@@ -336,11 +358,11 @@ export function run_ai_tool(name: string, args: any): unknown {
 }
 
 function build_system_prompt(fileName: string, existingFileName: string, includeTools: boolean): string {
-    const target = existingFileName ? `Update the existing disabled file named ${existingFileName}.` : `Choose a descriptive filename; suggested fallback is ${fileName}.`;
+    const target = existingFileName ? `Update the existing local file named ${existingFileName}. Inspect its current source before editing it.` : `Choose a descriptive filename; suggested fallback is ${fileName}. If the request modifies a named local file, inspect that file before editing it.`;
     return [
         'You are the local notation authoring assistant for NE-rewritten.',
         'Return a complete JavaScript source file in the native ne-rewritten format.',
-        'Do not execute, enable, trust, or modify files yourself. The application will validate and stage your source as a disabled local file.',
+        'Do not execute, enable, trust, or modify files yourself. The application will validate and stage your source in the local editor; existing files receive a draft and new files remain disabled and untrusted.',
         target,
         includeTools ? 'You may call the supplied notation tools to inspect and test existing definitions before answering.' : 'Tool calling is unavailable; reason from the embedded context and user request.',
         'Put a line such as `filename: descriptive-name.js` before the code when you choose a filename.',
@@ -537,7 +559,7 @@ export async function generate_notation(options: AIGenerateOptions): Promise<AIG
             options.onProgress?.({ type: 'tool_call_started', round: rounds, protocol: 'chat_completions', toolCallIndex, name: call.function.name, detail: stringify(args) });
             let toolResult: unknown;
             let ok = true;
-            try { toolResult = run_ai_tool(call.function.name, args); } catch (error) { ok = false; toolResult = { error: error_message(error) }; }
+            try { toolResult = run_ai_tool(call.function.name, args, options.toolContext); } catch (error) { ok = false; toolResult = { error: error_message(error) }; }
             options.onProgress?.({ type: 'tool_call_finished', round: rounds, protocol: 'chat_completions', toolCallIndex, name: call.function.name, ok, elapsedMs: Date.now() - started, detail: stringify(toolResult) });
             messages.push({ role: 'tool', tool_call_id: call.id, name: call.function.name, content: stringify(ok ? { ok: true, result: toolResult } : toolResult) });
         }

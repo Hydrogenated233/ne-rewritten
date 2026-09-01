@@ -1,6 +1,6 @@
 import type { Ref } from 'vue';
 import { computed, inject, type InjectionKey, reactive, ref, watch } from 'vue';
-import { get_notation } from '@/core/registry.ts';
+import { get_notation, list_notations } from '@/core/registry.ts';
 import { init_dataset, type TreeNode } from '@/core/tree.ts';
 import {
     expand_all_pending,
@@ -16,6 +16,13 @@ import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { app_storage } from '@/core/storage.ts';
 import { analysis_storage_key, note_storage_key } from '@/core/storage_keys.ts';
+import {
+    apply_local_notation_lifecycle,
+    type LocalNotationLifecycleAction,
+    type LocalNotationLifecycleResult,
+    type LocalNotationLifecycleSnapshot,
+} from '@/core/local_notation_lifecycle.ts';
+import type { LocalNotationFile } from '@/core/local_notation_store.ts';
 
 export interface SaveLoadInstance {
     trees: Map<string, TreeNode<unknown>>;
@@ -30,6 +37,12 @@ export interface SaveLoadInstance {
     handle_import: () => Promise<void>;
     init: () => void;
     dispose: () => void;
+    capture_local_file_state: (file: LocalNotationFile, action: LocalNotationLifecycleAction) => LocalNotationLifecycleSnapshot;
+    apply_local_file_change: (
+        result: LocalNotationLifecycleResult,
+        action: LocalNotationLifecycleAction,
+        snapshot: LocalNotationLifecycleSnapshot,
+    ) => void;
 }
 
 export const SAVE_LOAD_KEY: InjectionKey<SaveLoadInstance> = Symbol('save_load');
@@ -70,14 +83,34 @@ export function use_save_load(
         save_indicator_raf = requestAnimationFrame(update_save_indicator);
     }
 
+    function save_analysis_for(id: string, r: TreeNode<any>): boolean {
+        const n = get_notation(id);
+        if (!n) return false;
+        try {
+            const entries = export_analysis(r);
+            app_storage()?.setItem(analysis_storage_key(n.id), stringify_analysis_entries(entries));
+            return true;
+        } catch {
+            // Analysis is auxiliary state. A private-mode/quota failure must
+            // not prevent the source transaction from completing.
+            return false;
+        }
+    }
+
     function save_analysis() {
-        const n = notation.value;
-        const r = root.value;
-        if (!n || !r) return;
-        const entries = export_analysis(r);
-        app_storage()?.setItem(analysis_storage_key(n.id), stringify_analysis_entries(entries));
-        last_save_time.value = Date.now();
-        update_save_indicator();
+        // Materialize the current tree before iterating the cache.
+        void root.value;
+        let saved = false;
+        // A local file can register several notations. Persist every tree that
+        // is already materialized before changing the registry, not just the
+        // notation currently selected in the toolbar.
+        for (const [id, tree] of trees.entries()) {
+            if (save_analysis_for(id, tree)) saved = true;
+        }
+        if (saved) {
+            last_save_time.value = Date.now();
+            update_save_indicator();
+        }
     }
 
     function load_analysis(id: string, r: TreeNode<any>) {
@@ -99,6 +132,32 @@ export function use_save_load(
         app_storage()?.removeItem?.(analysis_storage_key(n.id));
         const new_root: TreeNode<any> = reactive(init_dataset(n));
         trees.set(n.id, new_root);
+    }
+
+    function capture_local_file_state(file: LocalNotationFile, _action: LocalNotationLifecycleAction): LocalNotationLifecycleSnapshot {
+        save_analysis();
+        return {
+            notationOrder: list_notations().map((item) => item.id),
+            currentNotationId: settings.current_notation_id,
+            oldNotationIds: [...(file.manifest?.notations ?? [])],
+            knownNotationIds: [...(file.knownNotationIds ?? [])],
+        };
+    }
+
+    function apply_local_file_change(
+        result: LocalNotationLifecycleResult,
+        action: LocalNotationLifecycleAction,
+        snapshot: LocalNotationLifecycleSnapshot,
+    ): void {
+        apply_local_notation_lifecycle({
+            action,
+            result,
+            snapshot,
+            availableNotationIds: list_notations().map((item) => item.id),
+            trees,
+            settings,
+            storage: app_storage() as any,
+        });
     }
 
     async function handle_export() {
@@ -203,5 +262,7 @@ export function use_save_load(
         handle_import,
         init,
         dispose,
+        capture_local_file_state,
+        apply_local_file_change,
     } satisfies SaveLoadInstance;
 }

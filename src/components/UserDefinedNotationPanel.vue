@@ -2,6 +2,7 @@
 import { computed, inject, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
+import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { get_script_warnings } from '@/core/user_defined_notation.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
@@ -12,6 +13,7 @@ import GUIDE_MD from '@/assets/making-a-notation.md?raw';
 
 const t = inject(I18N_KEY)!;
 const runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
+const save_load = inject(SAVE_LOAD_KEY)!;
 const ui = use_ui_states();
 defineProps<{ inline?: boolean }>();
 
@@ -226,7 +228,9 @@ function save_selected(): boolean {
     const file = current_file.value;
     if (!file || !is_dirty.value) return true;
     try {
-        runtime.saveFile(file.id, editor_name.value, editor_source.value);
+        const snapshot = save_load.capture_local_file_state(file, 'save');
+        const result = runtime.saveFile(file.id, editor_name.value, editor_source.value);
+        save_load.apply_local_file_change(result, 'save', snapshot);
         refresh_files(file.id);
         load_editor(file.id);
         status_message.value = '';
@@ -300,7 +304,11 @@ function do_delete(): void {
     const id = delete_target_id.value;
     show_delete_confirm.value = false;
     try {
-        runtime.deleteFile(id);
+        const file = runtime.getFile(id);
+        if (!file) return;
+        const snapshot = save_load.capture_local_file_state(file, 'delete');
+        const result = runtime.deleteFile(id);
+        save_load.apply_local_file_change(result, 'delete', snapshot);
         refresh_files();
         load_editor();
         status_message.value = '';
@@ -338,8 +346,10 @@ function toggle_file(file: LocalNotationFile, event: Event): void {
         if (!latest.enabled && !latest.trusted && !window.confirm(t('user-defined.trust-confirm'))) return;
         try {
             if (!latest.trusted) runtime.trustFile(latest.id);
-            if (latest.enabled) runtime.disable(latest.id);
-            else runtime.enable(latest.id);
+            const action = latest.enabled ? 'disable' : 'enable';
+            const snapshot = save_load.capture_local_file_state(latest, action);
+            const result = latest.enabled ? runtime.disable(latest.id) : runtime.enable(latest.id);
+            save_load.apply_local_file_change(result, action, snapshot);
             refresh_files(latest.id);
             load_editor(latest.id);
             status_message.value = '';
@@ -398,7 +408,9 @@ function open_upload_picker(): void {
                 const existing = runtime.findByName(file.name);
                 if (existing) {
                     if (!window.confirm(t('user-defined.replace-confirm'))) return;
+                    const snapshot = save_load.capture_local_file_state(existing, 'replace-upload');
                     const result = runtime.replaceUpload(existing.id, file.name, code);
+                    save_load.apply_local_file_change(result, 'replace-upload', snapshot);
                     refresh_files(result.file.id);
                     load_editor(result.file.id);
                     status_message.value = t('user-defined.replaced');
@@ -408,7 +420,9 @@ function open_upload_picker(): void {
                 const created = runtime.createUpload(file.name, code, false);
                 runtime.trustFile(created.file.id);
                 try {
+                    const snapshot = save_load.capture_local_file_state(created.file, 'upload');
                     const result = runtime.enable(created.file.id);
+                    save_load.apply_local_file_change(result, 'upload', snapshot);
                     refresh_files(result.file.id);
                     load_editor(result.file.id);
                     status_message.value = t('user-defined.uploaded');

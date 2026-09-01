@@ -16,6 +16,7 @@ import {
     type AIProgressEvent,
 } from '@/core/ai_notation_assistant.ts';
 import { compact_ai_activity, record_ai_activity, type AIActivityEntry as ActivityEntry } from '@/core/ai_activity_log.ts';
+import { inspect_local_notation_file, stage_ai_generated_notation } from '@/core/ai_local_notation.ts';
 
 interface Conversation {
     id: string;
@@ -59,7 +60,7 @@ const copy = computed(() =>
     settings.language === 'zh'
         ? {
               title: 'AI 记号生成',
-              hint: '输入需求后生成 ne-rewritten 记号源代码。结果只会写入未信任、未启用的本地文件。',
+              hint: '输入需求后生成 ne-rewritten 记号源代码。已有文件只写入编辑器草稿；新文件保持未信任、未启用。',
               baseUrl: 'Base URL',
               apiKey: 'API Key',
               model: '模型',
@@ -89,7 +90,7 @@ const copy = computed(() =>
           }
         : {
               title: 'AI notation generation',
-              hint: 'Describe the notation and generate native ne-rewritten source. The result is staged as an untrusted, disabled local file.',
+              hint: 'Describe the notation and generate native ne-rewritten source. Existing files receive an editor draft; new files remain untrusted and disabled.',
               baseUrl: 'Base URL',
               apiKey: 'API Key',
               model: 'Model',
@@ -275,21 +276,17 @@ async function generate(): Promise<void> {
             maxRounds: max_rounds.value,
             signal: controller.signal,
             onProgress: (event) => progress(item, event),
+            toolContext: {
+                inspectLocalNotationFile: (fileName) => inspect_local_notation_file(runtime, fileName),
+            },
         });
-        let file;
-        if (item.fileId) {
-            const existing = runtime.getFile(item.fileId);
-            if (existing && !existing.enabled) {
-                file = runtime.saveFile(existing.id, result.fileName, result.source).file;
-            }
-        }
-        if (!file) file = runtime.createUpload(result.fileName, result.source, false).file;
+        const { file, stagedFileName } = stage_ai_generated_notation(runtime, item.fileId, result.fileName, result.source);
         item.fileId = file.id;
-        item.fileName = file.name;
-        item.title = file.name.replace(/\.js$/i, '');
+        item.fileName = stagedFileName;
+        item.title = stagedFileName.replace(/\.js$/i, '');
         item.messages.push({ role: 'user', content: prompt }, { role: 'assistant', content: result.raw });
         item.prompt = '';
-        item.notice = `${copy.value.generated}${file.name}`;
+        item.notice = `${copy.value.generated}${stagedFileName}`;
         if (!result.validation.valid) item.notice += ` (${result.validation.errors.join(' ')})`;
         persist();
         open_editor(file.id);

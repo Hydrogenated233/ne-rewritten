@@ -13,8 +13,55 @@ describe('AI notation assistant', () => {
     it('normalizes OpenAI-compatible base URLs and exposes all native tools', () => {
         expect(normalize_chat_endpoint('http://127.0.0.1:57321/v1')).toBe('http://127.0.0.1:57321/v1/chat/completions');
         const names = (tool_definitions() as any[]).map((item) => item.function.name);
-        expect(names).toEqual(['list_notations', 'inspect_notation', 'expand', 'detect_inf_chain', 'validate_source']);
+        expect(names).toEqual(['list_notations', 'inspect_notation', 'inspect_local_notation_file', 'expand', 'detect_inf_chain', 'validate_source']);
         expect((run_ai_tool('validate_source', { source: 'register_notation({id:"x",name:"X",display:{plain:String},is_limit:()=>false,compare:()=>0,FS:x=>x,init:()=>[0]})' }) as any).valid).toBe(true);
+    });
+
+    it('lets the model inspect an existing local notation file through the injected tool', async () => {
+        const inspectLocalNotationFile = vi.fn().mockReturnValue({
+            fileName: 'LPrSS.js',
+            enabled: true,
+            trusted: true,
+            committedSource: 'committed source',
+            draftSource: 'current draft',
+        });
+        const fetchImpl = vi.fn()
+            .mockResolvedValueOnce(jsonResponse({
+                choices: [{ message: { role: 'assistant', content: null, tool_calls: [{ id: 'local-1', type: 'function', function: { name: 'inspect_local_notation_file', arguments: '{"file_name":"lprss.JS"}' } }] } }],
+            }))
+            .mockResolvedValueOnce(jsonResponse({
+                choices: [{ message: { role: 'assistant', content: 'filename: LPrSS.js\n```js\nregister_notation({id:"lprss",name:"LPrSS",display:{plain:String},is_limit:()=>false,compare:()=>0,FS:x=>x,init:()=>[0]});\n```' } }],
+            }));
+
+        const result = await generate_notation({
+            baseUrl: 'https://example.test',
+            apiKey: 'secret',
+            model: 'test',
+            prompt: 'modify LPrSS.js',
+            fetchImpl: fetchImpl as any,
+            toolContext: { inspectLocalNotationFile },
+        });
+
+        expect(result.fileName).toBe('LPrSS.js');
+        expect(inspectLocalNotationFile).toHaveBeenCalledWith('lprss.JS');
+        const secondRequest = JSON.parse(fetchImpl.mock.calls[1][1].body);
+        expect(secondRequest.messages.at(-1)).toMatchObject({
+            role: 'tool',
+            name: 'inspect_local_notation_file',
+        });
+        expect(secondRequest.messages.at(-1).content).toContain('current draft');
+    });
+
+    it('returns a recoverable tool error when local-file inspection is unavailable', () => {
+        expect(() => run_ai_tool('inspect_local_notation_file', { file_name: 'missing.js' })).toThrow(
+            'Local notation file inspection is unavailable.',
+        );
+    });
+
+    it('routes generated files through draft staging instead of direct replacement', () => {
+        expect(panel_source).toContain('stage_ai_generated_notation(runtime, item.fileId, result.fileName, result.source)');
+        expect(panel_source).not.toContain('runtime.createUpload(result.fileName');
+        expect(panel_source).not.toContain('runtime.saveFile(existing.id, result.fileName');
     });
 
     it('runs tool calls, emits activity, and validates the generated source', async () => {

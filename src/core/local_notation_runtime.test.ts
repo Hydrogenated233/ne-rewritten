@@ -91,6 +91,22 @@ describe('LocalNotationRuntime', () => {
         expect(get_notation('runtime-new')).toBeUndefined();
     });
 
+    it('renames an enabled file without reloading its live notation and clears its draft', () => {
+        const storage = new MemoryStorage();
+        const runtime = new LocalNotationRuntime({ storage, createId: () => 'rename' });
+        const created = runtime.createUpload('Before.js', source_for('runtime-rename'), true);
+        runtime.enable(created.file.id);
+        const live = get_notation('runtime-rename');
+        runtime.setDraft(created.file.id, { name: 'After.js', source: created.file.source });
+
+        const renamed = runtime.saveFile(created.file.id, 'After.js', created.file.source);
+
+        expect(renamed.sourceChanged).toBe(false);
+        expect(renamed.file.name).toBe('After.js');
+        expect(get_notation('runtime-rename')).toBe(live);
+        expect(runtime.getDraft(created.file.id)).toBeUndefined();
+    });
+
     it('rolls back registry changes when enabling cannot persist metadata', () => {
         const storage = new MemoryStorage();
         const runtime = new LocalNotationRuntime({ storage, createId: () => 'metadata' });

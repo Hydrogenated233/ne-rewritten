@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { get_notation, list_notations } from '@/core/registry.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import type { ExpandSettings, Variant } from '@/core/settings.ts';
@@ -30,19 +30,51 @@ const notation_options = computed(() => {
     return list_notations();
 });
 
-function get_equiv_options(note: ExpandNote): string[] {
-    const n = get_notation(note.notation_id);
+function reconcile_notes(options: ReturnType<typeof list_notations>): void {
+    const available = new Set(options.map((notation) => notation.id));
+    const fallback = options[0]?.id ?? '';
+    for (const note of notes.value) {
+        if (!available.has(note.notation_id)) {
+            note.notation_id = fallback;
+            note.notation_equiv = undefined;
+            invalidate(note.id);
+            continue;
+        }
+        const equivalents = get_equiv_options(note);
+        if (note.notation_equiv && !equivalents.includes(note.notation_equiv)) {
+            note.notation_equiv = undefined;
+            invalidate(note.id);
+        }
+    }
+}
+
+function get_equiv_options_for_id(notation_id: string): string[] {
+    const n = get_notation(notation_id);
     return n?.display_equiv ? Object.keys(n.display_equiv) : [];
 }
 
+function get_equiv_options(note: ExpandNote): string[] {
+    return get_equiv_options_for_id(note.notation_id);
+}
+
+watch(notation_options, (options) => reconcile_notes(options), { immediate: true });
+
 function make_note(text: string, expand_settings?: ExpandSettings): ExpandNote {
+    const options = notation_options.value;
+    const requested_notation = expand_settings?.notation_id;
+    const notation_id = requested_notation && options.some((item) => item.id === requested_notation)
+        ? requested_notation
+        : options[0]?.id ?? '';
+    const requested_equiv = expand_settings?.notation_equiv;
     return {
         id: next_note_id++,
         input_text: text,
         FS_index: expand_settings?.FS_index ?? 0,
         count: expand_settings?.count ?? 1,
-        notation_id: expand_settings?.notation_id || 'omega',
-        notation_equiv: expand_settings?.notation_equiv,
+        notation_id,
+        notation_equiv: requested_equiv && get_equiv_options_for_id(notation_id).includes(requested_equiv)
+            ? requested_equiv
+            : undefined,
         variant: expand_settings?.variant ?? 'FS_short',
         preview: null,
         preview_status: 'none',
@@ -167,6 +199,8 @@ function run(note_id?: number): void {
 function invalidate(note_id?: number): void {
     const note = find_note(note_id);
     if (!note) return;
+    const equivalents = get_equiv_options(note);
+    if (note.notation_equiv && !equivalents.includes(note.notation_equiv)) note.notation_equiv = undefined;
     note.preview = null;
     note.preview_status = 'none';
 }
