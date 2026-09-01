@@ -48,6 +48,11 @@ export function use_diagram() {
         visible.value = false;
     }
 
+    function move(x: number, y: number) {
+        pos_x.value = x;
+        pos_y.value = y;
+    }
+
     function dispatch_action(action: DiagramAction) {
         if (!current_control?.handle_action) return;
         const new_data = current_control.handle_action(current_data, action);
@@ -80,6 +85,7 @@ export function use_diagram() {
         active_control,
         show,
         hide,
+        move,
         dispatch_action,
         update_setting,
     };

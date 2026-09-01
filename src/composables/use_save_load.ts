@@ -87,7 +87,7 @@ export function use_save_load(
         const n = get_notation(id);
         if (!n) return false;
         try {
-            const entries = export_analysis(r);
+            const entries = export_analysis(r, settings.auto_save_hidden);
             app_storage()?.setItem(analysis_storage_key(n.id), stringify_analysis_entries(entries));
             return true;
         } catch {
@@ -230,8 +230,13 @@ export function use_save_load(
     }
 
     // onMounted: 启动自动保存与指示器
+    function restart_auto_save() {
+        if (auto_save_timer !== null) clearInterval(auto_save_timer);
+        auto_save_timer = setInterval(save_analysis, Math.max(10, Number(settings.auto_save_interval) || 30) * 1000);
+    }
+
     function init() {
-        auto_save_timer = setInterval(save_analysis, 30000);
+        restart_auto_save();
         window.addEventListener('beforeunload', save_analysis);
         save_indicator_raf = requestAnimationFrame(update_save_indicator);
         init_load();
@@ -248,6 +253,11 @@ export function use_save_load(
     watch(root, (r, old) => {
         if (r && r !== old) load_analysis(current_id.value, r);
     });
+
+    watch(
+        () => [settings.auto_save_interval, settings.auto_save_hidden],
+        () => restart_auto_save(),
+    );
 
     return {
         trees,

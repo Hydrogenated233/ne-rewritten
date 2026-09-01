@@ -27,7 +27,8 @@ export interface TreeNode<T> {
 }
 
 function array_pos<T>(node: TreeNode<T>): number {
-    return node.index - node.parent!.children[0].index;
+    // index 是稳定的 Vue key，删除节点后允许留下间隙；导航应以当前数组位置为准。
+    return node.parent!.children.indexOf(node);
 }
 
 /** 创建树节点，自动计算 path。 */
@@ -122,4 +123,19 @@ export function last_descendant<T>(node: TreeNode<T>): TreeNode<T> {
 
 export function get_bound<T>(node: TreeNode<T>): T | undefined {
     return find_next(node, 0)?.expr;
+}
+
+/** 删除一个已物化的非根节点，并返回其父节点；根的直接子节点不可删除。 */
+export function remove_node<T>(node: TreeNode<T>): TreeNode<T> | undefined {
+    const parent = node.parent;
+    if (!parent || parent.parent === null) return undefined;
+    const pos = parent.children.indexOf(node);
+    if (pos < 0) return undefined;
+    parent.children.splice(pos, 1);
+    // 父节点的 fs_state 记录最后生成的 FS 项。删除后允许重新生成被删项。
+    if (parent.fs_state) {
+        if (parent.fs_state.index > 0) parent.fs_state.index -= 1;
+        else delete parent.fs_state;
+    }
+    return parent;
 }

@@ -8,8 +8,26 @@ import {
     last_descendant,
     next_sibling,
     prepend_child,
+    remove_node,
     TreeNode,
 } from '@/core/tree';
+
+describe('remove_node', () => {
+    it('removes a non-root node without relying on contiguous stable indexes', () => {
+        const root: TreeNode<string> = { expr: '', children: [], parent: null, index: -1 };
+        const parent: TreeNode<string> = { expr: 'P', children: [], parent: root, index: 0 };
+        const a: TreeNode<string> = { expr: 'A', children: [], parent, index: 4 };
+        const b: TreeNode<string> = { expr: 'B', children: [], parent, index: 9 };
+        parent.children.push(a, b);
+        root.children.push(parent);
+        parent.fs_state = { variant: 'FS', index: 2 };
+
+        expect(remove_node(a)).toBe(parent);
+        expect(parent.children).toEqual([b]);
+        expect(parent.fs_state).toEqual({ variant: 'FS', index: 1 });
+        expect(remove_node(parent)).toBeUndefined();
+    });
+});
 
 import { NotationDefinition } from '@/notation-definition.ts';
 

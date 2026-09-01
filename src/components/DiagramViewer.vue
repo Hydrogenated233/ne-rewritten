@@ -9,6 +9,7 @@ const props = defineProps<{ diagram: Diagram }>();
 const canvas = ref<HTMLCanvasElement>();
 const settings = inject(SETTINGS_KEY)!;
 const palette = computed(() => theme_palette(settings.color_scheme));
+const diagram_scale = computed(() => Math.pow(1.25, Number(settings.diagram_scale) || 0));
 
 /** ColorSpec → CSS 字符串; 缺省回退到主题文本色。 */
 function color_css(spec: ColorSpec | undefined, fallback: Rgba): string {
@@ -86,7 +87,15 @@ function extra_style(t: Diagram['extra_text'][number]) {
 </script>
 
 <template>
-    <div class="diagram-wrapper" :style="{ position: 'relative', display: 'inline-block' }">
+    <div
+        class="diagram-wrapper"
+        :style="{
+            position: 'relative',
+            display: 'inline-block',
+            transform: `scale(${diagram_scale})`,
+            transformOrigin: 'top left',
+        }"
+    >
         <canvas ref="canvas" class="diagram-canvas" />
         <template v-for="(t, i) in diagram.extra_text" :key="i">
             <span v-if="t.display_html" :style="extra_style(t)" v-html="t.text"></span>

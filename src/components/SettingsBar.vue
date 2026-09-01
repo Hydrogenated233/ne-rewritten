@@ -260,6 +260,19 @@ watch(
                         <input type="checkbox" :checked="settings.show_diagram" @change="toggle_diagram" />
                     </label>
                 </div>
+                <div v-if="notation?.draw_diagram" class="setting-row">
+                    <span class="setting-label">{{ t('diagram.follow') }}</span>
+                    <label class="setting-check">
+                        <input v-model="settings.diagram_follow" type="checkbox" />
+                    </label>
+                </div>
+                <div v-if="notation?.draw_diagram" class="setting-row">
+                    <span class="setting-label">{{ t('diagram.scale') }}</span>
+                    <label class="setting-inline-number setting-inline-number--range">
+                        <input v-model.number="settings.diagram_scale" type="range" min="-5" max="5" step="0.1" />
+                        <output>{{ settings.diagram_scale }}</output>
+                    </label>
+                </div>
                 <ColorThemePanel inline />
                 <DiagramSettingsPanel v-if="has_diagram_settings" :control="notation?.draw_diagram ?? null" inline />
 
@@ -320,6 +333,16 @@ watch(
                     </div>
                 </div>
                 <div class="setting-row">
+                    <span class="setting-label">{{ t('tooltip-fs.label') }}</span>
+                    <input
+                        v-model.number="settings.tooltip_fs"
+                        class="setting-number"
+                        type="number"
+                        min="0"
+                        max="999"
+                    />
+                </div>
+                <div class="setting-row">
                     <span class="setting-label">{{ t('tier.label') }}</span>
                     <div class="setting-controls tier-controls">
                         <button class="tier-btn" @mousedown="settings.tier = Math.max(settings.tier - 1, 0)">−</button>
@@ -345,6 +368,14 @@ watch(
                         <label class="setting-check">
                             <input v-model="settings.scroll_on_focus" type="checkbox" />
                             {{ t('analysis-input.scroll-on-focus') }}
+                        </label>
+                        <label class="setting-inline-number">
+                            {{ t('autosave.interval') }}
+                            <input v-model.number="settings.auto_save_interval" type="number" min="10" max="86400" />
+                        </label>
+                        <label class="setting-check">
+                            <input v-model="settings.auto_save_hidden" type="checkbox" />
+                            {{ t('autosave.hidden') }}
                         </label>
                     </div>
                 </div>
@@ -598,6 +629,17 @@ watch(
     width: min(260px, 100%);
     min-width: 150px;
     padding: 4px 8px;
+}
+
+.setting-number {
+    width: 90px;
+    min-height: 30px;
+    padding: 4px 6px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    box-sizing: border-box;
+    background: var(--color-bg);
+    color: var(--color-text);
 }
 
 .setting-check,

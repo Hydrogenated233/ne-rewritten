@@ -1,9 +1,10 @@
 <script setup lang="ts" generic="T">
-import { computed, inject, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, inject, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 import type { TreeNode } from '@/core/tree.ts';
-import { find_next, find_prev } from '@/core/tree.ts';
+import { find_next, find_prev, remove_node } from '@/core/tree.ts';
 import type { TreeNodeExtra } from '@/core/extra.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
+import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { expand_item } from '@/core/expander.ts';
 import { expand_pending_node } from '@/core/analysis.ts';
@@ -31,11 +32,21 @@ const props = defineProps<{
 const input_ref = ref<HTMLInputElement | null>(null);
 const resize_span = ref<HTMLSpanElement | null>(null);
 const tooltip = ref(false);
-const tooltip_FS = ref<string[]>([]);
+interface TooltipFsTerm {
+    index: number;
+    expr: T;
+    comment: string;
+}
+const tooltip_FS = shallowRef<TooltipFsTerm[]>([]);
 const focused = ref(false);
 const on_screen = ref(false);
 const shown_ref = ref<HTMLDivElement | null>(null);
-const { show: show_diagram, hide: hide_diagram, dispatch_action: dispatch_diagram_action } = use_diagram();
+const {
+    show: show_diagram,
+    hide: hide_diagram,
+    move: move_diagram,
+    dispatch_action: dispatch_diagram_action,
+} = use_diagram();
 const { show: show_latex_viewer, hide: hide_latex_viewer } = use_latex();
 
 const ed = computed((): TreeNodeExtra => {
@@ -55,6 +66,7 @@ const analysis0 = computed({
 });
 
 const settings = inject(SETTINGS_KEY)!;
+const save_load = inject(SAVE_LOAD_KEY, null);
 const t = inject(I18N_KEY)!;
 const multi = use_multi_select();
 const node_path = props.node.path ?? '' + props.node.index;
@@ -184,19 +196,63 @@ onMounted(() => {
     }
 });
 
-function on_enter() {
+function on_enter(event: MouseEvent) {
+    if (settings.diagram_follow && props.notation.draw_diagram && !settings.analysis_latex_preview) {
+        show_diagram(
+            props.notation.draw_diagram,
+            props.node.expr,
+            event.clientX + 100,
+            event.clientY + 15,
+            settings.equiv_active[props.notation.id] ?? undefined,
+        );
+    }
     if (!props.notation.is_limit(props.node.expr)) return;
-    const n_max = 3;
+    const n_max = Math.max(0, Math.min(999, Math.trunc(Number(settings.tooltip_fs) || 0)));
+    const fs =
+        settings.variant === 'FS_alter'
+            ? props.notation.FS_alter ?? props.notation.FS
+            : settings.variant === 'FS_short'
+              ? props.notation.FS_short ?? props.notation.FS
+              : props.notation.FS;
+
+    const comments = new Map<string, string>();
+    const remember = (expr: T, extraData?: Record<string, unknown>) => {
+        const analysis = (extraData as TreeNodeExtra | undefined)?.analysis;
+        const comment = analysis?.find((value) => typeof value === 'string' && value.trim().length > 0);
+        if (comment !== undefined) comments.set(resolved_original.value.plain(expr), comment);
+    };
+    const scan = (nodes: TreeNode<T>[]) => {
+        for (const node of nodes) {
+            remember(node.expr, node.extraData);
+            if (node.pending_items) {
+                for (const pending of node.pending_items) remember(pending.expr, pending.extraData);
+            }
+            scan(node.children);
+        }
+    };
+    let dataset = props.node;
+    while (dataset.parent) dataset = dataset.parent;
+    scan(dataset.children);
+
     tooltip_FS.value = [];
-    const primary_display_fn = primary_display.value;
     for (let n = 0; n <= n_max; n++) {
-        tooltip_FS.value.push(`${n}: ${primary_display_fn(props.notation.FS(props.node.expr, n))}`);
+        const fs_expr = fs(props.node.expr, n);
+        tooltip_FS.value.push({
+            index: n,
+            expr: fs_expr,
+            comment: comments.get(resolved_original.value.plain(fs_expr)) ?? '',
+        });
     }
     tooltip.value = true;
 }
 
 function on_leave() {
+    if (settings.diagram_follow) hide_diagram();
     tooltip.value = false;
+}
+
+function on_mousemove(event: MouseEvent) {
+    if (settings.diagram_follow) move_diagram(event.clientX + 100, event.clientY + 15);
 }
 
 function do_expand(tier?: number, focus?: boolean) {
@@ -296,6 +352,12 @@ function on_keydown(e: KeyboardEvent) {
             ed.value.analysis![0] = saved_analysis.value;
             saved_analysis.value = undefined;
         }
+    } else if (e.key === 'Backspace' && e.ctrlKey && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        const parent = remove_node(props.node);
+        if (!parent) return;
+        save_load?.save_analysis();
+        setTimeout(() => focus_node_input(parent, settings.scroll_on_focus), 0);
     } else if (e.key === 'Delete' && settings.use_delete_to_clear) {
         e.preventDefault();
         if (ed.value.analysis?.[0] !== undefined) saved_analysis.value = ed.value.analysis[0];
@@ -397,6 +459,7 @@ function on_blur() {
             @click="on_expr_click"
             @dblclick.prevent
             @mouseenter="on_enter"
+            @mousemove="on_mousemove"
             @mouseleave="on_leave"
         >
             <input
@@ -470,9 +533,22 @@ function on_blur() {
             <div v-if="tooltip" class="tooltip" @mousedown.stop>
                 <RenderLatex v-if="settings.display_mode === 'latex'" :latex="primary_display(node.expr)" />
                 <span v-else v-html="primary_display(node.expr)" />{{ t('notation-tree.fundamental-sequence') }}
-                <div v-for="term in tooltip_FS" :key="term">
-                    <RenderLatex v-if="settings.display_mode === 'latex'" :latex="term" />
-                    <span v-else v-html="term" />
+                <div class="tooltip-fs">
+                    <div v-for="term in tooltip_FS" :key="term.index" class="tooltip-row">
+                        <span class="tooltip-index">{{ term.index }}:</span>
+                        <span class="tooltip-expr">
+                            <RenderLatex
+                                v-if="settings.display_mode === 'latex'"
+                                :latex="primary_display(term.expr as T)"
+                            />
+                            <span v-else v-html="primary_display(term.expr as T)" />
+                        </span>
+                        <span v-if="term.comment" class="tooltip-cmnt">
+                            <span aria-hidden="true">; </span>
+                            <RenderLatex v-if="settings.analysis_latex_preview" :latex="term.comment" />
+                            <span v-else>{{ term.comment }}</span>
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>

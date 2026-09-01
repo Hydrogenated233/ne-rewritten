@@ -672,6 +672,47 @@ function debug_compare_order(notation_id?: string) {
     box-shadow: 0 4px 12px var(--color-shadow);
     text-align: left;
     line-height: 1.4;
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+.tooltip-fs {
+    display: grid;
+    grid-template-columns: max-content max-content max-content;
+    align-items: baseline;
+    justify-content: start;
+    column-gap: 4px;
+}
+
+.tooltip-row {
+    display: contents;
+}
+
+.tooltip-row > * {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.tooltip-index {
+    color: var(--color-text-secondary);
+    font-family: Consolas, 'Courier New', monospace;
+    text-align: left;
+}
+
+.tooltip-expr {
+    justify-self: start;
+    text-align: left;
+    white-space: pre;
+    flex-shrink: 0;
+    overflow: visible;
+}
+
+.tooltip-cmnt {
+    justify-self: start;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
 }
 
 ul {
@@ -877,7 +918,7 @@ ul {
 }
 
 body {
-    background: var(--color-bg);
+    background: var(--color-page-bg, var(--color-bg));
     color: var(--color-text);
     margin: 8px;
 }
