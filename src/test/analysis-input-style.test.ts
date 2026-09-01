@@ -21,4 +21,22 @@ describe('analysis input presentation', () => {
             /\.input-resize\.has-inline-latex:focus-within > \.analysis-inline-latex\s*\{[^}]*opacity:\s*0;/s,
         );
     });
+
+    it('prevents native mouse-focus scrolling when the setting is disabled', () => {
+        expect(tree_item_source).toContain('@mousedown="on_input_mousedown"');
+        expect(tree_item_source).toMatch(
+            /function on_input_mousedown\(e: MouseEvent\)[\s\S]*?prepare_pointer_focus\(e\.currentTarget as HTMLInputElement, settings\.scroll_on_focus\)/,
+        );
+        expect(tree_item_source).toMatch(
+            /el\.focus\(\{ preventScroll: true \}\);\s*if \(settings\.scroll_on_focus\) \{[\s\S]*?window\.scrollTo\(/,
+        );
+    });
+
+    it('applies the same scroll policy to the find input', async () => {
+        const toolbar_source = await import('../components/ExploreToolbar.vue?raw');
+        expect(toolbar_source.default).toContain('@mousedown="on_find_mousedown"');
+        expect(toolbar_source.default).toMatch(
+            /if \(settings\.scroll_on_focus\) \{\s*window\.scrollTo\(/,
+        );
+    });
 });

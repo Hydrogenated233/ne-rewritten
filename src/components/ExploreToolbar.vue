@@ -8,7 +8,7 @@ import { use_diagram } from '@/composables/use_diagram.ts';
 import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { import_analysis_eager } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
-import { focus_node_input, get_last_focus } from '@/composables/use_focus_tracker.ts';
+import { focus_node_input, get_last_focus, prepare_pointer_focus } from '@/composables/use_focus_tracker.ts';
 
 const settings = inject(SETTINGS_KEY)!;
 const t = inject(I18N_KEY)!;
@@ -35,7 +35,7 @@ function handle_find(): void {
         const expr = display_spec.from_display(val);
         const matched = import_analysis_eager(r, [{ expr, analysis: [] }], n, settings.variant, settings.max_find_fs);
         if (matched.length > 0) {
-            focus_node_input(matched[0]);
+            focus_node_input(matched[0], settings.scroll_on_focus);
         } else {
             alert(t('import.error'));
         }
@@ -73,8 +73,15 @@ function on_find_input(): void {
 function on_find_focus(e: FocusEvent): void {
     const el = e.target as HTMLInputElement;
     const rect = el.getBoundingClientRect();
-    window.scrollTo({ top: rect.top + window.scrollY - 60, behavior: 'smooth' });
+    if (settings.scroll_on_focus) {
+        window.scrollTo({ top: rect.top + window.scrollY - 60, behavior: 'smooth' });
+    }
     on_find_input();
+}
+
+function on_find_mousedown(e: MouseEvent): void {
+    e.stopPropagation();
+    prepare_pointer_focus(e.currentTarget as HTMLInputElement, settings.scroll_on_focus);
 }
 
 function on_find_keydown(e: KeyboardEvent): void {
@@ -131,6 +138,7 @@ function open_direct_expand(): void {
                     ref="find_input"
                     type="text"
                     spellcheck="false"
+                    @mousedown="on_find_mousedown"
                     @focus="on_find_focus"
                     @input="on_find_input"
                     @keydown="on_find_keydown"

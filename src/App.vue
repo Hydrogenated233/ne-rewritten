@@ -110,7 +110,7 @@ function on_global_keydown(e: KeyboardEvent) {
     if (e.key.toLowerCase() === 'r' && e.ctrlKey && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         const path = get_last_focus();
-        if (path) focus_node(path);
+        if (path) focus_node(path, settings.scroll_on_focus);
     }
     if (e.key.toLowerCase() === 's' && e.ctrlKey && !e.shiftKey && !e.altKey) {
         e.preventDefault();

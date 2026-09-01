@@ -172,11 +172,11 @@ function find_note(note_id?: number): ExpandNote | undefined {
     return notes.value[notes.value.length - 1];
 }
 
-function close(note_id?: number): void {
+function close(note_id?: number, scroll_on_focus = true): void {
     const note = find_note(note_id);
     if (!note) return;
     notes.value = notes.value.filter((item) => item.id !== note.id);
-    if (note.focus_path) focus_node(note.focus_path);
+    if (note.focus_path) focus_node(note.focus_path, scroll_on_focus);
 }
 
 function save_settings(note_id?: number): ExpandSettings | null {
@@ -205,7 +205,7 @@ function invalidate(note_id?: number): void {
     note.preview_status = 'none';
 }
 
-function confirm_and_fill(note_id?: number): void {
+function confirm_and_fill(note_id?: number, scroll_on_focus = true): void {
     const note = find_note(note_id);
     if (!note || note.preview_status !== 'ok' || note.preview === null || note.count !== 1) return;
     const path = note.focus_path ?? get_last_focus();
@@ -214,8 +214,8 @@ function confirm_and_fill(note_id?: number): void {
     if (!el) return;
     el.value = note.preview;
     el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.focus();
-    close(note.id);
+    el.focus({ preventScroll: true });
+    close(note.id, scroll_on_focus);
 }
 
 export function use_expand_dialog() {

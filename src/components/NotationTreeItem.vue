@@ -7,7 +7,12 @@ import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { expand_item } from '@/core/expander.ts';
 import { expand_pending_node } from '@/core/analysis.ts';
-import { focus_node, focus_node_input, set_last_focus } from '@/composables/use_focus_tracker.ts';
+import {
+    focus_node,
+    focus_node_input,
+    prepare_pointer_focus,
+    set_last_focus,
+} from '@/composables/use_focus_tracker.ts';
 import { use_diagram } from '@/composables/use_diagram.ts';
 import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { use_latex } from '@/composables/use_latex.ts';
@@ -169,9 +174,11 @@ onMounted(() => {
         const el = input_ref.value;
         if (el) {
             el.focus({ preventScroll: true });
-            const rect = el.getBoundingClientRect();
-            const top = window.scrollY + rect.top - 60;
-            window.scrollTo({ top, behavior: 'smooth' });
+            if (settings.scroll_on_focus) {
+                const rect = el.getBoundingClientRect();
+                const top = window.scrollY + rect.top - 60;
+                window.scrollTo({ top, behavior: 'smooth' });
+            }
         }
         ed.value.focus_on_mounted = false;
     }
@@ -196,7 +203,7 @@ function do_expand(tier?: number, focus?: boolean) {
     const v = settings.variant;
     try {
         const child = expand_item(props.node, props.notation, v, tier ?? props.tier ?? 0, settings.max_find_fs);
-        if (focus && child) focus_node_input(child);
+        if (focus && child) focus_node_input(child, settings.scroll_on_focus);
     } catch (e) {
         alert('当前节点试展开次数过多, 可能基本列实现有误');
     }
@@ -231,12 +238,12 @@ function on_keydown(e: KeyboardEvent) {
         e.preventDefault();
         const skip = e.shiftKey ? 1 : 0;
         const target = e.altKey ? find_prev_analysis(props.node, skip) : find_prev(props.node, skip);
-        if (target) focus_node(target.path ?? '' + target.index);
+        if (target) focus_node(target.path ?? '' + target.index, settings.scroll_on_focus);
     } else if (e.key === 'ArrowDown' && !e.ctrlKey) {
         e.preventDefault();
         const skip = e.shiftKey ? 1 : 0;
         const target = e.altKey ? find_next_analysis(props.node, skip) : find_next(props.node, skip);
-        if (target) focus_node(target.path ?? '' + target.index);
+        if (target) focus_node(target.path ?? '' + target.index, settings.scroll_on_focus);
     } else if (e.key === 'ArrowUp' && e.ctrlKey) {
         e.preventDefault();
         dispatch_diagram_action({
@@ -365,6 +372,11 @@ function on_focus(e: FocusEvent) {
     }
 }
 
+function on_input_mousedown(e: MouseEvent) {
+    e.stopPropagation();
+    prepare_pointer_focus(e.currentTarget as HTMLInputElement, settings.scroll_on_focus);
+}
+
 function on_blur() {
     focused.value = false;
     hide_diagram();
@@ -414,7 +426,7 @@ function on_blur() {
                     spellcheck="false"
                     v-model="analysis0"
                     @keydown="on_keydown"
-                    @mousedown.stop
+                    @mousedown="on_input_mousedown"
                     @click.stop
                     @focus="on_focus"
                     @blur="on_blur"

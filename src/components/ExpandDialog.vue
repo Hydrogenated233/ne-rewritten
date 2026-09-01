@@ -26,7 +26,7 @@ function on_run(note: ExpandNote): void {
 function on_fill(note: ExpandNote): void {
     const saved = ed.save_settings(note.id);
     if (saved) settings.expand = saved;
-    ed.confirm_and_fill(note.id);
+    ed.confirm_and_fill(note.id, settings.scroll_on_focus);
 }
 
 function open_new(): void {
@@ -47,7 +47,7 @@ function open_new(): void {
         :min-width="360"
         :min-height="180"
         :resizable="true"
-        @close="ed.close(note.id)"
+        @close="ed.close(note.id, settings.scroll_on_focus)"
     >
         <div class="expand-form" @keydown="on_keydown(note, $event)">
             <div class="expand-window-toolbar">
@@ -157,7 +157,7 @@ function open_new(): void {
                 >
                     {{ t('expand.fill') }}
                 </button>
-                <button type="button" @mousedown="ed.close(note.id)" class="expand-btn">
+                <button type="button" @mousedown="ed.close(note.id, settings.scroll_on_focus)" class="expand-btn">
                     {{ t('expand.cancel') }}
                 </button>
             </div>
