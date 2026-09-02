@@ -10,6 +10,7 @@ import {
     generator_current,
     generator_decrement,
     generator_increment,
+    count_notation_items,
     get_category,
     get_category_ancestors,
     get_category_children,
@@ -75,8 +76,16 @@ function category_label(id: string): string {
 }
 
 function count_notations(node: TreeNode): number {
-    if (node.kind === 'notation') return 1;
-    return node.children.reduce((sum, child) => sum + count_notations(child), 0);
+    const ids: string[] = [];
+    function collect(current: TreeNode): void {
+        if (current.kind === 'notation') {
+            ids.push(current.id);
+            return;
+        }
+        current.children.forEach(collect);
+    }
+    collect(node);
+    return count_notation_items(ids);
 }
 
 function make_category(id: string, key = `category:${id}`, excluded_ids = new Set<string>()): FolderNode {

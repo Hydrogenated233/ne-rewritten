@@ -108,6 +108,17 @@ export function list_notations(): NotationDefinition<unknown>[] {
     return Array.from(map.values());
 }
 
+function notation_count_key(id: string): string {
+    const category_id = get_notation(id)?.category_id;
+    if (category_id && get_category(category_id)?.generator) return `generator:${category_id}`;
+    return `notation:${id}`;
+}
+
+/** Count generated families as one logical notation, regardless of their instantiated size. */
+export function count_notation_items(ids: Iterable<string>): number {
+    return new Set(Array.from(ids, notation_count_key)).size;
+}
+
 export function unregister_notation(id: string): string[] {
     const notation = get_notation(id);
     if (!notation) return [];

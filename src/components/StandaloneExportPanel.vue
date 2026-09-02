@@ -4,7 +4,14 @@ import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
 import { build_standalone, download_standalone, estimate_standalone_bytes } from '@/core/standalone_export.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
-import { get_category, get_category_children, get_notation, get_root_items, list_notations } from '@/core/registry.ts';
+import {
+    count_notation_items,
+    get_category,
+    get_category_children,
+    get_notation,
+    get_root_items,
+    list_notations,
+} from '@/core/registry.ts';
 import { resolve_name } from '@/notation-definition.ts';
 import ModalDialog from './ModalDialog.vue';
 
@@ -17,6 +24,8 @@ type BuiltinTreeRow = BuiltinTreeNode & {
     expanded?: boolean;
     notationIds?: string[];
     selectedCount?: number;
+    logicalCount?: number;
+    logicalSelectedCount?: number;
 };
 
 const t = inject(I18N_KEY)!;
@@ -42,7 +51,10 @@ const selectable_builtins = computed(() =>
     list_notations().filter((notation) => !local_notation_ids.value.has(notation.id)),
 );
 const selected_count = computed(() => selected_ids.value.length);
-const selected_builtin_count = computed(() => selected_builtin_ids.value.length);
+const selected_builtin_count = computed(() => count_notation_items(selected_builtin_ids.value));
+const selectable_builtin_count = computed(() =>
+    count_notation_items(selectable_builtins.value.map((notation) => notation.id)),
+);
 
 function builtin_label(id: string): string {
     const item = get_notation(id) ?? get_category(id);
@@ -123,6 +135,8 @@ const builtin_rows = computed<BuiltinTreeRow[]>(() => {
                 expanded,
                 notationIds: notation_ids,
                 selectedCount: notation_ids.filter((id) => selected.has(id)).length,
+                logicalCount: count_notation_items(notation_ids),
+                logicalSelectedCount: count_notation_items(notation_ids.filter((id) => selected.has(id))),
             });
             if (expanded) walk(node.children, depth + 1);
         }
@@ -269,7 +283,7 @@ defineExpose({ open });
             <div class="standalone-export__selection standalone-export__builtin-selection">
                 <div class="standalone-export__selection-header">
                     <strong>{{ t('standalone-export.builtin-notations') }}</strong>
-                    <span>{{ selected_builtin_count }}/{{ selectable_builtins.length }}</span>
+                    <span>{{ selected_builtin_count }}/{{ selectable_builtin_count }}</span>
                     <span class="standalone-export__selection-actions">
                         <button type="button" @click="select_all_builtins">
                             {{ t('standalone-export.select-all') }}
@@ -303,7 +317,7 @@ defineExpose({ open });
                                     {{ t('standalone-export.generated-cluster') }}
                                 </span>
                                 <span class="standalone-export__folder-count">
-                                    {{ row.selectedCount }}/{{ row.notationIds?.length }}
+                                    {{ row.logicalSelectedCount }}/{{ row.logicalCount }}
                                 </span>
                             </div>
                             <button
@@ -321,7 +335,7 @@ defineExpose({ open });
                                 <span class="standalone-export__folder-icon" aria-hidden="true">▰</span>
                                 <span class="standalone-export__folder-label">{{ row.label }}</span>
                                 <span class="standalone-export__folder-count">
-                                    {{ row.selectedCount }}/{{ row.notationIds?.length }}
+                                    {{ row.logicalSelectedCount }}/{{ row.logicalCount }}
                                 </span>
                             </button>
                         </template>
