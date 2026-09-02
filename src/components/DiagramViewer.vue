@@ -26,6 +26,17 @@ function draw() {
     const ctx = cvs.getContext('2d')!;
     ctx.clearRect(0, 0, d.width, d.height);
     const text_color = palette.value.text;
+    const background_color = palette.value.background;
+
+    // Match the source floating-canvas diagrams: the canvas owns its background
+    // and outline instead of being wrapped in a generic floating card.
+    ctx.fillStyle = css(background_color);
+    ctx.fillRect(0, 0, d.width, d.height);
+    if (d.width >= 2 && d.height >= 2) {
+        ctx.strokeStyle = css(text_color);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(1, 1, d.width - 2, d.height - 2);
+    }
 
     for (const el of d.elements) {
         if (el.type === 'line') {
@@ -107,6 +118,6 @@ function extra_style(t: Diagram['extra_text'][number]) {
 <style scoped>
 .diagram-canvas {
     display: block;
-    margin: 4px 0;
+    margin: 0;
 }
 </style>

@@ -145,6 +145,9 @@ settings.auto_save_interval = Math.min(
     Math.max(10, Math.trunc(Number(settings.auto_save_interval) || DEFAULT_SETTINGS.auto_save_interval)),
 );
 settings.tooltip_fs = Math.min(999, Math.max(0, Math.trunc(Number(settings.tooltip_fs) || 0)));
+if (settings.interaction_mode !== 'pointer' && settings.interaction_mode !== 'keyboard') {
+    settings.interaction_mode = DEFAULT_SETTINGS.interaction_mode;
+}
 
 // Migrate the former settings.user_scripts shape into the native local-file
 // store. Enabled files load automatically after the built-in registry is ready.

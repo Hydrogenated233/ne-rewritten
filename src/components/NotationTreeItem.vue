@@ -32,6 +32,7 @@ const props = defineProps<{
 const input_ref = ref<HTMLInputElement | null>(null);
 const resize_span = ref<HTMLSpanElement | null>(null);
 const tooltip = ref(false);
+const tooltip_style = ref<Record<string, string>>({});
 interface TooltipFsTerm {
     index: number;
     expr: T;
@@ -70,6 +71,7 @@ const save_load = inject(SAVE_LOAD_KEY, null);
 const t = inject(I18N_KEY)!;
 const multi = use_multi_select();
 const node_path = props.node.path ?? '' + props.node.index;
+const diagram_source = {};
 const equiv_name = computed(() => settings.equiv_active[props.notation.id] ?? '');
 const resolved_equiv = computed(() => {
     if (!equiv_name.value) return null;
@@ -196,63 +198,105 @@ onMounted(() => {
     }
 });
 
+function build_tooltip_terms(): boolean {
+    if (!props.notation.is_limit(props.node.expr)) return false;
+    try {
+        const n_max = Math.max(0, Math.min(999, Math.trunc(Number(settings.tooltip_fs) || 0)));
+        const fs =
+            settings.variant === 'FS_alter'
+                ? props.notation.FS_alter ?? props.notation.FS
+                : settings.variant === 'FS_short'
+                  ? props.notation.FS_short ?? props.notation.FS
+                  : props.notation.FS;
+
+        const comments = new Map<string, string>();
+        const remember = (expr: T, extraData?: Record<string, unknown>) => {
+            const analysis = (extraData as TreeNodeExtra | undefined)?.analysis;
+            const comment = analysis?.find((value) => typeof value === 'string' && value.trim().length > 0);
+            if (comment !== undefined) comments.set(resolved_original.value.plain(expr), comment);
+        };
+        const scan = (nodes: TreeNode<T>[]) => {
+            for (const node of nodes) {
+                remember(node.expr, node.extraData);
+                if (node.pending_items) {
+                    for (const pending of node.pending_items) remember(pending.expr, pending.extraData);
+                }
+                scan(node.children);
+            }
+        };
+        let dataset = props.node;
+        while (dataset.parent) dataset = dataset.parent;
+        scan(dataset.children);
+
+        const terms: TooltipFsTerm[] = [];
+        for (let n = 0; n <= n_max; n++) {
+            const fs_expr = fs(props.node.expr, n);
+            terms.push({
+                index: n,
+                expr: fs_expr,
+                comment: comments.get(resolved_original.value.plain(fs_expr)) ?? '',
+            });
+        }
+        tooltip_FS.value = terms;
+        return true;
+    } catch {
+        tooltip_FS.value = [];
+        return false;
+    }
+}
+
+function position_tooltip(x: number, y: number): void {
+    const offset = 16;
+    const edge = 12;
+    const place_left = x > window.innerWidth / 2;
+    const place_above = y > window.innerHeight / 2;
+    tooltip_style.value = {
+        left: place_left ? 'auto' : `${Math.max(edge, x + offset)}px`,
+        right: place_left ? `${Math.max(edge, window.innerWidth - x + offset)}px` : 'auto',
+        top: place_above ? 'auto' : `${Math.max(edge, y + offset)}px`,
+        bottom: place_above ? `${Math.max(edge, window.innerHeight - y + offset)}px` : 'auto',
+    };
+}
+
+function toggle_keyboard_tooltip(): void {
+    if (tooltip.value) {
+        tooltip.value = false;
+        return;
+    }
+    if (!build_tooltip_terms()) return;
+    const rect = input_ref.value?.getBoundingClientRect();
+    position_tooltip(rect?.right ?? window.innerWidth / 2, rect?.bottom ?? window.innerHeight / 2);
+    tooltip.value = true;
+}
+
 function on_enter(event: MouseEvent) {
-    if (settings.diagram_follow && props.notation.draw_diagram && !settings.analysis_latex_preview) {
+    if (settings.interaction_mode === 'keyboard') return;
+    if (settings.diagram_follow && props.notation.draw_diagram) {
         show_diagram(
             props.notation.draw_diagram,
             props.node.expr,
             event.clientX + 100,
             event.clientY + 15,
             settings.equiv_active[props.notation.id] ?? undefined,
+            diagram_source,
         );
     }
-    if (!props.notation.is_limit(props.node.expr)) return;
-    const n_max = Math.max(0, Math.min(999, Math.trunc(Number(settings.tooltip_fs) || 0)));
-    const fs =
-        settings.variant === 'FS_alter'
-            ? props.notation.FS_alter ?? props.notation.FS
-            : settings.variant === 'FS_short'
-              ? props.notation.FS_short ?? props.notation.FS
-              : props.notation.FS;
-
-    const comments = new Map<string, string>();
-    const remember = (expr: T, extraData?: Record<string, unknown>) => {
-        const analysis = (extraData as TreeNodeExtra | undefined)?.analysis;
-        const comment = analysis?.find((value) => typeof value === 'string' && value.trim().length > 0);
-        if (comment !== undefined) comments.set(resolved_original.value.plain(expr), comment);
-    };
-    const scan = (nodes: TreeNode<T>[]) => {
-        for (const node of nodes) {
-            remember(node.expr, node.extraData);
-            if (node.pending_items) {
-                for (const pending of node.pending_items) remember(pending.expr, pending.extraData);
-            }
-            scan(node.children);
-        }
-    };
-    let dataset = props.node;
-    while (dataset.parent) dataset = dataset.parent;
-    scan(dataset.children);
-
-    tooltip_FS.value = [];
-    for (let n = 0; n <= n_max; n++) {
-        const fs_expr = fs(props.node.expr, n);
-        tooltip_FS.value.push({
-            index: n,
-            expr: fs_expr,
-            comment: comments.get(resolved_original.value.plain(fs_expr)) ?? '',
-        });
+    if (build_tooltip_terms()) {
+        position_tooltip(event.clientX, event.clientY);
+        tooltip.value = true;
     }
-    tooltip.value = true;
 }
 
 function on_leave() {
-    if (settings.diagram_follow) hide_diagram();
+    if (settings.interaction_mode === 'keyboard') return;
+    if (settings.diagram_follow) hide_diagram(diagram_source);
     tooltip.value = false;
 }
 
 function on_mousemove(event: MouseEvent) {
-    if (settings.diagram_follow) move_diagram(event.clientX + 100, event.clientY + 15);
+    if (settings.interaction_mode === 'keyboard') return;
+    if (settings.diagram_follow) move_diagram(event.clientX + 100, event.clientY + 15, diagram_source);
+    if (tooltip.value) position_tooltip(event.clientX, event.clientY);
 }
 
 function do_expand(tier?: number, focus?: boolean) {
@@ -279,11 +323,17 @@ function on_expr_click(e: MouseEvent) {
         multi.toggle(node_path, (resolved_equiv.value ?? resolved_original.value).plain(props.node.expr));
         return;
     }
+    if (settings.interaction_mode === 'keyboard') return;
     if (window.getSelection()?.toString()) return;
     do_expand(undefined, false);
 }
 
 function on_keydown(e: KeyboardEvent) {
+    if (e.key === 'Escape' && tooltip.value) {
+        e.preventDefault();
+        tooltip.value = false;
+        return;
+    }
     if (e.ctrlKey || e.altKey) {
         if (!(e.ctrlKey && ['c', 'v', 'a', 'x', 'z'].includes(e.key.toLowerCase()))) {
             e.preventDefault();
@@ -338,6 +388,9 @@ function on_keydown(e: KeyboardEvent) {
         e.preventDefault();
         const ed_expand = use_expand_dialog();
         ed_expand.open(ed.value.analysis![0] ?? '', settings.expand);
+    } else if (e.key.toLowerCase() === 'f' && e.ctrlKey) {
+        e.preventDefault();
+        toggle_keyboard_tooltip();
     } else if (e.key.toLowerCase() === 'd' && e.ctrlKey) {
         e.preventDefault();
         console.log('DEBUG expr:', props.node.expr);
@@ -346,6 +399,7 @@ function on_keydown(e: KeyboardEvent) {
     } else if (e.key.toLowerCase() === 'h' && e.ctrlKey) {
         e.preventDefault();
         ed.value.hide_child = !ed.value.hide_child;
+        save_load?.save_analysis();
     } else if (e.key.toLowerCase() === 'z' && e.ctrlKey && !e.shiftKey && !e.altKey) {
         if (saved_analysis.value !== undefined) {
             e.preventDefault();
@@ -423,13 +477,20 @@ function on_focus(e: FocusEvent) {
 
     const dc = props.notation.draw_diagram;
     if (settings.analysis_latex_preview) {
-        hide_diagram();
+        hide_diagram(diagram_source);
         show_latex_viewer(analysis0.value, r.left, 60 + r.height);
     } else if (dc && settings.show_diagram) {
-        show_diagram(dc, props.node.expr, r.left, 60 + r.height, settings.equiv_active[props.notation.id] ?? undefined);
+        show_diagram(
+            dc,
+            props.node.expr,
+            r.left,
+            60 + r.height,
+            settings.equiv_active[props.notation.id] ?? undefined,
+            diagram_source,
+        );
         hide_latex_viewer();
     } else {
-        hide_diagram();
+        hide_diagram(diagram_source);
         hide_latex_viewer();
     }
 }
@@ -441,7 +502,8 @@ function on_input_mousedown(e: MouseEvent) {
 
 function on_blur() {
     focused.value = false;
-    hide_diagram();
+    tooltip.value = false;
+    hide_diagram(diagram_source);
     hide_latex_viewer();
 }
 </script>
@@ -454,6 +516,7 @@ function on_blur() {
             :class="{
                 analyzed: has_analysis(node),
                 selected: multi.is_selected(node_path),
+                'keyboard-mode': settings.interaction_mode === 'keyboard',
             }"
             @mousedown="on_expr_mousedown"
             @click="on_expr_click"
@@ -467,6 +530,7 @@ function on_blur() {
                 class="subtree-toggle"
                 type="checkbox"
                 :aria-label="t('hotkey.toggle-children')"
+                :title="`${t('hotkey.toggle-children')} (Ctrl+H)`"
                 @mousedown.stop
                 @click.stop
             />
@@ -530,7 +594,7 @@ function on_blur() {
                     <span v-else class="expr-display" v-html="row.render(settings.display_mode)" />
                 </div>
             </div>
-            <div v-if="tooltip" class="tooltip" @mousedown.stop>
+            <div v-if="tooltip" class="tooltip" :style="tooltip_style" @mousedown.stop>
                 <RenderLatex v-if="settings.display_mode === 'latex'" :latex="primary_display(node.expr)" />
                 <span v-else v-html="primary_display(node.expr)" />{{ t('notation-tree.fundamental-sequence') }}
                 <div class="tooltip-fs">

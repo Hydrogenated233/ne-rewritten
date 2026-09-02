@@ -26,6 +26,8 @@ export interface Settings {
     display_mode: DisplayMode;
     notation_name_mode: 'full' | 'simple';
     nav_mode: 'grouped' | 'flat';
+    /** Pointer mode keeps click/hover exploration; keyboard mode makes those actions shortcut-driven. */
+    interaction_mode: 'pointer' | 'keyboard';
     use_delete_to_clear: boolean;
     /** 输入框获得焦点时平滑滚动页面到其位置。 */
     scroll_on_focus: boolean;
@@ -72,6 +74,7 @@ export const DEFAULT_SETTINGS: Settings = {
     display_mode: 'html',
     notation_name_mode: 'simple',
     nav_mode: 'grouped',
+    interaction_mode: 'pointer',
     use_delete_to_clear: true,
     scroll_on_focus: true,
     show_diagram: true,

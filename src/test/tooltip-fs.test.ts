@@ -24,10 +24,10 @@ describe('FS hover tooltip migration', () => {
         expect(tree_item_source).toContain('tooltip-cmnt--empty');
     });
 
-    it('keeps long FS rows inside a bounded, left-anchored tooltip', () => {
-        expect(app_source).toContain('left: 0;');
+    it('keeps long FS rows inside a bounded pointer-following tooltip', () => {
+        expect(app_source).toContain('position: fixed;');
         expect(app_source).toContain('max-width: min(720px, calc(100vw - 24px));');
-        expect(app_source).toContain('overflow-x: auto;');
+        expect(app_source).toContain('overflow: auto;');
     });
 });
 

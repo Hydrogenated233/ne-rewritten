@@ -19,6 +19,7 @@ const { notation, root } = save_load;
 const { hide, show: show_diagram, dispatch_action } = use_diagram();
 
 const find_input = ref<HTMLInputElement>();
+const diagram_source = {};
 
 function handle_find(): void {
     const n = notation.value;
@@ -48,7 +49,7 @@ function on_find_input(): void {
     const n = notation.value;
     const val = find_input.value?.value;
     if (!n || !val) {
-        hide();
+        hide(diagram_source);
         return;
     }
     const dc = n.draw_diagram;
@@ -64,9 +65,9 @@ function on_find_input(): void {
         const el = find_input.value;
         if (!el) return;
         const rect = el.getBoundingClientRect();
-        show_diagram(dc, expr, rect.left, 60 + rect.height, equiv_name ?? undefined);
+        show_diagram(dc, expr, rect.left, 60 + rect.height, equiv_name ?? undefined, diagram_source);
     } catch {
-        hide();
+        hide(diagram_source);
     }
 }
 

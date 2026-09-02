@@ -23,6 +23,7 @@ const input_hotkeys = [
     { keys: 'Enter', desc_key: 'hotkey.expand-0' },
     { keys: 'Shift+Enter', desc_key: 'hotkey.expand-1' },
     { keys: 'Ctrl+E', desc_key: 'hotkey.expand-analysis' },
+    { keys: 'Ctrl+F', desc_key: 'hotkey.toggle-fs' },
     { keys: 'Ctrl+D', desc_key: 'hotkey.debug-log' },
     { keys: 'Ctrl+H', desc_key: 'hotkey.toggle-children' },
     { keys: '↑ / ↓', desc_key: 'hotkey.move-inputs' },

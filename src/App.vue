@@ -48,12 +48,7 @@ const settings = inject(SETTINGS_KEY)!;
 const t = (key: string, params?: Record<string, string>) => create_t(settings.language)(key, params);
 provide(I18N_KEY, t);
 
-const { diagram, visible, pos_x, pos_y, hide, dispatch_action } = use_diagram();
-
-// 悬停在图表上滚动时: 拦截页面滚动, 改为触发图表自身的上下滚动 (等价于 Ctrl+↑/↓)
-function on_diagram_wheel(e: WheelEvent) {
-    dispatch_action({ type: 'scroll', direction: e.deltaY > 0 ? 'down' : 'up', step: 1 });
-}
+const { diagram, visible, pos_x, pos_y } = use_diagram();
 
 // 说明显示/隐藏切换: 与记号条目相同的逻辑, 选中文本时不触发
 function on_description_mousedown(e: MouseEvent) {
@@ -312,17 +307,14 @@ function debug_compare_order(notation_id?: string) {
 
         <div
             v-if="visible && diagram"
-            class="diagram-floating"
+            class="floating-canvas"
             :style="{ left: pos_x + 'px', top: pos_y + 'px' }"
-            @mousedown.stop
-            @wheel.prevent="on_diagram_wheel"
         >
-            <button class="diagram-close" @mousedown.stop="hide">✕</button>
             <DiagramViewer :diagram="diagram" />
         </div>
         <div
             v-if="latex_state.visible.value && latex_state.latex.value"
-            class="diagram-floating"
+            class="latex-floating"
             :style="{ left: latex_state.pos_x.value + 'px', top: latex_state.pos_y.value + 'px' }"
             @mousedown.stop
         >
@@ -589,12 +581,24 @@ function debug_compare_order(notation_id?: string) {
     background-color: var(--color-tree-hover);
 }
 
+.shown-item.keyboard-mode {
+    cursor: default;
+}
+
+.shown-item.keyboard-mode:hover {
+    background-color: transparent;
+}
+
 .shown-item.analyzed {
     background-color: var(--color-tree-analyzed);
 }
 
 .shown-item.analyzed:hover {
     background-color: var(--color-tree-analyzed-hover);
+}
+
+.shown-item.keyboard-mode.analyzed:hover {
+    background-color: var(--color-tree-analyzed);
 }
 
 .shown-item.selected {
@@ -662,10 +666,8 @@ function debug_compare_order(notation_id?: string) {
 
 .tooltip {
     display: inline-block;
-    position: absolute;
+    position: fixed;
     z-index: 1073741824;
-    bottom: 100%;
-    left: 0;
     padding: 8px;
     background: var(--color-bg);
     border: 1px solid var(--color-border);
@@ -677,7 +679,8 @@ function debug_compare_order(notation_id?: string) {
     box-sizing: border-box;
     min-width: 120px;
     max-width: min(720px, calc(100vw - 24px));
-    overflow-x: auto;
+    max-height: calc(100vh - 24px);
+    overflow: auto;
     pointer-events: auto;
 }
 
@@ -938,7 +941,13 @@ body::after {
     height: 100vh;
 }
 
-.diagram-floating {
+.floating-canvas {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.latex-floating {
     position: fixed;
     z-index: 9999;
     background: var(--color-bg);

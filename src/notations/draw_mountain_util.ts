@@ -65,7 +65,6 @@ export function draw_mountain_diagram(data: MountainDiagramData, opts?: Mountain
     const lines: Diagram['elements'] = [];
     const extra_text: Diagram['extra_text'] = [];
     const black: ColorSpec = { type: 'text' };
-    const gray: ColorSpec = { type: 'gray' };
 
     // 水平网格线
     for (const h of line_heights) {
@@ -77,8 +76,8 @@ export function draw_mountain_diagram(data: MountainDiagramData, opts?: Mountain
             x2: width,
             y2: y,
             stroke: true,
-            stroke_color: gray,
-            width: 1,
+            stroke_color: black,
+            width: 2,
         });
     }
 
@@ -120,7 +119,7 @@ export function draw_mountain_diagram(data: MountainDiagramData, opts?: Mountain
                         y2: cy_below - h_off_vec,
                         stroke: true,
                         stroke_color: black,
-                        width: 1,
+                        width: 2,
                     });
                 }
             }
@@ -142,7 +141,7 @@ export function draw_mountain_diagram(data: MountainDiagramData, opts?: Mountain
                     y2: cy_mid - h_off_vec,
                     stroke: true,
                     stroke_color: black,
-                    width: 1,
+                    width: 2,
                 });
                 // segment 2: (pi, vj-1) → (pi, pvj)
                 lines.push({
@@ -153,7 +152,7 @@ export function draw_mountain_diagram(data: MountainDiagramData, opts?: Mountain
                     y2: cy_target - h_off_vec,
                     stroke: true,
                     stroke_color: black,
-                    width: 1,
+                    width: 2,
                 });
             }
 

@@ -74,6 +74,7 @@ const current_section = computed(() => sections.value.find((section) => section.
 const has_diagram_settings = computed(() => (notation.value?.draw_diagram?.settings?.length ?? 0) > 0);
 const font_options = ['DEFAULT', 'Comic Sans MS', 'Consolas', 'Microsoft YaHei UI'];
 const DISPLAY_MODES = ['plain', 'html', 'latex'] as const;
+const INTERACTION_MODES = ['pointer', 'keyboard'] as const;
 
 interface EquivOption {
     id: string;
@@ -201,6 +202,21 @@ watch(
                     >
                         {{ t('nav-mode.' + settings.nav_mode) }}
                     </button>
+                </div>
+                <div class="setting-row">
+                    <span class="setting-label">{{ t('interaction-mode.label') }}</span>
+                    <div class="setting-segment" role="group" :aria-label="t('interaction-mode.label')">
+                        <button
+                            v-for="mode in INTERACTION_MODES"
+                            :key="mode"
+                            type="button"
+                            :class="{ 'is-active': settings.interaction_mode === mode }"
+                            :aria-pressed="settings.interaction_mode === mode"
+                            @click="settings.interaction_mode = mode"
+                        >
+                            {{ t('interaction-mode.' + mode) }}
+                        </button>
+                    </div>
                 </div>
                 <div class="setting-row">
                     <span class="setting-label">{{ t('font.label') }}</span>

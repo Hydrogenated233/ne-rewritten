@@ -15,6 +15,7 @@ const active_control = shallowRef<DiagramControl<any, any> | null>(null);
 let current_control: DiagramControl<any, any> | null = null;
 let current_expr: any = null;
 let current_data: any = null;
+let active_source: unknown = null;
 
 function refresh() {
     if (current_control && current_expr !== null) {
@@ -23,7 +24,14 @@ function refresh() {
 }
 
 export function use_diagram() {
-    function show<T>(control: DiagramControl<T, any>, expr: T, x: number, y: number, equiv?: string) {
+    function show<T>(
+        control: DiagramControl<T, any>,
+        expr: T,
+        x: number,
+        y: number,
+        equiv?: string,
+        source?: unknown,
+    ) {
         if (current_control !== control) {
             current_data = { ...control.default_data };
             current_control = control;
@@ -39,16 +47,20 @@ export function use_diagram() {
         active_control.value = current_control;
         current_expr = expr;
         diagram.value = control.draw_diagram(expr, current_data) ?? null;
+        active_source = source ?? null;
         pos_x.value = x;
         pos_y.value = y;
-        visible.value = true;
+        visible.value = diagram.value !== null;
     }
 
-    function hide() {
+    function hide(source?: unknown) {
+        if (source !== undefined && active_source !== source) return;
         visible.value = false;
+        active_source = null;
     }
 
-    function move(x: number, y: number) {
+    function move(x: number, y: number, source?: unknown) {
+        if (source !== undefined && active_source !== source) return;
         pos_x.value = x;
         pos_y.value = y;
     }
