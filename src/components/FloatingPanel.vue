@@ -18,6 +18,7 @@ const props = withDefaults(
         minWidth?: number;
         minHeight?: number;
         resizable?: boolean;
+        compact?: boolean;
     }>(),
     {
         storageKey: '',
@@ -28,6 +29,7 @@ const props = withDefaults(
         minWidth: 300,
         minHeight: 180,
         resizable: false,
+        compact: false,
     },
 );
 
@@ -206,7 +208,10 @@ onUnmounted(() => {
             v-if="show"
             ref="panel"
             class="floating-panel"
-            :class="{ 'floating-panel--resizable': resizable }"
+            :class="{
+                'floating-panel--resizable': resizable,
+                'floating-panel--compact': compact,
+            }"
             :style="panel_style"
             role="dialog"
             aria-modal="false"
@@ -216,15 +221,18 @@ onUnmounted(() => {
         >
             <header class="floating-panel__header" @pointerdown.prevent="start_drag">
                 <span class="floating-panel__title">{{ title }}</span>
-                <button
-                    type="button"
-                    class="floating-panel__close"
-                    :aria-label="title"
-                    @pointerdown.stop
-                    @click="emit('close')"
-                >
-                    ✕
-                </button>
+                <span class="floating-panel__header-actions">
+                    <slot name="header-actions" />
+                    <button
+                        type="button"
+                        class="floating-panel__close"
+                        :aria-label="title"
+                        @pointerdown.stop
+                        @click="emit('close')"
+                    >
+                        ✕
+                    </button>
+                </span>
             </header>
             <div class="floating-panel__body">
                 <slot />
@@ -284,6 +292,13 @@ onUnmounted(() => {
     white-space: nowrap;
 }
 
+.floating-panel__header-actions {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 2px;
+}
+
 .floating-panel__close {
     display: inline-flex;
     width: 26px;
@@ -312,6 +327,25 @@ onUnmounted(() => {
     overflow: auto;
     padding: 12px;
     box-sizing: border-box;
+}
+
+.floating-panel--compact .floating-panel__header {
+    min-height: 30px;
+    padding: 3px 5px 3px 9px;
+}
+
+.floating-panel--compact .floating-panel__title {
+    font-size: 13px;
+}
+
+.floating-panel--compact .floating-panel__close {
+    width: 24px;
+    height: 24px;
+    flex-basis: 24px;
+}
+
+.floating-panel--compact .floating-panel__body {
+    padding: 8px;
 }
 
 .floating-panel__resize-handle {

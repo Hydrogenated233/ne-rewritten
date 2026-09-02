@@ -40,28 +40,29 @@ function open_new(): void {
         :key="note.id"
         :show="true"
         :title="`${t('expand.title')} #${index + 1}`"
-        :storage-key="direct_expand_panel_storage_key(note.id)"
-        :initial-width="620"
-        :initial-top="96 + (index % 6) * 28"
-        :initial-right="64 + (index % 6) * 18"
-        :min-width="360"
-        :min-height="180"
+        :storage-key="direct_expand_panel_storage_key(`compact-v1-${note.id}`)"
+        :initial-width="520"
+        :initial-top="88 + (index % 6) * 24"
+        :initial-right="40 + (index % 6) * 16"
+        :min-width="320"
+        :min-height="150"
         :resizable="true"
+        :compact="true"
         @close="ed.close(note.id, settings.scroll_on_focus)"
     >
+        <template #header-actions>
+            <button
+                type="button"
+                class="expand-new-button"
+                :aria-label="t('expand.new-window')"
+                :title="t('expand.new-window')"
+                @pointerdown.stop
+                @click="open_new"
+            >
+                +
+            </button>
+        </template>
         <div class="expand-form" @keydown="on_keydown(note, $event)">
-            <div class="expand-window-toolbar">
-                <span class="expand-window-label">{{ t('expand.title') }}</span>
-                <button
-                    type="button"
-                    class="expand-new-button"
-                    :aria-label="t('expand.new-window')"
-                    :title="t('expand.new-window')"
-                    @click="open_new"
-                >
-                    +
-                </button>
-            </div>
             <div class="expand-controls">
                 <label class="expand-field expand-field--wide">
                     <span>{{ t('expand.text') }}</span>
@@ -76,7 +77,36 @@ function open_new(): void {
                         @input="ed.invalidate(note.id)"
                     />
                 </label>
-                <label class="expand-field">
+                <label
+                    class="expand-field expand-field--notation"
+                    :class="{ 'expand-field--notation-wide': ed.equiv_options_for(note).length === 0 }"
+                >
+                    <span>{{ t('expand.notation') }}</span>
+                    <select v-model="note.notation_id" @change="ed.invalidate(note.id)">
+                        <option v-for="n in ed.notation_options.value" :key="n.id" :value="n.id">
+                            {{ resolve_name(n.simple_name ?? n.name, t) ?? n.id }}
+                        </option>
+                    </select>
+                </label>
+                <label
+                    v-if="ed.equiv_options_for(note).length > 0"
+                    class="expand-field expand-field--equiv"
+                >
+                    <span>{{ t('expand.equiv') }}</span>
+                    <select v-model="note.notation_equiv" @change="ed.invalidate(note.id)">
+                        <option value="">{{ t('equiv.none') }}</option>
+                        <option v-for="k in ed.equiv_options_for(note)" :key="k" :value="k">{{ k }}</option>
+                    </select>
+                </label>
+                <label class="expand-field expand-field--variant">
+                    <span>{{ t('expand.fs-variant') }}</span>
+                    <select v-model="note.variant" @change="ed.invalidate(note.id)">
+                        <option value="FS_short">{{ t('fs-variant.short') }}</option>
+                        <option value="FS">{{ t('fs-variant.normal') }}</option>
+                        <option value="FS_alter">{{ t('fs-variant.alternative') }}</option>
+                    </select>
+                </label>
+                <label class="expand-field expand-field--index">
                     <span>{{ t('expand.fs-start') }}</span>
                     <input
                         type="number"
@@ -86,7 +116,7 @@ function open_new(): void {
                         @input="ed.invalidate(note.id)"
                     />
                 </label>
-                <label class="expand-field">
+                <label class="expand-field expand-field--count">
                     <span>{{ t('expand.count') }}</span>
                     <input
                         type="number"
@@ -97,31 +127,7 @@ function open_new(): void {
                         @input="ed.invalidate(note.id)"
                     />
                 </label>
-                <label class="expand-field expand-field--wide">
-                    <span>{{ t('expand.notation') }}</span>
-                    <select v-model="note.notation_id" @change="ed.invalidate(note.id)">
-                        <option v-for="n in ed.notation_options.value" :key="n.id" :value="n.id">
-                            {{ resolve_name(n.simple_name ?? n.name, t) ?? n.id }}
-                        </option>
-                    </select>
-                </label>
-                <label v-if="ed.equiv_options_for(note).length > 0" class="expand-field">
-                    <span>{{ t('expand.equiv') }}</span>
-                    <select v-model="note.notation_equiv" @change="ed.invalidate(note.id)">
-                        <option value="">{{ t('equiv.none') }}</option>
-                        <option v-for="k in ed.equiv_options_for(note)" :key="k" :value="k">{{ k }}</option>
-                    </select>
-                </label>
-                <label class="expand-field">
-                    <span>{{ t('expand.fs-variant') }}</span>
-                    <select v-model="note.variant" @change="ed.invalidate(note.id)">
-                        <option value="FS_short">{{ t('fs-variant.short') }}</option>
-                        <option value="FS">{{ t('fs-variant.normal') }}</option>
-                        <option value="FS_alter">{{ t('fs-variant.alternative') }}</option>
-                    </select>
-                </label>
                 <div class="expand-field expand-field--action">
-                    <span aria-hidden="true">&nbsp;</span>
                     <button type="button" class="expand-btn expand-btn--primary" @click="on_run(note)">
                         {{ t('expand.run') }}
                     </button>
@@ -169,69 +175,82 @@ function open_new(): void {
 .expand-form {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 8px;
     width: 100%;
     min-width: 0;
 }
-.expand-window-toolbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    min-height: 26px;
-}
-.expand-window-label {
-    color: var(--color-text-secondary);
-    font-size: 12px;
-}
 .expand-new-button {
-    width: 26px;
-    height: 26px;
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    align-items: center;
+    justify-content: center;
     padding: 0;
-    border: 1px solid var(--color-border);
+    border: 0;
     border-radius: 4px;
-    background: var(--color-bg-secondary);
-    color: var(--color-text);
+    background: transparent;
+    color: var(--color-text-muted);
     cursor: pointer;
     font: inherit;
-    font-size: 18px;
+    font-size: 17px;
     line-height: 1;
 }
 .expand-new-button:hover {
     background: var(--color-bg-hover);
+    color: var(--color-text);
 }
 .expand-controls {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(110px, 0.45fr);
-    gap: 10px;
+    grid-template-columns: minmax(0, 1.4fr) minmax(84px, 0.65fr) minmax(84px, 0.65fr);
+    gap: 6px;
     align-items: end;
 }
 .expand-field {
     display: flex;
     min-width: 0;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: 11px;
 }
 .expand-field--wide {
     grid-column: 1 / -1;
 }
+.expand-field--notation {
+    grid-column: 1;
+}
+.expand-field--notation-wide {
+    grid-column: 1 / 3;
+}
+.expand-field--equiv {
+    grid-column: 2;
+}
+.expand-field--variant {
+    grid-column: 3;
+}
+.expand-field--index {
+    grid-column: 1;
+}
+.expand-field--count {
+    grid-column: 2;
+}
 .expand-field--action {
+    grid-column: 3;
     align-items: stretch;
 }
 .expand-field input,
 .expand-field select {
     width: 100%;
     min-width: 0;
-    height: 32px;
+    height: 28px;
     box-sizing: border-box;
-    padding: 4px 8px;
+    padding: 3px 7px;
     border: 1px solid var(--color-border);
     border-radius: 5px;
     background: var(--color-bg);
     color: var(--color-text);
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
 }
 .expand-field input:focus,
 .expand-field select:focus {
@@ -240,24 +259,27 @@ function open_new(): void {
     box-shadow: 0 0 0 2px var(--color-accent-bg);
 }
 .expand-text-input {
-    font-size: 16px !important;
+    font-size: 14px !important;
 }
 .expand-preview {
     width: 100%;
-    min-height: 64px;
+    min-height: 48px;
     box-sizing: border-box;
-    padding: 12px;
+    padding: 8px;
     border: 1px solid var(--color-border-light);
     border-radius: 6px;
     background: var(--color-bg-secondary);
     font-family: inherit;
-    font-size: 14px;
+    font-size: 12px;
     word-break: break-all;
 }
 .expand-preview-hint {
-    margin-top: 6px;
+    margin-top: 4px;
     color: var(--color-text-secondary);
     font-family: inherit;
+}
+.expand-preview > .expand-preview-hint {
+    margin-top: 0;
 }
 .expand-preview-result {
     margin: 0;
@@ -272,19 +294,19 @@ function open_new(): void {
 }
 .expand-buttons {
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
 }
 .expand-btn {
-    min-width: 96px;
-    min-height: 32px;
-    padding: 5px 14px;
+    min-width: 72px;
+    min-height: 28px;
+    padding: 3px 10px;
     border: 1px solid var(--color-border);
     border-radius: 5px;
     background: var(--color-bg-secondary);
     color: var(--color-text);
     cursor: pointer;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 13px;
 }
 .expand-btn:hover {
     background: var(--color-bg-hover);
@@ -304,18 +326,27 @@ function open_new(): void {
     color: var(--color-text-muted);
     cursor: default;
 }
-@media (max-width: 560px) {
+@media (max-width: 480px) {
     .expand-controls {
-        grid-template-columns: minmax(0, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-    .expand-field--wide {
-        grid-column: auto;
+    .expand-field--wide,
+    .expand-field--action {
+        grid-column: 1 / -1;
     }
-    .expand-buttons {
-        flex-direction: column-reverse;
+    .expand-field--notation {
+        grid-column: 1 / -1;
     }
-    .expand-btn {
-        width: 100%;
+    .expand-field--notation-wide {
+        grid-column: 1;
+    }
+    .expand-field--equiv,
+    .expand-field--index {
+        grid-column: 1;
+    }
+    .expand-field--variant,
+    .expand-field--count {
+        grid-column: 2;
     }
 }
 </style>
