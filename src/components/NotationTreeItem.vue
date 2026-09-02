@@ -22,6 +22,7 @@ import RenderLatex from '@/components/RenderLatex.vue';
 import { NotationDefinition, resolve_display, ResolvedDisplaySpec } from '@/notation-definition.ts';
 import { cached_display, ORIGINAL_ID } from '@/core/display_cache.ts';
 import { observe_on_screen, unobserve_on_screen } from '@/composables/use_on_screen.ts';
+import { request_floating_layout } from '@/core/floating_layout.ts';
 
 const props = defineProps<{
     node: TreeNode<T>;
@@ -46,6 +47,7 @@ const {
     show: show_diagram,
     hide: hide_diagram,
     move: move_diagram,
+    is_active: is_diagram_active,
     dispatch_action: dispatch_diagram_action,
 } = use_diagram();
 const { show: show_latex_viewer, hide: hide_latex_viewer } = use_latex();
@@ -72,6 +74,8 @@ const t = inject(I18N_KEY)!;
 const multi = use_multi_select();
 const node_path = props.node.path ?? '' + props.node.index;
 const diagram_source = {};
+const latex_source = {};
+let floating_anchor = { x: 0, y: 0 };
 const equiv_name = computed(() => settings.equiv_active[props.notation.id] ?? '');
 const resolved_equiv = computed(() => {
     if (!equiv_name.value) return null;
@@ -152,14 +156,15 @@ const show_inline_analysis_latex = computed(
 );
 
 watch(analysis0, () => {
-    if (focused.value && settings.analysis_latex_preview) {
+    if (focused.value && settings.analysis_latex_preview && !is_diagram_active(diagram_source)) {
         const el = input_ref.value;
         if (el) {
             const r = el.getBoundingClientRect();
-            show_latex_viewer(analysis0.value, r.left, 60 + r.height);
+            show_latex_viewer(analysis0.value, r.left, 60 + r.height, latex_source);
+            request_floating_layout();
         }
     } else {
-        hide_latex_viewer();
+        hide_latex_viewer(latex_source);
     }
 });
 
@@ -204,9 +209,9 @@ function build_tooltip_terms(): boolean {
         const n_max = Math.max(0, Math.min(999, Math.trunc(Number(settings.tooltip_fs) || 0)));
         const fs =
             settings.variant === 'FS_alter'
-                ? props.notation.FS_alter ?? props.notation.FS
+                ? (props.notation.FS_alter ?? props.notation.FS)
                 : settings.variant === 'FS_short'
-                  ? props.notation.FS_short ?? props.notation.FS
+                  ? (props.notation.FS_short ?? props.notation.FS)
                   : props.notation.FS;
 
         const comments = new Map<string, string>();
@@ -256,11 +261,23 @@ function position_tooltip(x: number, y: number): void {
         top: place_above ? 'auto' : `${Math.max(edge, y + offset)}px`,
         bottom: place_above ? `${Math.max(edge, window.innerHeight - y + offset)}px` : 'auto',
     };
+    request_floating_layout();
+}
+
+function position_diagram_at_anchor(x: number, y: number): void {
+    floating_anchor = { x, y };
+    move_diagram(x + 100, y + 15, diagram_source);
+    request_floating_layout();
+}
+
+function restore_diagram_position(): void {
+    if (is_diagram_active(diagram_source)) position_diagram_at_anchor(floating_anchor.x, floating_anchor.y);
 }
 
 function toggle_keyboard_tooltip(): void {
     if (tooltip.value) {
         tooltip.value = false;
+        restore_diagram_position();
         return;
     }
     if (!build_tooltip_terms()) return;
@@ -269,8 +286,34 @@ function toggle_keyboard_tooltip(): void {
     tooltip.value = true;
 }
 
+function toggle_keyboard_diagram(): void {
+    const control = props.notation.draw_diagram;
+    if (!control) return;
+    if (is_diagram_active(diagram_source)) {
+        hide_diagram(diagram_source);
+        request_floating_layout();
+        return;
+    }
+
+    const rect = input_ref.value?.getBoundingClientRect();
+    const x = rect?.right ?? window.innerWidth / 2;
+    const y = rect?.bottom ?? window.innerHeight / 2;
+    floating_anchor = { x, y };
+    hide_latex_viewer(latex_source);
+    show_diagram(
+        control,
+        props.node.expr,
+        x + 100,
+        y + 15,
+        settings.equiv_active[props.notation.id] ?? undefined,
+        diagram_source,
+    );
+    request_floating_layout();
+}
+
 function on_enter(event: MouseEvent) {
     if (settings.interaction_mode === 'keyboard') return;
+    floating_anchor = { x: event.clientX, y: event.clientY };
     if (settings.diagram_follow && props.notation.draw_diagram) {
         show_diagram(
             props.notation.draw_diagram,
@@ -285,6 +328,7 @@ function on_enter(event: MouseEvent) {
         position_tooltip(event.clientX, event.clientY);
         tooltip.value = true;
     }
+    request_floating_layout();
 }
 
 function on_leave() {
@@ -295,7 +339,7 @@ function on_leave() {
 
 function on_mousemove(event: MouseEvent) {
     if (settings.interaction_mode === 'keyboard') return;
-    if (settings.diagram_follow) move_diagram(event.clientX + 100, event.clientY + 15, diagram_source);
+    if (settings.diagram_follow) position_diagram_at_anchor(event.clientX, event.clientY);
     if (tooltip.value) position_tooltip(event.clientX, event.clientY);
 }
 
@@ -332,6 +376,7 @@ function on_keydown(e: KeyboardEvent) {
     if (e.key === 'Escape' && tooltip.value) {
         e.preventDefault();
         tooltip.value = false;
+        restore_diagram_position();
         return;
     }
     if (e.ctrlKey || e.altKey) {
@@ -391,12 +436,15 @@ function on_keydown(e: KeyboardEvent) {
     } else if (e.key.toLowerCase() === 'f' && e.ctrlKey) {
         e.preventDefault();
         toggle_keyboard_tooltip();
+    } else if (e.key.toLowerCase() === 'g' && e.ctrlKey) {
+        e.preventDefault();
+        toggle_keyboard_diagram();
     } else if (e.key.toLowerCase() === 'd' && e.ctrlKey) {
         e.preventDefault();
         console.log('DEBUG expr:', props.node.expr);
         (window as any).expr = props.node.expr;
         (window as any).notation = props.notation;
-    } else if (e.key.toLowerCase() === 'h' && e.ctrlKey) {
+    } else if ((e.key.toLowerCase() === 'q' && e.altKey) || (e.key.toLowerCase() === 'h' && e.ctrlKey)) {
         e.preventDefault();
         ed.value.hide_child = !ed.value.hide_child;
         save_load?.save_analysis();
@@ -478,8 +526,10 @@ function on_focus(e: FocusEvent) {
     const dc = props.notation.draw_diagram;
     if (settings.analysis_latex_preview) {
         hide_diagram(diagram_source);
-        show_latex_viewer(analysis0.value, r.left, 60 + r.height);
-    } else if (dc && settings.show_diagram) {
+        show_latex_viewer(analysis0.value, r.left, 60 + r.height, latex_source);
+        request_floating_layout();
+    } else if (dc && settings.show_diagram && settings.interaction_mode !== 'keyboard') {
+        floating_anchor = { x: r.left - 100, y: 45 + r.height };
         show_diagram(
             dc,
             props.node.expr,
@@ -488,10 +538,11 @@ function on_focus(e: FocusEvent) {
             settings.equiv_active[props.notation.id] ?? undefined,
             diagram_source,
         );
-        hide_latex_viewer();
+        hide_latex_viewer(latex_source);
+        request_floating_layout();
     } else {
         hide_diagram(diagram_source);
-        hide_latex_viewer();
+        hide_latex_viewer(latex_source);
     }
 }
 
@@ -504,7 +555,7 @@ function on_blur() {
     focused.value = false;
     tooltip.value = false;
     hide_diagram(diagram_source);
-    hide_latex_viewer();
+    hide_latex_viewer(latex_source);
 }
 </script>
 
@@ -530,7 +581,7 @@ function on_blur() {
                 class="subtree-toggle"
                 type="checkbox"
                 :aria-label="t('hotkey.toggle-children')"
-                :title="`${t('hotkey.toggle-children')} (Ctrl+H)`"
+                :title="`${t('hotkey.toggle-children')} (Alt+Q / Ctrl+H)`"
                 @mousedown.stop
                 @click.stop
             />

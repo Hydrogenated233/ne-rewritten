@@ -11,14 +11,17 @@ describe('keyboard interaction mode', () => {
     it('is persisted as an explicit pointer/keyboard mode', () => {
         expect(settings_source).toContain("interaction_mode: 'pointer' | 'keyboard'");
         expect(settings_source).toContain("interaction_mode: 'pointer'");
-        expect(settings_bar_source).toContain("settings.interaction_mode === mode");
+        expect(settings_bar_source).toContain('settings.interaction_mode === mode');
     });
 
     it('moves pointer-only tree behavior behind the mode and exposes FS and subtree shortcuts', () => {
         expect(tree_item_source).toContain("settings.interaction_mode === 'keyboard'");
         expect(tree_item_source).toContain("e.key.toLowerCase() === 'f' && e.ctrlKey");
-        expect(tree_item_source).toContain("e.key.toLowerCase() === 'h' && e.ctrlKey");
+        expect(tree_item_source).toContain("e.key.toLowerCase() === 'g' && e.ctrlKey");
+        expect(tree_item_source).toContain("e.key.toLowerCase() === 'q' && e.altKey");
         expect(hotkey_source).toContain("{ keys: 'Ctrl+F', desc_key: 'hotkey.toggle-fs' }");
+        expect(hotkey_source).toContain("{ keys: 'Ctrl+G', desc_key: 'hotkey.toggle-diagram' }");
+        expect(hotkey_source).toContain("{ keys: 'Alt+Q / Ctrl+H', desc_key: 'hotkey.toggle-children' }");
     });
 });
 
@@ -26,6 +29,8 @@ describe('source-style floating diagram and FS tooltip', () => {
     it('uses an unframed floating canvas with a theme-aware canvas background', () => {
         expect(app_source).toContain('class="floating-canvas"');
         expect(app_source).not.toContain('class="diagram-floating"');
+        expect(app_source).toContain('class="floating-canvas floating-canvas--latex"');
+        expect(app_source).not.toContain('class="latex-floating"');
         expect(diagram_source).toContain('ctx.fillRect(0, 0, d.width, d.height)');
         expect(diagram_source).toContain('ctx.strokeRect(1, 1');
         expect(mountain_source).toContain('stroke_color: black');

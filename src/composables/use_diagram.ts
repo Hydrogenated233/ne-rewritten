@@ -24,14 +24,7 @@ function refresh() {
 }
 
 export function use_diagram() {
-    function show<T>(
-        control: DiagramControl<T, any>,
-        expr: T,
-        x: number,
-        y: number,
-        equiv?: string,
-        source?: unknown,
-    ) {
+    function show<T>(control: DiagramControl<T, any>, expr: T, x: number, y: number, equiv?: string, source?: unknown) {
         if (current_control !== control) {
             current_data = { ...control.default_data };
             current_control = control;
@@ -63,6 +56,10 @@ export function use_diagram() {
         if (source !== undefined && active_source !== source) return;
         pos_x.value = x;
         pos_y.value = y;
+    }
+
+    function is_active(source: unknown): boolean {
+        return visible.value && active_source === source;
     }
 
     function dispatch_action(action: DiagramAction) {
@@ -98,6 +95,7 @@ export function use_diagram() {
         show,
         hide,
         move,
+        is_active,
         dispatch_action,
         update_setting,
     };

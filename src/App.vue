@@ -33,6 +33,7 @@ import { SAVE_LOAD_KEY, use_save_load } from '@/composables/use_save_load.ts';
 import { apply_color_theme } from '@/composables/use_color_theme.ts';
 import { use_tip } from '@/composables/use_tip.ts';
 import { IS_STANDALONE } from '@/core/deployment.ts';
+import { FLOATING_LAYOUT_EVENT, place_floating_rect, type FloatingRect } from '@/core/floating_layout.ts';
 
 // Keep the AI workspace out of the initial route chunk. It is not needed for
 // exploration and can remain a separately loaded tab on GitHub Pages. The
@@ -48,7 +49,10 @@ const settings = inject(SETTINGS_KEY)!;
 const t = (key: string, params?: Record<string, string>) => create_t(settings.language)(key, params);
 provide(I18N_KEY, t);
 
-const { diagram, visible, pos_x, pos_y } = use_diagram();
+const { diagram, visible, pos_x, pos_y, move: move_diagram } = use_diagram();
+const diagram_floating_ref = ref<HTMLElement | null>(null);
+const latex_floating_ref = ref<HTMLElement | null>(null);
+let floating_layout_frame = 0;
 
 // 说明显示/隐藏切换: 与记号条目相同的逻辑, 选中文本时不触发
 function on_description_mousedown(e: MouseEvent) {
@@ -68,6 +72,48 @@ const { trees, notation, root, save_indicator } = save_load;
 
 const tip = use_tip(settings);
 const active_page = ref<'explore' | 'tools' | 'settings' | 'ai'>('explore');
+
+function floating_rect(element: Element): FloatingRect {
+    const rect = element.getBoundingClientRect();
+    return { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom };
+}
+
+function layout_floating_overlays(): void {
+    const viewport = { width: window.innerWidth, height: window.innerHeight };
+    const avoid = Array.from(document.querySelectorAll('.tooltip')).map(floating_rect);
+
+    const diagram_element = diagram_floating_ref.value;
+    if (diagram_element && visible.value) {
+        const rect = diagram_element.getBoundingClientRect();
+        const position = place_floating_rect(pos_x.value, pos_y.value, rect.width, rect.height, viewport, avoid);
+        move_diagram(position.left, position.top);
+        avoid.push({
+            left: position.left,
+            top: position.top,
+            right: position.left + rect.width,
+            bottom: position.top + rect.height,
+        });
+    }
+
+    const latex_element = latex_floating_ref.value;
+    if (latex_element && latex_state.visible.value) {
+        const rect = latex_element.getBoundingClientRect();
+        const position = place_floating_rect(
+            latex_state.pos_x.value,
+            latex_state.pos_y.value,
+            rect.width,
+            rect.height,
+            viewport,
+            avoid,
+        );
+        latex_state.move(position.left, position.top);
+    }
+}
+
+function schedule_floating_layout(): void {
+    cancelAnimationFrame(floating_layout_frame);
+    floating_layout_frame = requestAnimationFrame(layout_floating_overlays);
+}
 
 watch(
     () => settings.font_family,
@@ -148,6 +194,7 @@ function select_expression_in_item(e: KeyboardEvent): boolean {
 
 onMounted(() => {
     document.addEventListener('keydown', on_global_keydown);
+    window.addEventListener(FLOATING_LAYOUT_EVENT, schedule_floating_layout);
     save_load.init();
     // 打开页面时随机显示一条未被忽略的提示
     tip.show_random();
@@ -157,6 +204,8 @@ onMounted(() => {
 });
 onUnmounted(() => {
     document.removeEventListener('keydown', on_global_keydown);
+    window.removeEventListener(FLOATING_LAYOUT_EVENT, schedule_floating_layout);
+    cancelAnimationFrame(floating_layout_frame);
     save_load.dispose();
 });
 
@@ -307,6 +356,7 @@ function debug_compare_order(notation_id?: string) {
 
         <div
             v-if="visible && diagram"
+            ref="diagram_floating_ref"
             class="floating-canvas"
             :style="{ left: pos_x + 'px', top: pos_y + 'px' }"
         >
@@ -314,11 +364,10 @@ function debug_compare_order(notation_id?: string) {
         </div>
         <div
             v-if="latex_state.visible.value && latex_state.latex.value"
-            class="latex-floating"
+            ref="latex_floating_ref"
+            class="floating-canvas floating-canvas--latex"
             :style="{ left: latex_state.pos_x.value + 'px', top: latex_state.pos_y.value + 'px' }"
-            @mousedown.stop
         >
-            <button class="diagram-close" @mousedown.stop="latex_state.hide()">✕</button>
             <LaTeXViewer :latex="latex_state.latex.value" />
         </div>
         <div v-if="save_indicator" class="save-indicator">
@@ -947,14 +996,14 @@ body::after {
     pointer-events: none;
 }
 
-.latex-floating {
-    position: fixed;
-    z-index: 9999;
+.floating-canvas--latex {
     background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    box-shadow: 0 4px 12px var(--color-shadow);
-    padding: 8px;
+    border: 2px solid var(--color-text);
+    color: var(--color-text);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+    box-sizing: border-box;
 }
 
 .save-indicator {
@@ -968,22 +1017,5 @@ body::after {
     border-radius: 4px;
     z-index: 9999;
     pointer-events: none;
-}
-
-.diagram-close {
-    position: absolute;
-    top: 2px;
-    right: 4px;
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    font-size: 14px;
-    color: var(--color-text-muted);
-    line-height: 1;
-    padding: 0 4px;
-}
-
-.diagram-close:hover {
-    color: var(--color-text);
 }
 </style>
