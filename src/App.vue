@@ -428,6 +428,14 @@ function debug_compare_order(notation_id?: string) {
     --color-editor-comment: #6e7781;
 }
 
+.pps-column-index {
+    color: #888;
+}
+
+html.dark .pps-column-index {
+    color: #999;
+}
+
 .settings-box {
     border: 2px solid var(--color-border-light);
     border-radius: 8px;

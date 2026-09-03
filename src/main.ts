@@ -75,6 +75,8 @@ import { category_hypcos_w2mn, category_mn } from '@/notations/MN/categories.ts'
 import { category_smile_mn } from '@/notations/MN/SMN/categories.ts';
 import { category_ton } from '@/notations/TON/categories.ts';
 import { category_asan } from '@/notations/aSAN/categories.ts';
+import { category_pps } from '@/notations/PPS/categories.ts';
+import { ewpps4, pps, pps4, spps4, tpps4, wpps4 } from '@/notations/PPS/PPS.ts';
 import { category_den } from '@/notations/DEN/categories.ts';
 import { category_bm_like, category_minus1_y_nss_series } from '@/notations/BM-like/categories.ts';
 import { category_y, category_y_variants } from '@/notations/Y/categories.ts';
@@ -192,6 +194,13 @@ on_registry_change(() => {
 
 register_notation(omega);
 register_notation(VeblenPhi);
+register_category(category_pps);
+register_notation(pps);
+register_notation(pps4);
+register_notation(ewpps4);
+register_notation(spps4);
+register_notation(tpps4);
+register_notation(wpps4);
 register_category(category_ocf);
 register_notation(BOCF_EBO);
 register_notation(MOCF_EBO);
