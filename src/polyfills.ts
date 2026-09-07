@@ -10,6 +10,7 @@
  * - Array.prototype.toReversed / toSorted / toSpliced / with: Safari/iOS 16.4+
  * - Array.prototype.findLast / findLastIndex: Safari/iOS 15.4+
  * - Array.prototype.at / String.prototype.at: Safari/iOS 15.4+
+ * - Array.prototype.flat / flatMap: Safari/iOS 12(2018)
  * - String.prototype.replaceAll: Safari/iOS 13.1+
  * - Object.hasOwn: Safari/iOS 15.4+
  * - Promise.withResolvers: Safari/iOS 17.4+(不在 ES2023 lib, 用 `in` 判存在)
@@ -196,6 +197,54 @@ if (!('withResolvers' in Promise)) {
                 reject = rej;
             });
             return { promise, resolve, reject };
+        },
+    });
+}
+
+// ---- Array.prototype.flat / flatMap (Safari 12 / iOS 12, 2018) ----
+// 规范只展开真正的 Array(不展开类数组), 且跳过稀疏数组的空洞; 此处保持一致。
+function array_flat_copy(items: unknown[], depth: number): unknown[] {
+    const result: unknown[] = [];
+    const push_flat = (arr: unknown[], remaining: number) => {
+        const source = arr as unknown[];
+        for (let i = 0; i < source.length; i++) {
+            if (!Object.prototype.hasOwnProperty.call(source, i)) continue; // 跳过空洞
+            const item = source[i];
+            if (remaining > 0 && Array.isArray(item)) push_flat(item, remaining - 1);
+            else result.push(item);
+        }
+    };
+    push_flat(items, depth);
+    return result;
+}
+
+if (typeof Array.prototype.flat !== 'function') {
+    Object.defineProperty(Array.prototype, 'flat', {
+        configurable: true,
+        writable: true,
+        value: function <T>(this: T[], depth?: number): unknown[] {
+            const target_depth = depth === undefined ? 1 : Math.trunc(depth) || 0;
+            return array_flat_copy(this as unknown[], target_depth);
+        },
+    });
+}
+
+if (typeof Array.prototype.flatMap !== 'function') {
+    Object.defineProperty(Array.prototype, 'flatMap', {
+        configurable: true,
+        writable: true,
+        value: function <T, U>(
+            this: T[],
+            callback: (value: T, index: number, array: T[]) => U | readonly U[],
+            this_arg?: unknown,
+        ): U[] {
+            const mapped: unknown[] = [];
+            for (let i = 0; i < this.length; i++) {
+                if (Object.prototype.hasOwnProperty.call(this, i)) {
+                    mapped.push(callback.call(this_arg, this[i], i, this));
+                }
+            }
+            return array_flat_copy(mapped, 1) as U[];
         },
     });
 }

@@ -151,7 +151,8 @@ onMounted(() => {
     input_ref.value?.setAttribute('data-tree-path', node_path);
     const span = resize_span.value;
     let ro: ResizeObserver | undefined;
-    if (span) {
+    // ResizeObserver 缺失的旧浏览器(iOS < 13.4)跳过自动测宽, 输入框保持 settings.input_width
+    if (span && typeof ResizeObserver !== 'undefined') {
         ro = new ResizeObserver(() => {
             if (document.body.contains(span)) {
                 settings.input_width = span.offsetWidth;
