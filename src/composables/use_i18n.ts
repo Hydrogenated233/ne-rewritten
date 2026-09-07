@@ -147,6 +147,14 @@ const messages: Record<Language, Record<string, string>> = {
         'description.btbm.3': '1^(2,1) 与 2^(3,1) 视为高度相同;',
         'description.btbm.4': '()(1^(2,1),1) 展开为 ()(1^(2,1))(2^(3,2))(3^(4,3))...;',
         'description.btbm.5': '()(1^(2,1))(2^(3,1),2) 展开为 ()(1^(2,1))(2^(3,1))(3^(4,1))....',
+        'description.bbm.1': '标记列标 BBMS',
+        'description.bbm.2': '全称为 Branching BMS, 命名仿照 HypCos 的 Branching ωMN.',
+        'description.bbm.3': '实际为 BTBMS 的不垫层变体, 对 BTBMS 的定义简单修改即可得到, 仅有特殊展开有区别.',
+        'description.bbm.4':
+            '与 BTBMS 的区别: BBMS 中, 当高度矩阵为后继矩阵时进行特殊展开 (BTBMS 中为当高度矩阵的末列为单行列且父列为直接外部矩阵时).',
+        'description.bbm.5': '此外, 移除 BTBMS 定义中, 高度矩阵的首行约束.',
+        'description.bbm.6': '()(1^()) = ()(1^ω). 作为对比, BTBMS 中 ()(1^(2)) = ()(1^ω).',
+        'description.bbm.7': '()(1^(1)) 为 TBMS 极限. 作为对比, BTBMS 中为 ()(1^(2,1)).',
         'description.btbm-weak.1': '标记列标弱 BTBMS',
         'description.btbm-weak.2': '相比非弱版本, 区别为对于行标低于 lnz-1 的上标, 不进行 BMS 提升, 而是保持高度相同',
         'description.btbm-weak.3': '()(1^(2,1),1) 展开为 ()(1^(2,1))(2^(3,1))(3^(4,1))...;',
@@ -360,6 +368,16 @@ const messages: Record<Language, Record<string, string>> = {
         'description.btbm.3': '1^(2,1) and 2^(3,1) are treated as the same height;',
         'description.btbm.4': '()(1^(2,1),1) expands to ()(1^(2,1))(2^(3,2))(3^(4,3))...;',
         'description.btbm.5': '()(1^(2,1))(2^(3,1),2) expands to ()(1^(2,1))(2^(3,1))(3^(4,1))....',
+        'description.bbm.1': 'Indexed BBMS',
+        'description.bbm.2': "Full name: Branching BMS; named after Hypcos' Branching ωMN.",
+        'description.bbm.3':
+            'It is actually the non-padding variant of BTBMS; a simple modification of the definition of BTBMS yields it, with only the special expansion differing.',
+        'description.bbm.4':
+            'Difference from BTBMS: in BBMS, special expansion occurs when the height matrix is a successor matrix (in BTBMS, when the last column of the height matrix is a single-column row and the parent column is a direct external matrix).',
+        'description.bbm.5':
+            'Additionally, the constraint on the first row of the height matrix in the BTBMS definition is removed.',
+        'description.bbm.6': '()(1^()) = ()(1^ω). For comparison, in BTBMS, ()(1^(2)) = ()(1^ω).',
+        'description.bbm.7': '()(1^(1)) is the TBMS limit. For comparison, in BTBMS it is ()(1^(2,1)).',
         'description.btbm-weak.1': 'Indexed weak BTBMS',
         'description.btbm-weak.2':
             'Compared to the non-weak version, the difference is that superscripts whose row index is below lnz-1 are not BMS-elevated but keep the same height',

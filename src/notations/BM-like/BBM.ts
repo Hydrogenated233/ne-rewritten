@@ -617,11 +617,13 @@ export const BBM: NotationDefinition<Expr> = {
     name: 'Branching BMS',
     simple_name: 'BBMS',
     description: [
-        { id: 'description.btbm.1' },
-        { id: 'description.btbm.2' },
-        { id: 'description.btbm.3' },
-        { id: 'description.btbm.4' },
-        { id: 'description.btbm.5' },
+        { id: 'description.bbm.1' },
+        { id: 'description.bbm.2' },
+        { id: 'description.bbm.3' },
+        { id: 'description.bbm.4' },
+        { id: 'description.bbm.5' },
+        { id: 'description.bbm.6' },
+        { id: 'description.bbm.7' },
     ],
     category_id: 'category-bm-like',
     display: {
