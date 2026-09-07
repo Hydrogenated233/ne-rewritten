@@ -1,3 +1,4 @@
+import '@/polyfills.ts'; // 必须先于其他模块: 为旧版 Safari/iOS 补齐缺失的运行时方法
 import { createApp, reactive, watch } from 'vue';
 import App from '@/App.vue';
 import { BM4, seq_0Y, TriangularBM4 } from '@/notations/BM-like/BM.ts';
