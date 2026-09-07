@@ -6,6 +6,7 @@ import type { TreeNodeExtra } from '@/core/extra.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { expand_item } from '@/core/expander.ts';
+import { FsTrialExpansionError } from '@/core/errors.ts';
 import { expand_pending_node } from '@/core/analysis.ts';
 import { focus_node, focus_node_input, set_last_focus } from '@/composables/use_focus_tracker.ts';
 import { use_diagram } from '@/composables/use_diagram.ts';
@@ -195,7 +196,13 @@ function do_expand(tier?: number, focus?: boolean) {
         const child = expand_item(props.node, props.notation, v, tier ?? props.tier ?? 0, settings.max_find_fs);
         if (focus && child) focus_node_input(child);
     } catch (e) {
-        alert('当前节点试展开次数过多, 可能基本列实现有误');
+        if (e instanceof FsTrialExpansionError) {
+            alert(e.message);
+            return;
+        }
+        console.error('expand_item: 未知错误', e);
+        const detail = e instanceof Error ? (e.stack ?? e.message) : String(e);
+        alert('遇到未知错误(展开 ' + (props.notation.simple_name ?? props.notation.id) + ' 时):\n\n' + detail);
     }
 }
 
