@@ -236,6 +236,7 @@ const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
 export const UP1MN: NotationDefinition<Expr> = {
     id: 'up1mn',
     name: 'UP1MN',
+    description: [{ id: 'description.up1mn' }],
     category_id: 'category-upmn',
     display: {
         plain: (m) => display(m),

@@ -173,6 +173,7 @@ const messages: Record<Language, Record<string, string>> = {
         'description.bbm.5': '此外, 移除 BTBMS 定义中, 高度矩阵的首行约束.',
         'description.bbm.6': '()(1^()) = ()(1^ω). 作为对比, BTBMS 中 ()(1^(2)) = ()(1^ω).',
         'description.bbm.7': '()(1^(1)) 为 TBMS 极限. 作为对比, BTBMS 中为 ()(1^(2,1)).',
+        'description.up1mn': '即标记列标 UPMS',
         'description.btbm-weak.1': '标记列标弱 BTBMS',
         'description.btbm-weak.2': '相比非弱版本, 区别为对于行标低于 lnz-1 的上标, 不进行 BMS 提升, 而是保持高度相同',
         'description.btbm-weak.3': '()(1^(2,1),1) 展开为 ()(1^(2,1))(2^(3,1))(3^(4,1))...;',
@@ -416,6 +417,7 @@ const messages: Record<Language, Record<string, string>> = {
             'Additionally, the constraint on the first row of the height matrix in the BTBMS definition is removed.',
         'description.bbm.6': '()(1^()) = ()(1^ω). For comparison, in BTBMS, ()(1^(2)) = ()(1^ω).',
         'description.bbm.7': '()(1^(1)) is the TBMS limit. For comparison, in BTBMS it is ()(1^(2,1)).',
+        'description.up1mn': 'Identified with Indexed UPMS',
         'description.btbm-weak.1': 'Indexed weak BTBMS',
         'description.btbm-weak.2':
             'Compared to the non-weak version, the difference is that superscripts whose row index is below lnz-1 are not BMS-elevated but keep the same height',
