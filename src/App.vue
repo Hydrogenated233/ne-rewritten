@@ -25,6 +25,7 @@ import { use_latex } from '@/composables/use_latex.ts';
 import LaTeXViewer from '@/components/LaTeXViewer.vue';
 import MultiSelectBar from '@/components/MultiSelectBar.vue';
 import ConfigBar from '@/components/ConfigBar.vue';
+import InitVariantBar from '@/components/InitVariantBar.vue';
 import NotationNav from '@/components/NotationNav.vue';
 import NotationNavPlain from '@/components/NotationNavPlain.vue';
 import SettingsBar from '@/components/SettingsBar.vue';
@@ -219,6 +220,8 @@ function debug_compare_order(notation_id?: string) {
         <NotationNavPlain v-else />
 
         <SettingsBar />
+
+        <InitVariantBar />
 
         <div v-if="no_from_display_warning" class="description-warning">
             {{ no_from_display_warning }}

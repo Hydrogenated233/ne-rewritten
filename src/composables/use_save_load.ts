@@ -25,6 +25,8 @@ export interface SaveLoadInstance {
     save_analysis: () => void;
     load_analysis: (id: string, r: TreeNode<unknown>) => void;
     handle_reset: () => void;
+    /** 彻底移除某记号的树数据: 内存 trees 条目 + localStorage 自动保存的分析(供删除变体等 UI 路径调用)。 */
+    remove_notation_data: (id: string) => void;
     handle_export: () => Promise<void>;
     handle_import: () => Promise<void>;
     init: () => void;
@@ -90,6 +92,11 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
         } catch {
             /* ignore corrupt data */
         }
+    }
+
+    function remove_notation_data(id: string) {
+        trees.delete(id);
+        localStorage.removeItem(ANALYSIS_STORAGE_PREFIX + id);
     }
 
     function handle_reset() {
@@ -187,6 +194,7 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
         save_analysis,
         load_analysis,
         handle_reset,
+        remove_notation_data,
         handle_export,
         handle_import,
         init,
