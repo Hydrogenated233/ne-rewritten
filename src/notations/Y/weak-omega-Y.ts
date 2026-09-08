@@ -6,7 +6,7 @@ import {
     seq_compare,
     sequence_display,
     sequence_from_display,
-    to_dbms_display,
+    y_display_equiv,
     y_diagram_control,
 } from '@/notations/Y/Omega_Y.ts';
 import { Y_FS_variants } from '@/notations/notation_utils.ts';
@@ -33,11 +33,7 @@ export const weak_omega_Y: NotationDefinition<Expr> = {
         plain: sequence_display,
         from_display: sequence_from_display,
     },
-    display_equiv: {
-        DBMS: (s) => to_dbms_display(s, 'DBMS'),
-        DBMS_MN: (s) => to_dbms_display(s, "DBMS'"),
-        ADBMS: (s) => to_dbms_display(s, 'ADBMS'),
-    },
+    display_equiv: y_display_equiv,
     is_limit: weak_is_limit,
     compare: seq_compare,
     draw_diagram: y_diagram_control,

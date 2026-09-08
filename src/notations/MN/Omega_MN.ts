@@ -1,7 +1,7 @@
 import { deepcopy, DisplayMap, DisplaySet, lex_compare, number_compare } from '@/utils.ts';
 import { MN_FS_variants } from '@/notations/notation_utils.ts';
 import { draw_mountain_diagram, type MountainDiagramData } from '@/notations/draw_mountain_util.ts';
-import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
+import { diagram_in_mode, DiagramControl, NotationDefinition } from '@/notation-definition.ts';
 
 type Sep = number;
 type Vertical = Sep[];
@@ -576,6 +576,7 @@ export const omega_MN: NotationDefinition<Expr> = {
             plain: (m) => mountain_display(convert_to_layer(m), false),
             from_display: (str) => convert_from_layer(mountain_from_display(str)),
             name: { id: 'display.layer' },
+            draw_diagram: diagram_in_mode(draw_diagram_control, 'layer'),
         },
         marked: {
             plain: (m) => mountain_display_marked(m, 'label'),
@@ -592,6 +593,7 @@ export const omega_MN: NotationDefinition<Expr> = {
             plain: (m) => mountain_display(convert_to_layer(m), true),
             from_display: (s) => convert_from_layer(from_display_simple(s)),
             name: { id: 'display.layer-simple' },
+            draw_diagram: diagram_in_mode(draw_diagram_control, 'layer'),
         },
     },
     is_limit: mountain_is_limit,

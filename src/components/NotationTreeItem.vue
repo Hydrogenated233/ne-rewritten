@@ -20,7 +20,8 @@ import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { use_latex } from '@/composables/use_latex.ts';
 import { use_multi_select } from '@/composables/use_multi_select.ts';
 import RenderLatex from '@/components/RenderLatex.vue';
-import { NotationDefinition, resolve_display, ResolvedDisplaySpec } from '@/notation-definition.ts';
+import OperationSequence from '@/components/OperationSequence.vue';
+import { NotationDefinition, resolve_diagram, resolve_display, ResolvedDisplaySpec } from '@/notation-definition.ts';
 import { cached_display, ORIGINAL_ID } from '@/core/display_cache.ts';
 import { observe_on_screen, unobserve_on_screen } from '@/composables/use_on_screen.ts';
 import { request_floating_layout } from '@/core/floating_layout.ts';
@@ -78,6 +79,9 @@ const diagram_source = {};
 const latex_source = {};
 let floating_anchor = { x: 0, y: 0 };
 const equiv_name = computed(() => settings.equiv_active[props.notation.id] ?? '');
+const diagram_control = computed(() => resolve_diagram(props.notation, equiv_name.value));
+watch([equiv_name, () => props.notation], () => hide_diagram(diagram_source));
+onUnmounted(() => hide_diagram(diagram_source));
 const resolved_equiv = computed(() => {
     if (!equiv_name.value) return null;
     const spec = props.notation.display_equiv?.[equiv_name.value];
@@ -289,8 +293,11 @@ function toggle_keyboard_tooltip(): void {
 }
 
 function toggle_keyboard_diagram(): void {
-    const control = props.notation.draw_diagram;
-    if (!control) return;
+    const control = diagram_control.value;
+    if (!control) {
+        hide_diagram(diagram_source);
+        return;
+    }
     if (is_diagram_active(diagram_source)) {
         hide_diagram(diagram_source);
         request_floating_layout();
@@ -316,16 +323,17 @@ function toggle_keyboard_diagram(): void {
 function on_enter(event: MouseEvent) {
     if (settings.interaction_mode === 'keyboard') return;
     floating_anchor = { x: event.clientX, y: event.clientY };
-    if (settings.diagram_follow && props.notation.draw_diagram) {
+    const control = diagram_control.value;
+    if (settings.diagram_follow && control) {
         show_diagram(
-            props.notation.draw_diagram,
+            control,
             props.node.expr,
             event.clientX + 100,
             event.clientY + 15,
             settings.equiv_active[props.notation.id] ?? undefined,
             diagram_source,
         );
-    }
+    } else if (settings.diagram_follow) hide_diagram();
     if (build_tooltip_terms()) {
         position_tooltip(event.clientX, event.clientY);
         tooltip.value = true;
@@ -531,7 +539,7 @@ function on_focus(e: FocusEvent) {
     const pixel_pos = caret_pixel_pos(el, el.selectionStart ?? 0);
     el.scrollLeft = pixel_pos - el.clientWidth / 2;
 
-    const dc = props.notation.draw_diagram;
+    const dc = diagram_control.value;
     if (settings.analysis_latex_preview) {
         hide_diagram(diagram_source);
         show_latex_viewer(analysis0.value, r.left, 60 + r.height, latex_source);
@@ -621,7 +629,7 @@ function on_blur() {
                     <RenderLatex :latex="analysis0" />
                 </span>
             </span>
-            <div v-if="equiv_mode ? on_screen : true" class="equiv-rows">
+            <div v-if="equiv_mode || settings.show_operation_sequence ? on_screen : true" class="equiv-rows">
                 <div class="equiv-row equiv-row--primary">
                     <span class="notation-expression" :class="{ 'is-latex': settings.display_mode === 'latex' }">
                         <span class="notation-expression__active">
@@ -645,17 +653,21 @@ function on_blur() {
                                 />
                             </span>
                         </span>
+                        <OperationSequence v-if="settings.show_operation_sequence" :notation="notation" :expr="node.expr" />
                     </span>
                 </div>
                 <div v-for="row in extra_equiv_rows" :key="row.id" class="equiv-row equiv-row--secondary">
                     <span v-if="row.label" class="equiv-label">{{ row.label }}:</span>
                     <RenderLatex v-if="settings.display_mode === 'latex'" :latex="row.render('latex')" />
                     <span v-else class="expr-display" v-html="row.render(settings.display_mode)" />
+                    <OperationSequence v-if="settings.show_operation_sequence" :notation="notation" :expr="node.expr" />
                 </div>
             </div>
             <div v-if="tooltip" class="tooltip" :style="tooltip_style" @mousedown.stop>
                 <RenderLatex v-if="settings.display_mode === 'latex'" :latex="primary_display(node.expr)" />
-                <span v-else v-html="primary_display(node.expr)" />{{ t('notation-tree.fundamental-sequence') }}
+                <span v-else v-html="primary_display(node.expr)" />
+                <OperationSequence v-if="settings.show_operation_sequence" :notation="notation" :expr="node.expr" />
+                {{ t('notation-tree.fundamental-sequence') }}
                 <div class="tooltip-fs">
                     <div v-for="term in tooltip_FS" :key="term.index" class="tooltip-row">
                         <span class="tooltip-index">{{ term.index }}:</span>
@@ -665,6 +677,7 @@ function on_blur() {
                                 :latex="primary_display(term.expr as T)"
                             />
                             <span v-else v-html="primary_display(term.expr as T)" />
+                            <OperationSequence v-if="settings.show_operation_sequence" :notation="notation" :expr="term.expr as T" />
                         </span>
                         <span v-if="term.comment" class="tooltip-cmnt">
                             <span aria-hidden="true">; </span>

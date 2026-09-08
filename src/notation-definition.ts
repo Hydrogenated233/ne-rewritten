@@ -65,6 +65,8 @@ export type NotationDisplaySpec<T> =
           from_display?: (str: string) => T;
           name?: TextSpec;
           name_id?: string;
+          /** Explicit renderer for this representation; equivalent displays never inherit the base renderer. */
+          draw_diagram?: DiagramControl<T, any>;
       };
 
 export interface ResolvedDisplaySpec<T> {
@@ -139,6 +141,22 @@ export interface DiagramControl<T, DataType> {
     draw_diagram: (expr: T, data: DataType) => Diagram | undefined;
     settings?: DiagramControlSetting[];
     handle_action?: (data: DataType, action: DiagramAction) => DataType | null;
+}
+
+export function resolve_diagram<T>(notation: NotationDefinition<T>, equiv?: string): DiagramControl<T, any> | undefined {
+    if (!equiv) return notation.draw_diagram;
+    const spec = notation.display_equiv?.[equiv];
+    return spec && typeof spec !== 'function' ? spec.draw_diagram : undefined;
+}
+
+/** Bind an existing renderer's explicitly supported representation mode. */
+export function diagram_in_mode<T, D extends { current_equiv?: string }>(
+    control: DiagramControl<T, D>, equiv: string,
+): DiagramControl<T, D> {
+    return {
+        ...control,
+        draw_diagram: (expr, data) => control.draw_diagram(expr, { ...data, current_equiv: equiv }),
+    };
 }
 
 export interface NotationDefinition<T> {

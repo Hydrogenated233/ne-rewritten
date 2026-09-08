@@ -4,7 +4,7 @@ import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
-import { resolve_display_name } from '@/notation-definition.ts';
+import { resolve_diagram, resolve_display_name } from '@/notation-definition.ts';
 import {
     COMPAT_URL,
     IS_COMPAT,
@@ -72,7 +72,9 @@ const sections = computed(() => {
     return items;
 });
 const current_section = computed(() => sections.value.find((section) => section.id === active_section.value)!);
-const has_diagram_settings = computed(() => (notation.value?.draw_diagram?.settings?.length ?? 0) > 0);
+const diagram_control = computed(() => notation.value
+    ? resolve_diagram(notation.value, settings.equiv_active[notation.value.id]) : undefined);
+const has_diagram_settings = computed(() => (diagram_control.value?.settings?.length ?? 0) > 0);
 const font_options = ['DEFAULT', 'Comic Sans MS', 'Consolas', 'Microsoft YaHei UI'];
 const DISPLAY_MODES = ['plain', 'html', 'latex'] as const;
 const INTERACTION_MODES = ['pointer', 'keyboard'] as const;
@@ -266,19 +268,19 @@ watch(
                         <span>{{ settings.show_description ? t('description.show') : t('analysis-input.hide') }}</span>
                     </label>
                 </div>
-                <div v-if="notation?.draw_diagram" class="setting-row">
+                <div v-if="diagram_control" class="setting-row">
                     <span class="setting-label">{{ t('diagram.show') }}</span>
                     <label class="setting-check">
                         <input type="checkbox" :checked="settings.show_diagram" @change="toggle_diagram" />
                     </label>
                 </div>
-                <div v-if="notation?.draw_diagram" class="setting-row">
+                <div v-if="diagram_control" class="setting-row">
                     <span class="setting-label">{{ t('diagram.follow') }}</span>
                     <label class="setting-check">
                         <input v-model="settings.diagram_follow" type="checkbox" />
                     </label>
                 </div>
-                <div v-if="notation?.draw_diagram" class="setting-row">
+                <div v-if="diagram_control" class="setting-row">
                     <span class="setting-label">{{ t('diagram.scale') }}</span>
                     <label class="setting-inline-number setting-inline-number--range">
                         <input v-model.number="settings.diagram_scale" type="range" min="-5" max="5" step="0.1" />
@@ -286,7 +288,7 @@ watch(
                     </label>
                 </div>
                 <ColorThemePanel inline />
-                <DiagramSettingsPanel v-if="has_diagram_settings" :control="notation?.draw_diagram ?? null" inline />
+                <DiagramSettingsPanel v-if="has_diagram_settings" :control="diagram_control ?? null" inline />
 
                 <section v-if="equiv_options.length > 0" class="settings-subsection">
                     <h3>{{ t('equiv.extra-title') }}</h3>

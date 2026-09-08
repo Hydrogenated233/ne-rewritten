@@ -16,6 +16,7 @@ export interface ExpandNote {
     notation_equiv: string | undefined;
     variant: Variant;
     preview: string | null;
+    preview_terms?: { text: string; expr?: unknown }[];
     preview_status: ExpandPreviewStatus;
     focus_path?: string;
 }
@@ -83,6 +84,7 @@ function make_note(text: string, expand_settings?: ExpandSettings): ExpandNote {
 }
 
 function run_core(note: ExpandNote): void {
+    note.preview_terms = [];
     if (!Number.isSafeInteger(note.FS_index) || note.FS_index < 0) {
         note.preview_status = 'error-index';
         note.preview = null;
@@ -141,9 +143,13 @@ function run_core(note: ExpandNote): void {
                 throw new Error('Fundamental-sequence index exceeds the safe integer range.');
             try {
                 const result = fs_fn(expr, index);
-                lines.push(`FS(${index}) = ${result_display_data.plain(result)}`);
+                const text = `FS(${index}) = ${result_display_data.plain(result)}`;
+                lines.push(text);
+                note.preview_terms.push({ text, expr: result });
             } catch (error) {
-                lines.push(`FS(${index}) = Error: ${error instanceof Error ? error.message : String(error)}`);
+                const text = `FS(${index}) = Error: ${error instanceof Error ? error.message : String(error)}`;
+                lines.push(text);
+                note.preview_terms.push({ text });
             }
         }
         note.preview = lines.join('\n');
@@ -203,6 +209,7 @@ function invalidate(note_id?: number): void {
     if (note.notation_equiv && !equivalents.includes(note.notation_equiv)) note.notation_equiv = undefined;
     note.preview = null;
     note.preview_status = 'none';
+    note.preview_terms = [];
 }
 
 function confirm_and_fill(note_id?: number, scroll_on_focus = true): void {

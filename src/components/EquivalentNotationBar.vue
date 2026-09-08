@@ -42,7 +42,8 @@ function set_hide_original(event: Event): void {
 </script>
 
 <template>
-    <div v-if="options.length > 0" class="equiv-bar" role="group" :aria-label="t('equiv.label')">
+    <div class="equiv-bar" role="group" :aria-label="t('equiv.label')">
+        <template v-if="options.length > 0">
         <span class="equiv-bar__label">{{ t('equiv.label') }}</span>
         <button type="button" :class="{ active: !active_id }" :aria-pressed="!active_id" @click="set_active('')">
             {{ original_label }}
@@ -64,6 +65,11 @@ function set_hide_original(event: Event): void {
                 @change="set_hide_original"
             />
             <span>{{ t('equiv.hide-original') }}</span>
+        </label>
+        </template>
+        <label class="equiv-bar__toggle">
+            <input type="checkbox" v-model="settings.show_operation_sequence" />
+            <span>{{ t('operation-sequence.label') }}</span>
         </label>
     </div>
 </template>

@@ -1,5 +1,5 @@
 import { MN_FS_variants } from '@/notations/notation_utils.ts';
-import { NotationDefinition } from '@/notation-definition.ts';
+import { diagram_in_mode, NotationDefinition } from '@/notation-definition.ts';
 import {
     Column,
     column_compare,
@@ -162,6 +162,7 @@ export const UP2MN_v1a: NotationDefinition<Mountain> = {
             plain: (m) => mountain_display(convert_to_layer(m), false),
             from_display: (str) => convert_from_layer(from_display(str)),
             name: { id: 'display.layer' },
+            draw_diagram: diagram_in_mode(draw_diagram_control, 'layer'),
         },
         marked: {
             plain: (m) => mountain_display_marked(m, 'label'),
@@ -178,6 +179,7 @@ export const UP2MN_v1a: NotationDefinition<Mountain> = {
             plain: (m) => mountain_display(convert_to_layer(m), true),
             from_display: (s) => convert_from_layer(from_display_simple(s)),
             name: { id: 'display.layer-simple' },
+            draw_diagram: diagram_in_mode(draw_diagram_control, 'layer'),
         },
     },
     draw_diagram: draw_diagram_control,

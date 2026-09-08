@@ -7,6 +7,8 @@ import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { resolve_name } from '@/notation-definition.ts';
 import type { Settings } from '@/core/settings.ts';
 import { direct_expand_panel_storage_key } from '@/core/storage_keys.ts';
+import { get_notation } from '@/core/registry.ts';
+import OperationSequence from './OperationSequence.vue';
 
 const settings = inject(SETTINGS_KEY)! as Settings;
 const t = inject(I18N_KEY)!;
@@ -138,7 +140,15 @@ function open_new(): void {
                     {{ t('expand.manual-hint') }}
                 </div>
                 <div v-else-if="note.preview_status === 'ok'">
-                    <pre class="expand-preview-result">{{ note.preview }}</pre>
+                    <div v-if="settings.show_operation_sequence && note.preview_terms && get_notation(note.notation_id)" class="expand-preview-result">
+                        <div v-for="(term, term_index) in note.preview_terms" :key="term_index">{{ term.text }}<OperationSequence
+                            v-if="'expr' in term"
+                            :notation="get_notation(note.notation_id)!"
+                            :expr="term.expr"
+                            :variant="note.variant"
+                        /></div>
+                    </div>
+                    <pre v-else class="expand-preview-result">{{ note.preview }}</pre>
                     <div v-if="note.count === 1" class="expand-preview-hint">{{ t('expand.fill-hint') }}</div>
                 </div>
                 <div v-else-if="note.preview_status === 'error-parse'" class="expand-preview-error">

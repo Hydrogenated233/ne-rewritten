@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { inject, ref } from 'vue';
+import { inject, onUnmounted, ref, watch } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
@@ -7,7 +7,7 @@ import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { use_diagram } from '@/composables/use_diagram.ts';
 import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { expand_all_pending, import_analysis_eager } from '@/core/analysis.ts';
-import { resolve_display } from '@/notation-definition.ts';
+import { resolve_diagram, resolve_display } from '@/notation-definition.ts';
 import { focus_node_input, get_last_focus, prepare_pointer_focus } from '@/composables/use_focus_tracker.ts';
 import InitVariantBar from '@/components/InitVariantBar.vue';
 import { IS_STANDALONE } from '@/core/deployment.ts';
@@ -22,6 +22,8 @@ const { hide, show: show_diagram, dispatch_action } = use_diagram();
 
 const find_input = ref<HTMLInputElement>();
 const diagram_source = {};
+watch([notation, () => settings.equiv_active[notation.value?.id ?? '']], () => hide(diagram_source));
+onUnmounted(() => hide(diagram_source));
 
 function handle_find(): void {
     const n = notation.value;
@@ -54,9 +56,12 @@ function on_find_input(): void {
         hide(diagram_source);
         return;
     }
-    const dc = n.draw_diagram;
-    if (!dc || !settings.show_diagram) return;
     const equiv_name = settings.equiv_active[n.id];
+    const dc = resolve_diagram(n, equiv_name);
+    if (!dc || !settings.show_diagram) {
+        hide(diagram_source);
+        return;
+    }
     const display_spec =
         equiv_name && n.display_equiv?.[equiv_name]
             ? resolve_display(n.display_equiv[equiv_name])

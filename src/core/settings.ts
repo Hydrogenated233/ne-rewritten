@@ -68,6 +68,7 @@ export interface Settings {
     equiv_active: Record<string, string | undefined>;
     equiv_hide_original: Record<string, boolean>;
     shown_equiv: Record<string, Record<string, boolean>>;
+    show_operation_sequence: boolean;
     language: 'zh' | 'en';
     color_scheme: string;
     hidden_notations: string[];
@@ -108,6 +109,7 @@ export const DEFAULT_SETTINGS: Settings = {
     equiv_active: {},
     equiv_hide_original: {},
     shown_equiv: {},
+    show_operation_sequence: false,
     language: 'zh',
     color_scheme: 'source-light',
     hidden_notations: [],

@@ -410,7 +410,7 @@ const draw_diagram_control_BM: DiagramControl<Expr, DiagramData> = {
     default_data: { current_equiv: undefined, invert_vertical: undefined },
     draw_diagram: (m: Expr, _data: DiagramData): Diagram | undefined => {
         if (is_infinity(m) || m.length === 0) return undefined;
-        const mountain = compute_bm_mountain_diagram(m, _data.current_equiv ?? 'BMS');
+        const mountain = compute_bm_mountain_diagram(m, 'BMS');
         return draw_mountain_diagram(mountain, { WV: 0, invert_vertical: _data.invert_vertical ?? false });
     },
     handle_action: (data: DiagramData, action): DiagramData | null => {
@@ -426,10 +426,20 @@ const draw_diagram_control_0Y: DiagramControl<Expr, DiagramData> = {
     ...draw_diagram_control_BM,
     draw_diagram: (m: Expr, _data: DiagramData): Diagram | undefined => {
         if (is_infinity(m) || m.length === 0) return undefined;
-        const mountain = compute_bm_mountain_diagram(m, _data.current_equiv ?? '0Y');
+        const mountain = compute_bm_mountain_diagram(m, '0Y');
         return draw_mountain_diagram(mountain, { WV: 0, invert_vertical: _data.invert_vertical ?? false });
     },
 };
+
+function converted_diagram(
+    control: DiagramControl<Expr, DiagramData>, convert: (expr: Expr) => Expr,
+): DiagramControl<Expr, DiagramData> {
+    return { ...control, draw_diagram: (expr, data) => control.draw_diagram(convert(expr), data) };
+}
+
+const triangular_diagram = converted_diagram(draw_diagram_control_BM, BM_to_triangular);
+const non_triangular_diagram = converted_diagram(draw_diagram_control_BM, triangular_to_BM);
+const non_triangular_y_diagram = converted_diagram(draw_diagram_control_0Y, triangular_to_BM);
 
 export const BM4: NotationDefinition<Expr> = {
     id: 'bm4',
@@ -441,6 +451,7 @@ export const BM4: NotationDefinition<Expr> = {
         '0Y': {
             plain: display_as_0Y,
             from_display: from_display_as_0Y,
+            draw_diagram: draw_diagram_control_0Y,
         },
         simple: {
             plain: display_simple,
@@ -451,6 +462,7 @@ export const BM4: NotationDefinition<Expr> = {
             plain: (e) => display(BM_to_triangular(e)),
             from_display: (str) => triangular_to_BM(from_display(str)),
             name: { id: 'display.triangular-bms' },
+            draw_diagram: triangular_diagram,
         },
         '1Y': {
             plain: (e) => display_as_0Y(BM_to_triangular(e)),
@@ -494,10 +506,12 @@ export const TriangularBM4: NotationDefinition<Expr> = {
             plain: (e) => display(triangular_to_BM(e)),
             from_display: (str) => BM_to_triangular(from_display(str)),
             name: { id: 'display.non-triangular-bms' },
+            draw_diagram: non_triangular_diagram,
         },
         '0Y': {
             plain: (e) => display_as_0Y(triangular_to_BM(e)),
             from_display: (str) => BM_to_triangular(from_display_as_0Y(str)),
+            draw_diagram: non_triangular_y_diagram,
         },
         'nt simple': {
             plain: (e) => display_simple(triangular_to_BM(e)),
@@ -527,6 +541,7 @@ export const seq_0Y: NotationDefinition<Expr> = {
         BMS: {
             plain: display,
             from_display,
+            draw_diagram: draw_diagram_control_BM,
         },
         '1Y': {
             plain: (e) => display_as_0Y(BM_to_triangular(e)),
@@ -535,6 +550,7 @@ export const seq_0Y: NotationDefinition<Expr> = {
         'tri BMS': {
             plain: (e) => display(BM_to_triangular(e)),
             from_display: (str) => triangular_to_BM(from_display(str)),
+            draw_diagram: triangular_diagram,
         },
     },
     is_limit: is_limit,

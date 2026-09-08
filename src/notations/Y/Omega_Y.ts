@@ -1,7 +1,7 @@
 import { DisplayMap, DisplaySet, lex_compare, number_compare } from '@/utils.ts';
 import { Y_FS_variants } from '@/notations/notation_utils.ts';
 import { draw_mountain_diagram, type MountainDiagramData } from '@/notations/draw_mountain_util.ts';
-import { DiagramControl, NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
+import { diagram_in_mode, DiagramControl, NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 
 export type Expr = number[];
 export type Vertical = number[];
@@ -657,6 +657,12 @@ export const y_diagram_control: DiagramControl<Expr, YDiagramData> = {
     },
 };
 
+export const y_display_equiv: NonNullable<NotationDefinition<Expr>['display_equiv']> = {
+    DBMS: { plain: (s) => to_dbms_display(s, 'DBMS'), draw_diagram: diagram_in_mode(y_diagram_control, 'DBMS') },
+    DBMS_MN: { plain: (s) => to_dbms_display(s, "DBMS'"), draw_diagram: diagram_in_mode(y_diagram_control, "DBMS'") },
+    ADBMS: { plain: (s) => to_dbms_display(s, 'ADBMS'), draw_diagram: diagram_in_mode(y_diagram_control, 'ADBMS') },
+};
+
 export const category_y_omega: NotationCategoryDefinition = {
     id: 'category-y-omega',
     name: 'ωY',
@@ -673,11 +679,7 @@ function create_magma_notation(type: string, magma: (seq: Expr, index: number) =
             plain: sequence_display,
             from_display: sequence_from_display,
         },
-        display_equiv: {
-            DBMS: (s) => to_dbms_display(s, 'DBMS'),
-            DBMS_MN: (s) => to_dbms_display(s, "DBMS'"),
-            ADBMS: (s) => to_dbms_display(s, 'ADBMS'),
-        },
+        display_equiv: y_display_equiv,
         is_limit,
         compare: seq_compare,
         draw_diagram: y_diagram_control,

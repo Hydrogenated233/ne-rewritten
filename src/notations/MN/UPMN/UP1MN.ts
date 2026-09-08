@@ -1,5 +1,5 @@
 import { boolean_compare, deepcopy, lex_compare, number_compare, tuple_lex_compare_by } from '@/utils.ts';
-import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
+import { diagram_in_mode, DiagramControl, NotationDefinition } from '@/notation-definition.ts';
 import { MN_FS_variants } from '@/notations/notation_utils.ts';
 import {
     DiagramData,
@@ -248,6 +248,7 @@ export const UP1MN: NotationDefinition<Expr> = {
             plain: (m) => display(convert_to_layer(m)),
             from_display: (str) => convert_from_layer(from_display(str)),
             name: { id: 'display.layer' },
+            draw_diagram: diagram_in_mode(draw_diagram_control, 'layer'),
         },
         marked: {
             plain: (m) => display_marked(m, 'label'),
