@@ -13,7 +13,7 @@ import type { NotationDefinition } from '@/notation-definition.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { download_buffer, export_to_xlsx, import_from_xlsx } from '@/core/xlsx_io.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
-import { I18N_KEY } from '@/composables/use_i18n.ts';
+import { create_t } from '@/composables/use_i18n.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 
 export interface SaveLoadInstance {
@@ -39,7 +39,6 @@ const ANALYSIS_STORAGE_PREFIX = 'ne-analysis-';
 
 export function use_save_load(trees: Map<string, TreeNode<any>>) {
     const settings = inject(SETTINGS_KEY)!;
-    const t = inject(I18N_KEY)!;
     const ui = use_ui_states();
 
     const current_id = computed(() => settings.current_notation_id);
@@ -143,7 +142,7 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
             const entries = await import_from_xlsx(buf, display_spec.from_display);
             const { matched, not_found } = import_analysis(r, entries, n);
             if ((entries as any).skipped?.length || not_found.length > 0) {
-                alert(t('import.error'));
+                alert(create_t(settings.language)('import.error'));
             }
             if (settings.expand_all_on_import) {
                 expand_all_pending(r, n, settings.variant, settings.max_find_fs);

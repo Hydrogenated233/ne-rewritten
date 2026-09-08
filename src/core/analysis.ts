@@ -174,7 +174,7 @@ function locate_host<T>(root: TreeNode<T>, x: T, notation: NotationDefinition<T>
     if (root.children.length === 0) return null;
     const top = root.children[0]; // 降序：首个子为最大
     const bottom = root.children[root.children.length - 1]; // 末个子为最小
-    if (notation.compare(x, bottom.expr) < 0) return null; // 低于树底
+    if (notation.compare(x, bottom.expr) < 0) return bottom; // 低于树底
     if (notation.compare(x, top.expr) > 0) return null; // 高于树顶
 
     let node: TreeNode<T> = root;
