@@ -60,7 +60,7 @@ function vertical_display(v: Vertical): string {
     return v.map((s) => sep_display(s, false)).join('/');
 }
 
-type MarkSpec = 'label' | 'sub';
+export type MarkSpec = 'label' | 'sub';
 
 export function mountain_display_marked(m: Mountain, type: MarkSpec): string {
     if (is_infinity(m)) return 'Limit';

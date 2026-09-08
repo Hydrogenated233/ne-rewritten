@@ -142,7 +142,7 @@ function expand_a(m: Mountain, index: number, shorter: boolean = false): Mountai
 }
 
 export const UP2MN_v1a: NotationDefinition<Mountain> = {
-    id: 'UP2MN-v1a',
+    id: 'up2mn-v1a',
     name: 'UP2MN v1A',
     category_id: 'category-upmn',
     description: [
