@@ -4,6 +4,7 @@ import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
+import { resolve_display_name } from '@/notation-definition.ts';
 import {
     COMPAT_URL,
     IS_COMPAT,
@@ -86,8 +87,7 @@ const equiv_options = computed<EquivOption[]>(() => {
     if (!n?.display_equiv) return [];
     return Object.keys(n.display_equiv).map((id) => {
         const spec = n.display_equiv![id];
-        const name_id = typeof spec !== 'function' && spec.name_id ? spec.name_id : undefined;
-        return { id, label: name_id ? t(name_id) : id };
+        return { id, label: resolve_display_name(spec, t) ?? id };
     });
 });
 

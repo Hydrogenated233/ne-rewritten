@@ -67,6 +67,7 @@ function on_number_change(s: DiagramControlSetting, e: Event) {
                         :value="display_value(s)"
                         :min="s.min"
                         :max="s.max"
+                        :step="s.step ?? 1"
                         @change="on_number_change(s, $event)"
                         @keydown.enter.prevent="($event.target as HTMLInputElement).blur()"
                     />

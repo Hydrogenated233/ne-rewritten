@@ -7,6 +7,7 @@ import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { expand_item } from '@/core/expander.ts';
+import { FsTrialExpansionError } from '@/core/errors.ts';
 import { expand_pending_node } from '@/core/analysis.ts';
 import {
     focus_node,
@@ -177,7 +178,8 @@ onMounted(() => {
     input_ref.value?.setAttribute('data-tree-path', node_path);
     const span = resize_span.value;
     let ro: ResizeObserver | undefined;
-    if (span) {
+    // ResizeObserver 缺失的旧浏览器(iOS < 13.4)跳过自动测宽, 输入框保持 settings.input_width
+    if (span && typeof ResizeObserver !== 'undefined') {
         ro = new ResizeObserver(() => {
             if (document.body.contains(span)) {
                 settings.input_width = span.offsetWidth;
@@ -349,7 +351,13 @@ function do_expand(tier?: number, focus?: boolean) {
         const child = expand_item(props.node, props.notation, v, tier ?? props.tier ?? 0, settings.max_find_fs);
         if (focus && child) focus_node_input(child, settings.scroll_on_focus);
     } catch (e) {
-        alert('当前节点试展开次数过多, 可能基本列实现有误');
+        if (e instanceof FsTrialExpansionError) {
+            alert(e.message);
+            return;
+        }
+        console.error('expand_item: 未知错误', e);
+        const detail = e instanceof Error ? (e.stack ?? e.message) : String(e);
+        alert('遇到未知错误(展开 ' + (props.notation.simple_name ?? props.notation.id) + ' 时):\n\n' + detail);
     }
 }
 

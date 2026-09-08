@@ -180,16 +180,11 @@ function ascend_replace(expr: Expr, r: number, diff: number, t_layer: number | u
 }
 
 export function is_special(expr: Expr, t_layer: number): boolean {
-    if (t_layer === 0) return false;
-    let current = expr;
-    let current_left = 0;
-    for (let i = 0; i < t_layer; i++) {
-        current_left += current.length;
-        current = next_layer(current);
-    }
-    if (current[current.length - 1].length !== 1) return false;
-    const entry = current[current.length - 1][0];
-    return entry.height.length === 0 && entry.value === current_left - 1;
+    if (t_layer < 0) return false;
+    const current = skip_layers(expr, t_layer);
+    if (!has_next_layer(current)) return false;
+    const next = next_layer(current);
+    return next[next.length - 1]?.length === 0;
 }
 
 export function expand_special(expr: Expr, t_layer: number, index: number): Expr {
@@ -197,7 +192,7 @@ export function expand_special(expr: Expr, t_layer: number, index: number): Expr
     let col = expr[expr.length - 1];
     let result_col = col.slice(0, -1);
     let entry = col[col.length - 1];
-    if (t_layer > 1) {
+    if (t_layer > 0) {
         let new_entry = {
             value: entry.value,
             height: expand_special(entry.height, t_layer - 1, index),
@@ -617,16 +612,18 @@ export function convert_from_layer(e: Expr, parsed_stack: LayerColumn[] = []): E
     return result;
 }
 
-export const BTBM: NotationDefinition<Expr> = {
-    id: 'btbm',
-    name: "Bubby3's Transfinite BMS",
-    simple_name: 'BTBMS',
+export const BBM: NotationDefinition<Expr> = {
+    id: 'bbm',
+    name: 'Branching BMS',
+    simple_name: 'BBMS',
     description: [
-        { id: 'description.btbm.1' },
-        { id: 'description.btbm.2' },
-        { id: 'description.btbm.3' },
-        { id: 'description.btbm.4' },
-        { id: 'description.btbm.5' },
+        { id: 'description.bbm.1' },
+        { id: 'description.bbm.2' },
+        { id: 'description.bbm.3' },
+        { id: 'description.bbm.4' },
+        { id: 'description.bbm.5' },
+        { id: 'description.bbm.6' },
+        { id: 'description.bbm.7' },
     ],
     category_id: 'category-bm-like',
     display: {

@@ -1,3 +1,4 @@
+import '@/polyfills.ts'; // 必须先于其他模块: 为旧版 Safari/iOS 补齐缺失的运行时方法
 import { createApp, reactive, watch } from 'vue';
 import App from '@/App.vue';
 import { BM4, seq_0Y, TriangularBM4 } from '@/notations/BM-like/BM.ts';
@@ -102,6 +103,7 @@ import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_run
 import { app_storage } from '@/core/storage.ts';
 import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
 import { IS_STANDALONE, LOCAL_NOTATION_EXECUTION_DISABLED } from '@/core/deployment.ts';
+import { BBM } from '@/notations/BM-like/BBM.ts';
 
 const SETTINGS_KEY_NAME = APP_STORAGE_KEYS.settings;
 
@@ -257,6 +259,7 @@ register_category(category_bm_btl_minus1_y_nss);
 init_generator(category_bm_btl_minus1_y_nss);
 register_notation(BTBM);
 register_notation(BTBM_weak);
+register_notation(BBM);
 for (const cat of GMS_categories) {
     register_category(cat);
     if (cat.generator) init_generator(cat);

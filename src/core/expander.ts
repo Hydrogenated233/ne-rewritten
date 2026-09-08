@@ -1,4 +1,5 @@
 import { append_sibling, get_bound, prepend_child, TreeNode } from '@/core/tree.ts';
+import { FsTrialExpansionError } from '@/core/errors.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
 
 function resolve_fs<T>(notation: NotationDefinition<T>, variant: string): (expr: T, index: number) => T {
@@ -36,7 +37,7 @@ function generate_fs<T>(
 
     while (true) {
         if (max_fs !== undefined && i > max_fs && node.children.length === 0) {
-            throw new Error('当前节点试展开次数过多, 可能基本列实现有误');
+            throw new FsTrialExpansionError('当前节点试展开次数过多, 可能基本列实现有误');
         }
         const res = fs(node.expr, i);
         if (bound === undefined || compare(res, bound) > 0) {

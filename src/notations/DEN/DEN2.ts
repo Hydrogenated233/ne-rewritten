@@ -1,4 +1,4 @@
-import { deepcopy, index_of_first, index_of_last, lex_compare, number_compare } from '@/utils.ts';
+import { boolean_compare, deepcopy, index_of_first, index_of_last, lex_compare, number_compare } from '@/utils.ts';
 import type { ColorSpec, Diagram } from '@/core/diagram_types.ts';
 import { sequence_FS_variants } from '@/notations/notation_utils.ts';
 import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
@@ -21,9 +21,7 @@ function seq_seq_compare(m1: number[][], m2: number[][]): number {
 }
 
 function compare(expr1: Expr, expr2: Expr): number {
-    if ('' + expr1 === 'Infinity' && '' + expr2 === 'Infinity') return 0;
-    if ('' + expr1 === 'Infinity') return 1;
-    if ('' + expr2 === 'Infinity') return -1;
+    if (is_infinity(expr1) || is_infinity(expr2)) return boolean_compare(is_infinity(expr1), is_infinity(expr2));
     return seq_seq_compare(toShort(expr1), toShort(expr2));
 }
 
@@ -46,37 +44,72 @@ function display(expr: Expr) {
 }
 
 function from_display(str: string): Expr {
-    if (str === 'Limit') return INFINITY;
     const result: Expr = [];
-    const fullPattern = /^(\([^)]+\)\d+)*$/;
-    if (!fullPattern.test(str)) throw new Error('illegal input string: ' + str);
-    const groupRegex = /\(([^)]+)\)(\d+)/g;
-    let match: RegExpExecArray | null;
-    let lastIndex = 0;
-    while ((match = groupRegex.exec(str)) !== null) {
-        if (match.index !== lastIndex) throw new Error('illegal input string: ' + str);
-        const inner = match[1],
-            stepLengthStr = match[2];
-        if (!/^\d+$/.test(stepLengthStr)) throw new Error('illegal input string: ' + str);
-        const stepLength = parseInt(stepLengthStr, 10);
-        if (inner.length === 0) throw new Error('illegal input string: ' + str);
-        const parts = inner.split(',');
-        const group: Entry[] = [];
-        for (let i = 0; i < parts.length; i++) {
-            const part = parts[i];
-            if (part.length === 0) throw new Error('illegal input string: ' + str);
-            const hasStar = part.startsWith('*');
-            let numStr = hasStar ? part.slice(1) : part;
-            if (hasStar && numStr.length === 0) throw new Error('illegal input string: ' + str);
-            if (!/^\d+$/.test(numStr)) throw new Error('illegal input string: ' + str);
-            const num = parseInt(numStr, 10);
-            if (hasStar) group.push([num, true]);
-            else group.push([num]);
-        }
-        result.push([stepLength, group]);
-        lastIndex = match.index + match[0].length;
+    let i = 0;
+    const s = str;
+
+    function error(): never {
+        throw new Error('Illegal input string: ' + s);
     }
-    if (lastIndex !== str.length) throw new Error('illegal input string: ' + str);
+
+    function skip_spaces(): void {
+        while (i < s.length && s[i] === ' ') i++;
+    }
+
+    function parse_digits(): number {
+        const start = i;
+        while (i < s.length && s[i] >= '0' && s[i] <= '9') i++;
+        if (start === i) error();
+        return parseInt(s.substring(start, i), 10);
+    }
+
+    function parse_entry(): Entry {
+        skip_spaces();
+        let marked = false;
+        if (i < s.length && s[i] === '*') {
+            marked = true;
+            i++;
+            skip_spaces();
+        }
+        return marked ? [parse_digits(), true] : [parse_digits()];
+    }
+
+    function parse_row(): Row {
+        skip_spaces();
+        if (i >= s.length || s[i] !== '(') error();
+        i++;
+        skip_spaces();
+        const entries: Entry[] = [];
+        if (i >= s.length || s[i] === ')') error(); // 括号内不允许为空
+        while (true) {
+            entries.push(parse_entry());
+            skip_spaces();
+            if (i < s.length && s[i] === ',') {
+                i++;
+                continue;
+            }
+            break;
+        }
+        if (i >= s.length || s[i] !== ')') error();
+        i++;
+        skip_spaces();
+        return [parse_digits(), entries];
+    }
+
+    // 'Limit' 只允许作为整串输入 (带或不带前后空格)
+    skip_spaces();
+    if (s.slice(i, i + 5) === 'Limit') {
+        i += 5;
+        skip_spaces();
+        if (i !== s.length) error();
+        return INFINITY;
+    }
+    while (i < s.length) {
+        skip_spaces();
+        if (i >= s.length) break;
+        if (s[i] !== '(') error();
+        result.push(parse_row());
+    }
     return result;
 }
 
@@ -281,19 +314,25 @@ function infinity_FS(n: number): Expr {
     );
 }
 
-export type DiagramData = { offset: number; offset_x: number; max_display: number };
+export interface DiagramData {
+    offset: number;
+    offset_x: number;
+    max_display: number;
+    scaling: number;
+}
 
 export const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
-    default_data: { offset: 0, offset_x: 0, max_display: 40 },
+    default_data: { offset: 0, offset_x: 0, max_display: 40, scaling: 1.0 },
     settings: [
         { type: 'number', name: { id: 'diagram.den.offset' }, field_name: 'offset', min: 0 },
         { type: 'number', name: { id: 'diagram.den.offset-x' }, field_name: 'offset_x', min: 0 },
         { type: 'number', name: { id: 'diagram.den.max-display' }, field_name: 'max_display', min: 10 },
+        { type: 'number', name: { id: 'diagram.den.scaling' }, field_name: 'scaling', max: 1, min: 0.1, step: 0.1 },
         { type: 'info', name: { id: 'diagram.den.scroll-hint' } },
     ],
     draw_diagram: (expr: Expr, data: DiagramData): Diagram | undefined => {
         if (is_infinity(expr) || expr.length === 0) return undefined;
-        const A = 16;
+        const A = 16 * data.scaling;
         const max_display = data.max_display;
         const total = expr.length;
         const show_all = total <= max_display;
@@ -351,7 +390,7 @@ export const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
                     text: '' + step,
                     x: rightmost * A + A,
                     y: vi * A + A / 2,
-                    size: 10,
+                    size: 0.625 * A,
                     color: black,
                 });
             }
@@ -443,7 +482,7 @@ export const DEN2: NotationDefinition<Expr> = {
         'op seq': {
             plain: display_op_seq,
             from_display: from_display_op_seq,
-            name_id: 'display.op-seq',
+            name: { id: 'display.op-seq' },
         },
     },
     is_limit,

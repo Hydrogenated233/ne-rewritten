@@ -3,6 +3,7 @@ import { computed, inject } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
+import { resolve_display_name } from '@/notation-definition.ts';
 
 const settings = inject(SETTINGS_KEY)!;
 const t = inject(I18N_KEY)!;
@@ -13,17 +14,14 @@ const options = computed(() => {
     if (!current?.display_equiv) return [];
     return Object.keys(current.display_equiv).map((id) => {
         const spec = current.display_equiv![id];
-        const name_id = typeof spec !== 'function' && spec.name_id ? spec.name_id : undefined;
-        return { id, label: name_id ? t(name_id) : id };
+        return { id, label: resolve_display_name(spec, t) ?? id };
     });
 });
 
 const original_label = computed(() => {
     const current = notation.value;
     if (!current) return t('equiv.default');
-    const name_id =
-        typeof current.display !== 'function' && current.display.name_id ? current.display.name_id : undefined;
-    return name_id ? t(name_id) : t('equiv.default');
+    return resolve_display_name(current.display, t) ?? t('equiv.default');
 });
 
 const active_id = computed(() => settings.equiv_active[settings.current_notation_id] ?? '');
