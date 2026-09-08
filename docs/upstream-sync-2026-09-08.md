@@ -1,6 +1,6 @@
 # Upstream Sync: 2026-09-08
 
-Upstream: `SmileLee-lyx/ne-rewritten`, `master` at `290a6d7`.
+Upstream: `SmileLee-lyx/ne-rewritten`, `master` at `f799a50`.
 Local starting point: `8c0636d`.
 Initial divergence: 31 local-only commits, 16 upstream-only commits.
 
@@ -76,7 +76,25 @@ Review fixes included with round two:
 - Regression tests cover the above ownership/export boundaries as well as
   creation, validation, hydration, source replacement and rollback.
 
-## Verification
+## Round Three: Integrated
+
+Three additional upstream commits merge without textual conflicts:
+
+- `f0263d5`: generic MinHeap and TUPMS delayed-key initialization fix.
+- `3bb80ea`: UP1MN, UPMS FS variants and supporting exports/registration.
+- `f799a50`: translated UP1MN description.
+
+Compatibility adaptation: retain the existing `UP2MN-v1a` notation ID instead
+of adopting upstream's lowercase rename. Persisted analyses, notes, selections
+and initial variants remain associated with the existing notation.
+
+Added five regression checks for heap ordering, UP1MN registration, stable
+UP2MN identity and UP1MN/UPMS/TUPMS expansion/parser round trips.
+Round-three verification: 45 test files / 292 tests and standard, compatibility
+and standalone builds pass. Browser checks below describe round two; they were
+not repeated for this algorithm-only sync. Existing build warnings remain.
+
+## Round-Two Verification
 
 - Type checking and standard, compatibility and standalone builds pass.
 - Full Vitest suite: 44 files, 287 tests pass.

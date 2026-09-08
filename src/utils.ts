@@ -228,3 +228,72 @@ export class DisplayMap<T, V> {
         this._map.forEach(([k, v]) => callback(v, k));
     }
 }
+
+/**
+ * 二叉最小堆(泛型, 比较器注入)。
+ *
+ * 优先级由调用方提供的 compare 决定(如闭包内的动态状态), 元素入堆后
+ * 其相对顺序须保持不变(需要"改键后更新"的场合请先 pop 再 push)。
+ * 典型用法(取最小):
+ *   const heap = new MinHeap<number>(delayed_cmp);
+ *   heap.push(i);
+ *   while (!heap.is_empty()) { const i = heap.pop_min()!; ... }
+ */
+export class MinHeap<T> {
+    private readonly items: T[] = [];
+
+    constructor(private readonly compare: Comparator<T>) {}
+
+    get size(): number {
+        return this.items.length;
+    }
+
+    is_empty(): boolean {
+        return this.items.length === 0;
+    }
+
+    /** 插入一个元素(上浮)。 */
+    push(value: T): void {
+        const items = this.items;
+        items.push(value);
+        let i = items.length - 1;
+        while (i > 0) {
+            const p = (i - 1) >> 1;
+            if (this.compare(items[i], items[p]) >= 0) break;
+            const tmp = items[i];
+            items[i] = items[p];
+            items[p] = tmp;
+            i = p;
+        }
+    }
+
+    /** 查看最小元素(不移除); 空堆返回 undefined。 */
+    peek_min(): T | undefined {
+        return this.items[0];
+    }
+
+    /** 弹出并返回最小元素; 空堆返回 undefined。 */
+    pop_min(): T | undefined {
+        const items = this.items;
+        const length = items.length;
+        if (length === 0) return undefined;
+        const top = items[0];
+        const last = items.pop()!;
+        if (length === 1) return top;
+        items[0] = last;
+        let i = 0;
+        for (;;) {
+            const l = i * 2 + 1;
+            const r = l + 1;
+            if (l >= items.length) break;
+            let m = l;
+            if (r < items.length && this.compare(items[r], items[l]) < 0) m = r;
+            if (this.compare(items[i], items[m]) <= 0) break;
+            const tmp = items[i];
+            items[i] = items[m];
+            items[m] = tmp;
+            i = m;
+        }
+        return top;
+    }
+}

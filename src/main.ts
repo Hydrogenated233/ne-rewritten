@@ -105,6 +105,7 @@ import { app_storage } from '@/core/storage.ts';
 import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
 import { IS_STANDALONE, LOCAL_NOTATION_EXECUTION_DISABLED } from '@/core/deployment.ts';
 import { BBM } from '@/notations/BM-like/BBM.ts';
+import { UP1MN } from '@/notations/MN/UPMN/UP1MN.ts';
 
 const SETTINGS_KEY_NAME = APP_STORAGE_KEYS.settings;
 
@@ -279,6 +280,7 @@ register_notation(SA_omega2_MN);
 register_notation(S_omega2_MN);
 register_notation(S_omega_pow_omega_MN);
 register_category(category_upmn);
+register_notation(UP1MN);
 register_notation(UP2MN_v1a);
 register_category(category_den);
 register_notation(DEN);

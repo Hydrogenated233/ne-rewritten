@@ -15,7 +15,7 @@ import {
     parents,
     standardize,
 } from '@/notations/BM-like/BM.ts';
-import { sequence_FS_variants0 } from '@/notations/notation_utils.ts';
+import { sequence_FS_variants } from '@/notations/notation_utils.ts';
 import { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 import { bind3, boolean_compare, lex_compare, lex_compare_by, number_compare, tuple_lex_compare_by } from '@/utils.ts';
 
@@ -193,7 +193,7 @@ function compute_UPMS_verification_roots(ctx: Context, rootCol: number, t: numbe
     return vr;
 }
 
-function expand(matrix: Expr, index: number, bm_threshold: number = 1): Expr {
+function expand(matrix: Expr, index: number, bm_threshold: number = 1, shorter: boolean = true): Expr {
     const ctx = make_context(matrix);
     const m = ctx.m;
     const n = Math.max(0, Math.floor(index));
@@ -206,11 +206,13 @@ function expand(matrix: Expr, index: number, bm_threshold: number = 1): Expr {
     const delta = compute_delta(ctx, r, t);
     const vr = compute_UPMS_verification_roots(ctx, r, t, bm_threshold);
     const result: Expr = [...m.slice(0, alpha)];
-    for (let w = 1; w <= n; w++) {
+    for (let w = 1; w <= n + 1; w++) {
+        if (shorter && w > n) break;
         for (let j = r; j < alpha; j++) {
             let result_col = [...m[j]];
             for (let k = 0; k < vr[j]; k++) result_col[k] += delta[k] * w;
             result.push(result_col);
+            if (w > n) break;
         }
     }
     return normalize(result);
@@ -235,7 +237,7 @@ export const UPMS: NotationDefinition<Expr> = {
     },
     is_limit,
     compare,
-    ...sequence_FS_variants0(expand, is_infinity, infinity_FS, is_limit, display),
+    ...sequence_FS_variants(bind3(expand, 1), is_infinity, infinity_FS, is_limit, display),
     credit_text_id: 'credit.test-alpha0',
 
     init: () => [INFINITY(), []],
@@ -263,7 +265,7 @@ function partial_UPMS(n: number): NotationDefinition<Expr> {
         },
         is_limit,
         compare,
-        ...sequence_FS_variants0(bind3(expand, n), is_infinity, infinity_FS, is_limit, display),
+        ...sequence_FS_variants(bind3(expand, n), is_infinity, infinity_FS, is_limit, display),
         credit_text_id: 'credit.test-alpha0',
 
         init: () => [INFINITY(), [[], Array<number>(n + 3).fill(1)], []],
