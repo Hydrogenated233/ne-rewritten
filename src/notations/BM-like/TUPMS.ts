@@ -1,4 +1,4 @@
-import { number_compare, tuple_lex_compare } from '@/utils.ts';
+import { MinHeap, number_compare, tuple_lex_compare } from '@/utils.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
 import {
     ascension_threshold as TBM_ascension_threshold,
@@ -74,20 +74,15 @@ export function ascension_threshold(
     A[r] = b;
 
     // use min-heap to test columns in vertical order
+    // 优先级由闭包内的 A_delayed 状态决定(按 (延迟竖直位置, 列号) 升序), 用注入比较器的最小堆实现
     const A_delayed: [Vertical, boolean][] = [];
-    const heap: number[] = [undefined!];
+    const heap = new MinHeap<number>(delayed_cmp);
 
     for (let i = r + 1; i < m.length; i++) {
-        heap.push(i);
+        // 先给 A_delayed 赋值再入堆: MinHeap.push 会立即堆化并调用比较器,
+        // 若此时 A_delayed[i] 尚未定义, 比较器读取 A_delayed[child][0] 会抛错。
         A_delayed[i] = [[], false];
-    }
-
-    function is_empty(): boolean {
-        return heap.length === 1;
-    }
-
-    function top(): number {
-        return heap[1];
+        heap.push(i);
     }
 
     function delayed_cmp(i: number, j: number) {
@@ -98,51 +93,10 @@ export function ascension_threshold(
         );
     }
 
-    function handle(i: number) {
-        if (i <= 1) return;
-        const j = Math.floor(i / 2);
-        const cmp = delayed_cmp(heap[i], heap[j]);
-        if (cmp < 0) {
-            const tmp = heap[i];
-            heap[i] = heap[j];
-            heap[j] = tmp;
-
-            handle(j);
-        }
-    }
-
-    function pop(i: number = 1) {
-        if (i === heap.length - 1) {
-            heap.pop();
-            return;
-        }
-        if (i * 2 >= heap.length) {
-            const value = heap.pop()!;
-            heap[i] = value;
-            handle(i);
-            return;
-        }
-        if (i * 2 + 1 === heap.length) {
-            heap[i] = heap[i * 2];
-            pop(i * 2);
-            return;
-        }
-        const cmp = delayed_cmp(heap[i * 2], heap[i * 2 + 1]);
-        const j = cmp < 0 ? i * 2 : i * 2 + 1;
-        heap[i] = heap[j];
-        pop(j);
-    }
-
-    function insert(key: number) {
-        heap.push(key);
-        handle(heap.length - 1);
-    }
-
     const root_cache: Vertical[][] = [];
 
-    while (!is_empty()) {
-        const i = top();
-        pop();
+    while (!heap.is_empty()) {
+        const i = heap.pop_min()!;
         const [prev_pos, vr] = A_delayed[i];
         delete A_delayed[i];
         if (!vr) {
@@ -271,7 +225,7 @@ export function ascension_threshold(
             A[i] = upgrading ? b : prev_pos;
         }
 
-        if (A_delayed[i] !== undefined) insert(i);
+        if (A_delayed[i] !== undefined) heap.push(i);
     }
 
     return A;
