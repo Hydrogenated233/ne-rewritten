@@ -170,7 +170,7 @@ function compute_UPMS_verification_roots(ctx: Context, rootCol: number, t: numbe
                 continue;
             }
             let higher_parent_escapes_bad_root = false;
-            for (let vRow = row + 1; vRow < t - 1; vRow++) {
+            for (let vRow = row + 1; vRow <= t; vRow++) {
                 if (P[col][vRow] !== y) {
                     higher_parent_escapes_bad_root = true;
                     break;
