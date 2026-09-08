@@ -145,7 +145,7 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
                 alert(create_t(settings.language)('import.error'));
             }
             if (settings.expand_all_on_import) {
-                expand_all_pending(r, n, settings.variant, settings.max_find_fs);
+                expand_all_pending(r, n, settings.variant);
             }
             if (matched.length > 0) {
                 const last = matched[matched.length - 1];

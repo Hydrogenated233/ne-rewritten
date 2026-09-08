@@ -202,41 +202,31 @@ function locate_host<T>(root: TreeNode<T>, x: T, notation: NotationDefinition<T>
 /**
  * 展开某节点区间中的全部挂载条目：排干该节点的桶（反复 expand_item, tier 0,
  * 一次一个 FS 项，经 expand_single 分派），直到桶清空；非标准数据触发
- * generate_fs 抛异常时以 max_find_fs 兜底停止。随后递归子节点，完全物化区间。
+ * 试展开守卫时以异常兜底停止。随后递归子节点，完全物化区间。
  */
-export function expand_pending_node<T>(
-    node: TreeNode<T>,
-    notation: NotationDefinition<T>,
-    variant: string,
-    max_find_fs: number = 10,
-): void {
+export function expand_pending_node<T>(node: TreeNode<T>, notation: NotationDefinition<T>, variant: string): void {
     // 记录本次排干产出的所有节点：节点为最小子时首次展开经 append_sibling
     // 产出的是兄弟节点（不在 node.children 中），必须一并收集再递归。
     const created_list: TreeNode<T>[] = [];
     while (node.pending_items && node.pending_items.length > 0) {
         let created: TreeNode<T> | undefined;
         try {
-            created = expand_item(node, notation, variant, 0, max_find_fs);
+            created = expand_item(node, notation, variant, 0);
         } catch {
-            break; // 非标准数据, max_fs 兜底
+            break; // 非标准数据, 试展开守卫兜底
         }
         if (!created) break;
         created_list.push(created);
     }
     for (const created of created_list) {
-        expand_pending_node(created, notation, variant, max_find_fs);
+        expand_pending_node(created, notation, variant);
     }
 }
 
 /** 展开全部挂载条目（对整个树，等价于把惰性导入完全物化）。 */
-export function expand_all_pending<T>(
-    root: TreeNode<T>,
-    notation: NotationDefinition<T>,
-    variant: string,
-    max_find_fs: number = 10,
-): void {
+export function expand_all_pending<T>(root: TreeNode<T>, notation: NotationDefinition<T>, variant: string): void {
     for (const child of root.children) {
-        expand_pending_node(child, notation, variant, max_find_fs);
+        expand_pending_node(child, notation, variant);
     }
 }
 
@@ -250,7 +240,6 @@ export function import_analysis_eager<T>(
     entries: AnalysisEntry<T>[],
     notation: NotationDefinition<T>,
     variant: string,
-    max_find_fs: number = 10,
 ): TreeNode<T>[] {
     const matched: TreeNode<T>[] = [];
     let node = last_descendant(root);
@@ -267,16 +256,8 @@ export function import_analysis_eager<T>(
             matched.push(node);
             index++;
         } else if (cmp > 0) {
-            if (node.fs_state && node.fs_state.index >= max_find_fs) {
-                console.log(
-                    'import: skipped (max_find_fs reached — possible non-standard expression):',
-                    resolve_display(notation.display).plain(entries[index].expr),
-                );
-                index++;
-                continue;
-            }
             try {
-                const created = expand_item(node, notation, variant, 0, max_find_fs);
+                const created = expand_item(node, notation, variant, 0);
                 if (!created) {
                     console.log(
                         'import: skipped (expand failed — expression order may be wrong):',
@@ -287,8 +268,9 @@ export function import_analysis_eager<T>(
                 }
                 node = created;
             } catch {
+                // 试展开守卫兜底: 该条目大概率非标准, 跳过
                 console.log(
-                    'import: skipped (max_find_fs reached — possible non-standard expression):',
+                    'import: skipped (trial-expansion guard reached — possible non-standard expression):',
                     resolve_display(notation.display).plain(entries[index].expr),
                 );
                 index++;
