@@ -1,6 +1,7 @@
-import { Comparator, lex_compare, number_compare, tuple_lex_compare } from '@/utils.ts';
+import { number_compare, tuple_lex_compare } from '@/utils.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
 import {
+    ascension_threshold as TBM_ascension_threshold,
     Column,
     column_add,
     column_compare,
@@ -18,12 +19,11 @@ import {
     INFINITY,
     infinity_FS,
     is_one,
+    ONE,
     parents,
     to_vertical,
     Vertical,
     vertical_compare,
-    ascension_threshold as TBM_ascension_threshold,
-    ONE,
 } from '@/notations/BM-like/TBM.ts';
 
 export function expand_limit(m: Expr, index: number): Expr {

@@ -8,7 +8,7 @@ import {
     object_lex_compare_by,
 } from '@/utils.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
-import { FS_default_LNZ_variant, MN_FS_variants } from '@/notations/notation_utils.ts';
+import { FS_default_LNZ_variant } from '@/notations/notation_utils.ts';
 
 export type Expr = Column[];
 export type Column = Entry[];

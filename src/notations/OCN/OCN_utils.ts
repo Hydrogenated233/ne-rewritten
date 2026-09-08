@@ -1,4 +1,4 @@
-import { TextSpec, NotationDisplaySpec } from '@/notation-definition.ts';
+import { NotationDisplaySpec, TextSpec } from '@/notation-definition.ts';
 
 export type DisplayType = 'plain' | 'html' | 'latex';
 

@@ -10,7 +10,6 @@ import {
     y_diagram_control,
 } from '@/notations/Y/Omega_Y.ts';
 import { Y_FS_variants } from '@/notations/notation_utils.ts';
-import { deepcopy } from '@/utils.ts';
 import { NotationDefinition } from '@/notation-definition.ts';
 
 function weak_is_limit(a: Expr): boolean {

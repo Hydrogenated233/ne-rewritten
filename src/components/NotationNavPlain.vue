@@ -3,7 +3,7 @@ import { computed, inject } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
-import { resolve_display_name, resolve_name, type NotationDefinition } from '@/notation-definition.ts';
+import { type NotationDefinition, resolve_display_name, resolve_name } from '@/notation-definition.ts';
 import { get_init_variant_meta, get_notation, is_extra_generated, list_notations } from '@/core/registry.ts';
 
 const settings = inject(SETTINGS_KEY)!;
