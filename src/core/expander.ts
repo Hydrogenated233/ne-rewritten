@@ -69,7 +69,7 @@ function generate_fs<T>(node: TreeNode<T>, ctx: ExpandCtx<T>, bound: T | undefin
 /**
  * 只"展开一次": 计算 node 越过其列表下一项(bound)的下一个 FS 项并插入。
  *
- * 插入方向(as_sibling, 语义详见根目录 树展开算法.md):
+ * 插入方向(as_sibling, 语义详见 docs/树展开算法.md):
  * - as_sibling=true   → 作为 node 的兄弟插入(追加到父节点子列表尾部; 即"兄弟展开");
  * - as_sibling=false  → 作为 node 的首个子节点插入。
  *
@@ -153,7 +153,7 @@ function dispatch_pending<T>(node: TreeNode<T>, new_node: TreeNode<T>, v: T, not
 }
 
 /**
- * 多层展开的实现(行为自原 NE 保留; 语义说明见根目录 树展开算法.md)。
+ * 多层展开的实现(行为自原 NE 保留; 语义说明见 docs/树展开算法.md)。
  *
  * 结构要点:
  * - 带同一 tier 的递归调用构成"兄弟展开链"(tier 不递减): 每步对刚生成的节点
