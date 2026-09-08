@@ -31,6 +31,8 @@ export interface NotationDefinition<T> {
     FS_short?: (a: T, index: number) => T;
 
     debug?: Record<string, any>;
+
+    debug_verification?: (a: T) => boolean;
 }
 ```
 `T` 为记号的表达式类型.
@@ -163,6 +165,19 @@ type NotationDisplaySpec<T> =
 在输入框按 `Ctrl+D` 可以向控制台输出当前记号与表达式, 
 还会把记号与表达式挂载到全局 `notation` 和 `expr` 变量上,
 这时可以用 `notation.debug.xxx` 来获取暴露的函数并调试执行.
+
+### debug_verification
+
+```ts
+    debug_verification?: (a: T) => boolean;
+```
+
+`debug_verification` 可选字段为调试校验器: 若定义了该字段, 每次展开创建新节点时,
+都会对新生成的表达式调用该函数. 若返回 `false`, 仅会在控制台打印警告, 节点仍会正常创建,
+便于在手动展开表达式树时快速校验展开是否正确.
+
+> **注意**: 该字段仅供调试使用, 对每个新建节点都有额外调用开销;
+> 在正式发布(或把记号分发给他人)之前, 建议删除该字段以减少性能开销.
 
 ## 定义记号类别
 

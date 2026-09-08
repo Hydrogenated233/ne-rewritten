@@ -1,6 +1,6 @@
 import { append_sibling, get_bound, prepend_child, TreeNode } from '@/core/tree.ts';
 import { FsTrialExpansionError } from '@/core/errors.ts';
-import { NotationDefinition } from '@/notation-definition.ts';
+import { NotationDefinition, resolve_display } from '@/notation-definition.ts';
 
 function resolve_fs<T>(notation: NotationDefinition<T>, variant: string): (expr: T, index: number) => T {
     switch (variant) {
@@ -69,6 +69,22 @@ function expand_single<T>(
         result_expr = fs(node.expr, 0);
         if (notation.compare(result_expr, node.expr) >= 0) return;
         if (bound !== undefined && notation.compare(result_expr, bound) <= 0) return;
+    }
+
+    // debug_verification(仅该记号定义时生效): 校验失败仅打印警告, 节点照常创建。
+    if (notation.debug_verification) {
+        let verified = false;
+        try {
+            verified = notation.debug_verification(result_expr);
+        } catch {
+            verified = false;
+        }
+        if (!verified) {
+            console.warn(
+                '[debug_verification] 展开生成的节点未通过校验(仍已创建): ' +
+                    resolve_display(notation.display).plain(result_expr),
+            );
+        }
     }
 
     const new_node = to_parent ? append_sibling(node, result_expr) : prepend_child(node, result_expr);

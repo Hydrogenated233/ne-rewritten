@@ -26,6 +26,13 @@ export interface NotationDefinition<T> {
     init: () => T[];
 
     debug?: Record<string, any>;
+
+    /**
+     * Debug 校验器(仅调试用): 存在时, 每次展开创建新节点都会对该表达式运行;
+     * 返回 false 时仅在控制台打印警告, 节点照常创建。
+     * 每次建节点都有调用开销, 正式发布(或分发给他人)前请删除该字段。
+     */
+    debug_verification?: (a: T) => boolean;
 }
 
 export interface NotationCategoryGenerator {

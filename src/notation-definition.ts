@@ -161,6 +161,13 @@ export interface NotationDefinition<T> {
 
     /** Debug helpers — not consumed by the app but accessible at runtime. */
     debug?: Record<string, any>;
+
+    /**
+     * Debug 校验器(可选): 存在时, expander 每生成一个新树节点都会对该表达式运行本函数;
+     * 返回 false 时仅在控制台打印警告(节点照常创建)。
+     * 仅供"手动展开表达式树做快速校验"这类调试用途; 未定义时完全无开销。
+     */
+    debug_verification?: (a: T) => boolean;
 }
 
 export interface NotationCategoryGenerator {
