@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { build_standalone } from '@/core/standalone_export.ts';
 import {
     generator_increment,
-    init_generator,
     register_category,
     register_notation,
     unregister_category,
+    unregister_notation,
 } from '@/core/registry.ts';
 import type { NotationCategoryDefinition } from '@/notation-definition.ts';
 import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
@@ -16,6 +16,10 @@ function response(text: string, status = 200): any {
 
 describe('standalone export boundary', () => {
     it('embeds the compat kernel, isolates storage, and seeds only loaded trusted files', async () => {
+        register_notation({
+            id: 'bm4', name: 'BMS', display: String, is_limit: () => false,
+            compare: () => 0, FS: (value) => value, init: () => [0],
+        });
         const local = new Map<string, string>([
             [APP_STORAGE_KEYS.settings, JSON.stringify({ current_notation_id: 'bm4' })],
             ['ne-settings', JSON.stringify({ current_notation_id: 'source-repository-value' })],
@@ -88,6 +92,7 @@ describe('standalone export boundary', () => {
         expect(result.html).toContain('katex@0.17.0/dist/katex.min.css');
         expect(result.html).toContain('read-excel-file@9.3.10/bundle/read-excel-file.min.js');
         expect(result.fileName).toBe('notation-explorer-standalone.html');
+        unregister_notation('bm4');
         delete (globalThis as any).window;
         delete (globalThis as any).localStorage;
     });
@@ -141,7 +146,6 @@ describe('standalone export boundary', () => {
             },
         };
         register_category(category);
-        init_generator(category);
         Object.defineProperty(globalThis, 'window', {
             configurable: true,
             value: { location: { href: 'https://example.test/ne-rewritten/' } },

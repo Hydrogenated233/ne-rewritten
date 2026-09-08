@@ -9,6 +9,8 @@ import { use_expand_dialog } from '@/composables/use_expand_dialog.ts';
 import { expand_all_pending, import_analysis_eager } from '@/core/analysis.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { focus_node_input, get_last_focus, prepare_pointer_focus } from '@/composables/use_focus_tracker.ts';
+import InitVariantBar from '@/components/InitVariantBar.vue';
+import { IS_STANDALONE } from '@/core/deployment.ts';
 
 const settings = inject(SETTINGS_KEY)!;
 const t = inject(I18N_KEY)!;
@@ -135,6 +137,7 @@ function handle_expand_all(): void {
             <button @mousedown.prevent="handle_expand_all">{{ t('expand-all.expand') }}</button>
             <button @mousedown.prevent="ui.show_notes.value = true">{{ t('toolbar.notes') }}</button>
             <button @mousedown.prevent="open_direct_expand">{{ t('toolbar.direct-expand') }}</button>
+            <InitVariantBar v-if="!IS_STANDALONE" />
             <button class="toolbar-btn-tips" @mousedown.prevent="ui.show_tips.value = true">
                 {{ t('toolbar.tips') }}
             </button>

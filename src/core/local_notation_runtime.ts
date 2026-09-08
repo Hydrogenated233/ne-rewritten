@@ -1,4 +1,4 @@
-import { get_notation } from '@/core/registry.ts';
+import { get_notation, list_init_variant_ids, remove_init_variant, with_init_variant_ids } from '@/core/registry.ts';
 import {
     get_script_category_ids,
     get_script_notation_ids,
@@ -76,7 +76,12 @@ export class LocalNotationRuntime {
 
     /** Return the last committed notation manifest for one local file. */
     getNotationIds(id: string): string[] {
-        return [...(this.getFile(id)?.manifest?.notations ?? [])];
+        const files = this.listFiles();
+        const file = files.find((item) => item.id === id);
+        const live_ids = file?.enabled && !this.executionDisabled
+            ? get_script_notation_ids(files.findIndex((item) => item.id === id))
+            : [];
+        return with_init_variant_ids([...(file?.manifest?.notations ?? []), ...live_ids]);
     }
 
     setDraft(id: string, draft: Parameters<LocalNotationFileStore['setDraft']>[1]) {
@@ -273,14 +278,27 @@ export class LocalNotationRuntime {
         return this.saveFile(id, name, source);
     }
 
-    deleteFile(id: string): { file: LocalNotationFile; previous: LocalNotationFile; deleted: true } {
+    deleteFile(id: string): { file: LocalNotationFile; previous: LocalNotationFile; deleted: true; retainedNotationIds: string[] } {
         const file = this.require_file(id);
         const previous = this.listFiles();
         const remove_live_source = file.enabled && !this.executionDisabled;
         if (remove_live_source) this.apply_or_throw(previous.filter((item) => item.id !== id));
+        // Historical IDs are not ownership: another file may now provide the base,
+        // including a currently disabled file whose variants must remain dormant.
+        const retained = new Set(with_init_variant_ids(previous
+            .filter((item) => item.id !== id).flatMap((item) => item.manifest.notations)));
+        for (const base_id of file.knownNotationIds) {
+            if (get_notation(base_id)) {
+                for (const retained_id of with_init_variant_ids([base_id])) retained.add(retained_id);
+            }
+        }
         try {
             const removed = this.store.deleteFile(id);
-            return { file: removed, previous: file, deleted: true };
+            for (const base_id of new Set([...file.knownNotationIds, ...file.manifest.notations])) {
+                if (retained.has(base_id)) continue;
+                for (const variant_id of list_init_variant_ids(base_id)) remove_init_variant(variant_id);
+            }
+            return { file: removed, previous: file, deleted: true, retainedNotationIds: [...retained] };
         } catch (error) {
             if (remove_live_source) this.apply_or_throw(previous);
             throw error;

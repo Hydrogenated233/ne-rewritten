@@ -1,6 +1,7 @@
 import type { Settings } from '@/core/settings.ts';
 import type { LocalNotationFile, StorageLike } from '@/core/local_notation_store.ts';
 import { analysis_storage_key, note_storage_key } from '@/core/storage_keys.ts';
+import { with_init_variant_ids } from '@/core/registry.ts';
 
 export type LocalNotationLifecycleAction = 'save' | 'replace-upload' | 'upload' | 'enable' | 'disable' | 'delete';
 
@@ -17,6 +18,7 @@ export interface LocalNotationLifecycleResult {
     enabled?: boolean;
     sourceChanged?: boolean;
     deleted?: boolean;
+    retainedNotationIds?: string[];
 }
 
 export interface LocalNotationLifecycleContext {
@@ -28,7 +30,7 @@ export interface LocalNotationLifecycleContext {
     settings: Pick<
         Settings,
         'current_notation_id' | 'equiv_active' | 'equiv_hide_original' | 'shown_equiv' | 'expand'
-    >;
+    > & Partial<Pick<Settings, 'hidden_notations'>>;
     storage: Pick<StorageLike, 'getItem' | 'setItem'> & { removeItem?: (key: string) => void };
 }
 
@@ -56,6 +58,7 @@ function clear_equivalent_state(
         delete settings.equiv_active[id];
         delete settings.equiv_hide_original[id];
         delete settings.shown_equiv[id];
+        if (settings.hidden_notations) settings.hidden_notations = settings.hidden_notations.filter((value) => value !== id);
     }
 }
 
@@ -99,15 +102,17 @@ function reconcile_selection(context: LocalNotationLifecycleContext, preferred?:
  */
 export function apply_local_notation_lifecycle(context: LocalNotationLifecycleContext): void {
     const { action, result, snapshot } = context;
-    const oldIds = unique([
+    const oldIds = with_init_variant_ids(unique([
         ...snapshot.oldNotationIds,
         ...snapshot.knownNotationIds,
         ...(result.previous?.manifest.notations ?? []),
-    ]);
-    const newIds = unique(result.file.manifest.notations);
+    ]));
+    const newIds = with_init_variant_ids(result.file.manifest.notations);
 
     if (action === 'delete') {
-        const removedIds = unique([...oldIds, ...result.file.knownNotationIds, ...newIds]);
+        const retained = new Set([...(result.retainedNotationIds ?? []), ...context.availableNotationIds]);
+        const removedIds = unique([...oldIds, ...result.file.knownNotationIds, ...newIds])
+            .filter((id) => !retained.has(id));
         clear_trees(context.trees, removedIds);
         remove_analysis(context.storage, removedIds);
         remove_notes(context.storage, removedIds);
@@ -117,7 +122,7 @@ export function apply_local_notation_lifecycle(context: LocalNotationLifecycleCo
     }
 
     if (action === 'disable') {
-        clear_trees(context.trees, newIds.length ? newIds : oldIds);
+        clear_trees(context.trees, unique([...oldIds, ...newIds]));
         reconcile_selection(context);
         return;
     }

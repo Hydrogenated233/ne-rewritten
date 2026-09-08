@@ -243,7 +243,7 @@ register_category({
 6. 生成器状态写入 `nerw-settings`，刷新后恢复。
 7. 当前接口没有最大索引字段；算法自身必须验证安全整数和资源上限。
 
-内置 TypeScript 分类需要在 `main.ts` 调用 `init_generator(category)`。本地文件运行时会自动初始化带生成器的分类，不应从本地源码调用初始化器。
+`register_category(category)` 自动初始化生成器成员；内置与本地文件均不再单独调用初始化器。启动时必须先注入持久化的生成器状态，再注册分类。
 
 ## 9. 本地文件运行时
 
@@ -297,7 +297,7 @@ export const example: NotationDefinition<Expr> = {
 };
 ```
 
-然后在 `main.ts` 按依赖顺序导入并调用 `register_notation(example)`。新增生成分类时同时调用 `register_category` 与 `init_generator`。
+然后在 `main.ts` 按依赖顺序导入并调用 `register_notation(example)`。新增生成分类时调用 `register_category`，成员会自动注册。
 
 ## 11. 图表接口
 

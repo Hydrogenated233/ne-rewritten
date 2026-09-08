@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { NotationCategoryDefinition } from '@/notation-definition.ts';
-import { count_notation_items, init_generator, register_category, unregister_category } from '@/core/registry.ts';
+import { count_notation_items, register_category, unregister_category } from '@/core/registry.ts';
 
 const category: NotationCategoryDefinition = {
     id: 'logical-count-generator-fixture',
@@ -26,7 +26,6 @@ afterEach(() => unregister_category(category.id));
 describe('logical notation count', () => {
     it('counts every instantiated member of one generated family as one item', () => {
         register_category(category);
-        init_generator(category);
 
         expect(
             count_notation_items([

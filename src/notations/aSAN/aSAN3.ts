@@ -1,11 +1,11 @@
 import {
-    INFINITY,
     aSAN_able,
     aSAN_base,
     aSAN_compare,
     aSAN_display,
     aSAN_from_display,
     aSAN_semiable,
+    INFINITY,
     is_infinity,
 } from './asan_helpers.ts';
 import { NotationDefinition } from '@/notation-definition.ts';

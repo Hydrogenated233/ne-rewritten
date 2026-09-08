@@ -10,6 +10,7 @@ import { find_bracket_match, get_line_numbers, render_highlighted_source } from 
 import ModalDialog from './ModalDialog.vue';
 import TEMPLATE_JS from '@/assets/template.js?raw';
 import GUIDE_MD from '@/assets/making-a-notation.md?raw';
+import { get_init_variant_meta, list_init_variant_ids } from '@/core/registry.ts';
 
 const t = inject(I18N_KEY)!;
 const runtime = inject(LOCAL_NOTATION_RUNTIME_KEY)!;
@@ -24,6 +25,12 @@ const highlight_layer = ref<HTMLPreElement | null>(null);
 const line_gutter_content = ref<HTMLDivElement | null>(null);
 const show_delete_confirm = ref(false);
 const delete_target_id = ref('');
+const delete_variant_ids = computed(() => {
+    ui.registry_notifier.listen();
+    const file = runtime.getFile(delete_target_id.value);
+    return [...new Set([...(file?.knownNotationIds ?? []), ...(file?.manifest.notations ?? [])]
+        .flatMap(list_init_variant_ids))];
+});
 const show_new_dialog = ref(false);
 const new_script_name = ref('');
 const status_message = ref('');
@@ -869,6 +876,14 @@ onMounted(() => {
 
     <ModalDialog :show="show_delete_confirm" :title="t('user-defined.delete')" @close="show_delete_confirm = false">
         <p class="delete-message">{{ t('user-defined.delete-confirm') }}</p>
+        <template v-if="delete_variant_ids.length">
+            <p>{{ t('variant.file-delete-impact') }}</p>
+            <ul>
+                <li v-for="id in delete_variant_ids" :key="id">
+                    {{ get_init_variant_meta(id)?.base_id }}: {{ t('variant.label', { n: String(get_init_variant_meta(id)?.seq) }) }} ({{ id }})
+                </li>
+            </ul>
+        </template>
         <div class="delete-buttons">
             <button class="delete-btn-cancel" @mousedown="show_delete_confirm = false">
                 {{ t('user-defined.cancel') }}

@@ -1,4 +1,4 @@
-import { get_notation } from '@/core/registry.ts';
+import { get_notation, get_init_variant_meta } from '@/core/registry.ts';
 import pps_family_source from '../../public/notations/PPS-family.js?raw';
 
 export interface BuiltinNotationSourceFile {
@@ -50,6 +50,7 @@ function display_path(modulePath: string): string {
 }
 
 export function select_builtin_notation_sources(notationIds: string[]): BuiltinNotationSourceFile[] {
+    notationIds = notationIds.map((id) => get_init_variant_meta(id)?.base_id ?? id);
     const selectedIds = new Set(notationIds);
     const selectedCategoryIds = new Set(
         notationIds.map((id) => get_notation(id)?.category_id).filter((id): id is string => typeof id === 'string'),

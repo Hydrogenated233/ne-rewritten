@@ -1,13 +1,16 @@
-import { get_category, get_category_children, get_notation, list_notations } from '@/core/registry.ts';
+import { get_category, get_category_children, get_notation, list_notations, get_init_variant_meta, get_variant_state_snapshot, with_init_variant_ids } from '@/core/registry.ts';
 import { app_storage } from '@/core/storage.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
 import type { BuiltinNotationSourceFile } from '@/core/builtin_notation_sources.ts';
+import { is_local_notation } from '@/core/user_defined_notation.ts';
 import { analysis_storage_key, APP_STORAGE_KEYS, APP_STORAGE_PREFIXES, note_storage_key } from '@/core/storage_keys.ts';
 
 export interface StandaloneExportOptions {
     localFiles: LocalNotationFile[];
     /** Built-in notation ids to keep in the exported runtime. Omit to keep all. */
     builtinNotationIds?: string[];
+    /** Explicit local variants. Built-in variants are selected through builtinNotationIds. */
+    localVariantIds?: string[];
     /** Source files corresponding to the selected built-in notations. */
     builtinSourceFiles?: BuiltinNotationSourceFile[];
     includeData: boolean;
@@ -308,10 +311,12 @@ function bootstrap_script(
     builtinNotationIds: string[] | undefined,
     builtinGeneratorCategoryIds: string[] | undefined,
     builtinSourceFiles: BuiltinNotationSourceFile[],
+    variantIds: string[],
 ): string {
     return (
         `(function(){\n` +
         `window.__NE_STANDALONE__=true;\n` +
+        `window.__NE_STANDALONE_VARIANT_IDS__=${json_for_script(variantIds)};\n` +
         (builtinNotationIds ? `window.__NE_STANDALONE_BUILTIN_IDS__=${json_for_script(builtinNotationIds)};\n` : '') +
         (builtinGeneratorCategoryIds
             ? `window.__NE_STANDALONE_GENERATOR_CATEGORY_IDS__=${json_for_script(builtinGeneratorCategoryIds)};\n`
@@ -394,21 +399,76 @@ export async function build_standalone(options: StandaloneExportOptions): Promis
     const selected = options.localFiles.filter(
         (file) => file.enabled && file.trusted && file.sourceRevision === file.loadedRevision,
     );
-    const local_notation_ids = new Set(selected.flatMap((file) => file.manifest.notations));
+    const local_base_ids = new Set(selected.flatMap((file) => [
+        ...file.manifest.notations,
+        ...file.manifest.categories.filter((id) => get_category(id)?.generator)
+            .flatMap((id) => get_category_children(id).filter((item) => item.kind === 'notation').map((item) => item.id)),
+    ]));
+    const local_notation_ids = new Set(with_init_variant_ids(local_base_ids));
     const available_builtin_ids = new Set(
         list_notations()
-            .filter((notation) => !local_notation_ids.has(notation.id))
+            .filter((notation) => !local_notation_ids.has(notation.id) && !is_local_notation(notation.id))
             .map((notation) => notation.id),
     );
-    const builtin_ids = options.builtinNotationIds
+    const selected_builtin_ids = options.builtinNotationIds
         ? [...new Set(options.builtinNotationIds)].filter((id) => available_builtin_ids.has(id))
         : undefined;
+    const builtin_ids = selected_builtin_ids
+        ? [...new Set(selected_builtin_ids.flatMap((id) => [id, get_init_variant_meta(id)?.base_id ?? id]))]
+        : undefined;
+    const variant_ids = new Set(
+        [...(selected_builtin_ids ?? [...available_builtin_ids]),
+            ...(options.localVariantIds ?? []).filter((id) => local_base_ids.has(get_init_variant_meta(id)?.base_id ?? ''))]
+            .filter((id) => {
+                const meta = get_init_variant_meta(id);
+                return !!meta && !!get_notation(id) &&
+                    (available_builtin_ids.has(id) || local_base_ids.has(meta.base_id));
+            }),
+    );
     const generator_category_ids = selected_generator_categories(builtin_ids);
     const builtin_source_files = (options.builtinSourceFiles ?? []).filter(
         (file) => typeof file?.name === 'string' && typeof file?.source === 'string',
     );
     const assets = await load_compat_assets(fetcher);
     const snapshot = snapshot_storage(options.includeData);
+    let seed_settings: Record<string, any> = {};
+    try {
+        const parsed = JSON.parse(snapshot[SETTINGS_KEY] ?? '{}');
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) seed_settings = parsed;
+    } catch { /* Ignore corrupt optional settings. */ }
+    // Definitions are source, not analysis data: export them even with includeData=false.
+    seed_settings.variant_state = Object.fromEntries(
+        Object.entries(get_variant_state_snapshot())
+            .map(([base, entries]) => [base, entries.filter((entry) => variant_ids.has(`${base}$${entry.seq}`))] as const)
+            .filter(([, entries]) => entries.length > 0),
+    );
+    const allowed_ids = new Set([...(builtin_ids ?? available_builtin_ids), ...local_base_ids, ...variant_ids]);
+    const data_ids = new Set([...(selected_builtin_ids ?? available_builtin_ids), ...local_base_ids, ...variant_ids]);
+    for (const key of Object.keys(snapshot)) {
+        for (const prefix of [APP_STORAGE_PREFIXES.analysis, APP_STORAGE_PREFIXES.note]) {
+            if (key.startsWith(prefix) && !data_ids.has(key.slice(prefix.length))) delete snapshot[key];
+        }
+    }
+    if (seed_settings.current_notation_id && !allowed_ids.has(seed_settings.current_notation_id)) {
+        seed_settings.current_notation_id = [...allowed_ids][0] ?? '';
+    }
+    for (const field of ['equiv_active', 'equiv_hide_original', 'shown_equiv']) {
+        const value = seed_settings[field];
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            seed_settings[field] = Object.fromEntries(Object.entries(value).filter(([id]) => data_ids.has(id)));
+        }
+    }
+    if (Array.isArray(seed_settings.hidden_notations)) {
+        seed_settings.hidden_notations = seed_settings.hidden_notations.filter((id: string) => data_ids.has(id));
+    }
+    if (seed_settings.expand && !allowed_ids.has(seed_settings.expand.notation_id)) {
+        seed_settings.expand = {
+            ...seed_settings.expand,
+            notation_id: seed_settings.current_notation_id || [...allowed_ids][0] || '',
+            notation_equiv: undefined,
+        };
+    }
+    snapshot[SETTINGS_KEY] = JSON.stringify(seed_settings);
     const html = standalone_html(
         title,
         assets.css,
@@ -420,6 +480,7 @@ export async function build_standalone(options: StandaloneExportOptions): Promis
             builtin_ids,
             generator_category_ids,
             builtin_source_files,
+            [...variant_ids],
         ),
     );
     return { html, fileName: encode_file_name(options.fileName), bundleId, selectedLocalFiles: selected };

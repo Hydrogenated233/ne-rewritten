@@ -1,6 +1,6 @@
 import type { Ref } from 'vue';
 import { computed, inject, type InjectionKey, reactive, ref, watch } from 'vue';
-import { get_notation, list_notations } from '@/core/registry.ts';
+import { get_notation, list_notations, with_init_variant_ids } from '@/core/registry.ts';
 import { init_dataset, type TreeNode } from '@/core/tree.ts';
 import {
     expand_all_pending,
@@ -33,6 +33,8 @@ export interface SaveLoadInstance {
     save_analysis: () => void;
     load_analysis: (id: string, r: TreeNode<unknown>) => void;
     handle_reset: () => void;
+    /** 彻底移除某记号的树数据: 内存 trees 条目 + localStorage 自动保存的分析(供删除变体等 UI 路径调用)。 */
+    remove_notation_data: (id: string) => void;
     handle_export: () => Promise<void>;
     handle_import: () => Promise<void>;
     init: () => void;
@@ -126,6 +128,19 @@ export function use_save_load(
         }
     }
 
+    function remove_notation_data(id: string) {
+        app_storage()?.removeItem?.(analysis_storage_key(id));
+        app_storage()?.removeItem?.(note_storage_key(id));
+        trees.delete(id);
+        delete settings.equiv_active[id];
+        delete settings.equiv_hide_original[id];
+        delete settings.shown_equiv[id];
+        settings.hidden_notations = settings.hidden_notations.filter((value) => value !== id);
+        if (settings.expand.notation_id === id) {
+            settings.expand = { ...settings.expand, notation_id: settings.current_notation_id, notation_equiv: undefined };
+        }
+    }
+
     function handle_reset() {
         const n = notation.value;
         if (!n) return;
@@ -139,8 +154,8 @@ export function use_save_load(
         return {
             notationOrder: list_notations().map((item) => item.id),
             currentNotationId: settings.current_notation_id,
-            oldNotationIds: [...(file.manifest?.notations ?? [])],
-            knownNotationIds: [...(file.knownNotationIds ?? [])],
+            oldNotationIds: with_init_variant_ids(file.manifest?.notations ?? []),
+            knownNotationIds: with_init_variant_ids(file.knownNotationIds ?? []),
         };
     }
 
@@ -271,6 +286,7 @@ export function use_save_load(
         save_analysis,
         load_analysis,
         handle_reset,
+        remove_notation_data,
         handle_export,
         handle_import,
         init,

@@ -1,34 +1,23 @@
-import {
-    boolean_compare,
-    deepcopy,
-    DisplayMap,
-    DisplaySet,
-    lex_compare,
-    number_compare,
-    tuple_lex_compare,
-} from '@/utils.ts';
 import { MN_FS_variants } from '@/notations/notation_utils.ts';
-import { draw_mountain_diagram, MountainDiagramData } from '@/notations/draw_mountain_util.ts';
-import { DiagramControl, NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
+import { NotationDefinition } from '@/notation-definition.ts';
 import {
     Column,
+    column_compare,
+    column_verticals,
     compare,
     convert_from_layer,
     convert_to_layer,
     draw_diagram_control,
+    expand as MN_expand,
     from_display,
     from_display_simple,
     is_limit,
     Mountain,
     mountain_display,
     mountain_display_marked,
-    to_data_key,
-    expand as MN_expand,
-    column_verticals,
     parent,
-    column_compare,
-    Entry,
     subtract_1,
+    to_data_key,
 } from '@/notations/MN/SMN/n_MN.ts';
 
 function INFINITY(): Mountain {

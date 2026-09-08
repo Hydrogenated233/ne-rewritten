@@ -11,9 +11,13 @@ import {
     get_notation,
     get_root_items,
     list_notations,
+    get_init_variant_meta,
+    list_init_variant_ids,
+    with_init_variant_ids,
 } from '@/core/registry.ts';
 import { resolve_name } from '@/notation-definition.ts';
 import ModalDialog from './ModalDialog.vue';
+import { is_local_notation } from '@/core/user_defined_notation.ts';
 
 type BuiltinTreeNode =
     | { kind: 'folder'; key: string; label: string; children: BuiltinTreeNode[]; atomic?: boolean }
@@ -37,18 +41,25 @@ const title = ref('Notation Explorer');
 const file_name = ref('notation-explorer-standalone.html');
 const selected_ids = ref<string[]>([]);
 const selected_builtin_ids = ref<string[]>([]);
+const selected_local_variant_ids = ref<string[]>([]);
 const expanded_builtin_folders = ref<Record<string, boolean>>({});
 const busy = ref(false);
 const error = ref('');
 const status = ref('');
 const files = ref<LocalNotationFile[]>([]);
+let selections_initialized = false;
 
 const selectable_files = computed(() =>
     files.value.filter((file) => file.enabled && file.trusted && file.sourceRevision === file.loadedRevision),
 );
-const local_notation_ids = computed(() => new Set(files.value.flatMap((file) => file.manifest.notations)));
+const local_notation_ids = computed(() => new Set(with_init_variant_ids(files.value.flatMap((file) => file.manifest.notations))));
+const local_variants = computed(() =>
+    selectable_files.value.filter((file) => selected_ids.value.includes(file.id))
+        .flatMap((file) => file.manifest.notations.flatMap(list_init_variant_ids))
+        .filter((id) => get_notation(id)),
+);
 const selectable_builtins = computed(() =>
-    list_notations().filter((notation) => !local_notation_ids.value.has(notation.id)),
+    list_notations().filter((notation) => !local_notation_ids.value.has(notation.id) && !is_local_notation(notation.id)),
 );
 const selected_count = computed(() => selected_ids.value.length);
 const selected_builtin_count = computed(() => count_notation_items(selected_builtin_ids.value));
@@ -57,6 +68,8 @@ const selectable_builtin_count = computed(() =>
 );
 
 function builtin_label(id: string): string {
+    const meta = get_init_variant_meta(id);
+    if (meta) return builtin_label(meta.base_id) + ' (' + t('variant.label', { n: String(meta.seq) }) + ')';
     const item = get_notation(id) ?? get_category(id);
     return item ? (resolve_name(item.simple_name ?? item.name, t) ?? id) : id;
 }
@@ -149,10 +162,15 @@ function refresh(): void {
     files.value = runtime.listFiles();
     const available = new Set(selectable_files.value.map((file) => file.id));
     selected_ids.value = selected_ids.value.filter((id) => available.has(id));
-    if (selected_ids.value.length === 0) selected_ids.value = [...available];
+    if (!selections_initialized) selected_ids.value = [...available];
+    const available_variants = new Set(local_variants.value);
+    selected_local_variant_ids.value = selections_initialized
+        ? selected_local_variant_ids.value.filter((id) => available_variants.has(id))
+        : [...available_variants];
     const available_builtin = new Set(selectable_builtins.value.map((notation) => notation.id));
     selected_builtin_ids.value = selected_builtin_ids.value.filter((id) => available_builtin.has(id));
-    if (selected_builtin_ids.value.length === 0) selected_builtin_ids.value = [...available_builtin];
+    if (!selections_initialized) selected_builtin_ids.value = [...available_builtin];
+    selections_initialized = true;
 }
 
 function open(): void {
@@ -217,6 +235,7 @@ async function export_html(): Promise<void> {
         const result = await build_standalone({
             localFiles: selected,
             builtinNotationIds: selected_builtin_ids.value,
+            localVariantIds: selected_local_variant_ids.value.filter((id) => local_variants.value.includes(id)),
             builtinSourceFiles: builtin_source_files,
             includeData: include_data.value,
             title: title.value,
@@ -279,6 +298,10 @@ defineExpose({ open });
                 <p v-if="selectable_files.length === 0" class="standalone-export__empty">
                     {{ t('standalone-export.no-local-files') }}
                 </p>
+                <label v-for="id in local_variants" :key="id" class="standalone-export__file">
+                    <input v-model="selected_local_variant_ids" :value="id" type="checkbox" />
+                    <span>{{ builtin_label(id) }}</span>
+                </label>
             </div>
             <div class="standalone-export__selection standalone-export__builtin-selection">
                 <div class="standalone-export__selection-header">

@@ -31,9 +31,10 @@ local-file lifecycle, isolated storage keys and standalone allow-list.
 DEN scaling additionally receives translated labels and a 0.1 input step.
 No registry hydration changes are included in this round.
 
-## Round Two: Awaiting User Decisions
+## Round Two: Integrated
 
-Deferred commits:
+The user confirmed the implemented recommendations on 2026-09-08. The final
+three commits are integrated together with real merge ancestry at `290a6d7`:
 
 - `2624c31`: initial-variant registry/state; automatic generator initialization.
 - `f3c60a6`: initial-variant creation/deletion UI, navigation and data deletion.
@@ -43,18 +44,18 @@ The feature creates a separate notation from an existing notation plus a
 custom, strictly decreasing initial-expression list. It does not overwrite
 the original notation. Upstream currently excludes generator members.
 
-Decisions to confirm:
+Confirmed decisions:
 
 1. Entry and editor placement. Upstream adds a centered button row and modal
-   wizard. Recommended: an Explore-toolbar entry with an editor using our
+   wizard. Use an Explore-toolbar entry with an editor using our
    existing floating-panel style, retaining confirmation for destructive deletion.
 2. Navigation and count. Upstream labels siblings as `(variant N)`.
-   Recommended: variants grouped beneath the base notation in our folder picker;
-   confirm whether each counts individually or the entire base family counts as one.
+   Variants are grouped beneath the base notation in our folder picker;
+   the entire base family counts as one.
 3. Standalone export. Upstream has no adaptation for our export pipeline.
-   Recommended: include explicitly selected variants with their base definitions
+   Include explicitly selected variants with their base definitions
    and initial lists, but omit creation/deletion controls from the exported app.
-4. Local-file lifecycle. Recommended: disabling a base file hides its variants
+4. Local-file lifecycle. Disabling a base file hides its variants
    but retains their definitions; re-enabling restores them. Saving a modified
    base revalidates initial lists and resets affected trees/analysis, with invalid
    variants retained but unavailable. Permanent variant deletion requires confirmation.
@@ -64,10 +65,31 @@ count-generated-family behavior, transactional local-file replacement and
 rollback, and standalone registration filtering. Adapt the registry and all
 local runtime registration call sites together to avoid double initialization.
 
+Review fixes included with round two:
+
+- Historical file IDs do not authorize deletion of another file's live or
+  dormant variants, trees, notes or analysis.
+- Local ownership includes members added after generator registration.
+- Standalone definition dependencies do not implicitly select base analysis
+  or notes; excluded notation settings and expansion selections are filtered.
+- Refreshing an existing export panel retains explicit deselections.
+- Regression tests cover the above ownership/export boundaries as well as
+  creation, validation, hydration, source replacement and rollback.
+
 ## Verification
 
 - Type checking and standard, compatibility and standalone builds pass.
-- Full Vitest suite passes after adding merge-integration coverage.
+- Full Vitest suite: 44 files, 287 tests pass.
 - Build warnings remain for large chunks, deprecated inlineDynamicImports and
   standalone import.meta replacement; build success is not browser-runtime validation.
-- Interactive browser verification was not completed because browser connection timed out.
+- Round-one browser verification was incomplete. Round two was verified in
+  isolated Chromium using Playwright after the app browser plugin failed to
+  start because its configured service-version directory was missing.
+- Desktop (1365x900) and mobile (390x844) screenshots were inspected. Creation,
+  grouped navigation/counts, reload, confirmed deletion, clean ID reuse,
+  local-file upload, disable/enable and invalid-source recovery pass.
+- An exported HTML was opened directly from disk with real CDN dependencies:
+  the selected local variant loads even with analysis-data export disabled,
+  and variant creation/deletion controls are absent. No page errors were
+  recorded across the browser checks.
+- Local QA script and screenshots are under ignored `logs/merge-*` paths.

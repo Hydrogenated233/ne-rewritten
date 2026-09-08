@@ -17,8 +17,15 @@ import {
     get_notation,
     get_root_items,
     list_notations,
+    get_init_variant_meta,
+    is_init_variant,
+    list_init_variant_ids,
+    remove_init_variant,
 } from '@/core/registry.ts';
 import { LOCAL_NOTATION_RUNTIME_KEY } from '@/composables/use_local_notation_runtime.ts';
+import { SAVE_LOAD_KEY } from '@/composables/use_save_load.ts';
+import { IS_STANDALONE } from '@/core/deployment.ts';
+import ModalDialog from '@/components/ModalDialog.vue';
 
 type Item = { kind: 'category' | 'notation'; id: string };
 type FolderNode = {
@@ -37,6 +44,8 @@ const settings = inject(SETTINGS_KEY)!;
 const t = inject(I18N_KEY)!;
 const ui = use_ui_states();
 const local_runtime = inject(LOCAL_NOTATION_RUNTIME_KEY, null);
+const save_load = inject(SAVE_LOAD_KEY)!;
+const delete_id = ref('');
 
 const open = ref(false);
 const search = ref('');
@@ -55,12 +64,14 @@ function display_name(n: NotationDefinition<unknown> | NotationCategoryDefinitio
 }
 
 function item_label(id: string): string {
+    const meta = get_init_variant_meta(id);
+    if (meta) return t('variant.label', { n: String(meta.seq) }) + (get_notation(id) ? '' : ` (${t('variant.unavailable')})`);
     return display_name(get_notation(id) ?? get_category(id));
 }
 
 function notation_matches(id: string): boolean {
     const n = get_notation(id);
-    if (!n) return false;
+    if (!n && !get_notation(get_init_variant_meta(id)?.base_id ?? '')) return false;
     if (ui.config_mode.value) return true;
     if (settings.hidden_notations.includes(id)) return false;
     return true;
@@ -97,11 +108,19 @@ function make_category(id: string, key = `category:${id}`, excluded_ids = new Se
 
 function make_item(item: Item, excluded_ids = new Set<string>()): TreeNode | null {
     if (item.kind === 'notation') {
-        if (excluded_ids.has(item.id)) return null;
-        return notation_matches(item.id) ? { kind: 'notation', key: `notation:${item.id}`, id: item.id } : null;
+        if (excluded_ids.has(item.id) || is_init_variant(item.id)) return null;
+        return make_notation_family(item.id);
     }
     const folder = make_category(item.id, `category:${item.id}`, excluded_ids);
     return folder.children.length > 0 ? folder : null;
+}
+
+function make_notation_family(id: string): TreeNode | null {
+    const ids = [id, ...list_init_variant_ids(id)].filter(notation_matches);
+    const children: NotationNode[] = ids.map((id) => ({ kind: 'notation', key: `notation:${id}`, id }));
+    if (children.length === 0) return null;
+    if (!list_init_variant_ids(id).length) return children[0];
+    return { kind: 'folder', key: `family:${id}`, label: item_label(id), children };
 }
 
 function local_file_ids(): Map<string, string[]> {
@@ -125,22 +144,14 @@ function build_tree(): TreeNode[] {
     const builtin_children =
         settings.nav_mode === 'flat'
             ? list_notations()
-                  .filter((notation) => !local_ids.has(notation.id) && notation_matches(notation.id))
-                  .map(
-                      (notation) =>
-                          ({
-                              kind: 'notation',
-                              key: `notation:${notation.id}`,
-                              id: notation.id,
-                          }) satisfies NotationNode,
-                  )
+                  .filter((notation) => !local_ids.has(notation.id) && !is_init_variant(notation.id))
+                  .map((notation) => make_notation_family(notation.id))
+                  .filter((node): node is TreeNode => node !== null)
             : get_root_items()
                   .map((item) => {
                       if (item.kind === 'notation' && local_ids.has(item.id)) return null;
                       if (item.kind === 'category') return make_category(item.id, `category:${item.id}`, local_ids);
-                      return notation_matches(item.id)
-                          ? ({ kind: 'notation', key: `notation:${item.id}`, id: item.id } satisfies NotationNode)
-                          : null;
+                      return make_item(item, local_ids);
                   })
                   .filter(
                       (item): item is TreeNode =>
@@ -171,6 +182,7 @@ function build_tree(): TreeNode[] {
             children: [],
         };
         for (const id of ids) {
+            if (is_init_variant(id)) continue;
             const notation = get_notation(id);
             if (!notation) continue;
             const ancestors = notation.category_id ? get_category_ancestors(notation.category_id) : [];
@@ -192,7 +204,8 @@ function build_tree(): TreeNode[] {
                 }
                 children = folder.children;
             }
-            children.push({ kind: 'notation', key: `notation:${id}`, id });
+            const family = make_notation_family(id);
+            if (family) children.push(family);
         }
         if (file_root.children.length > 0) local_children.push(file_root);
     });
@@ -241,7 +254,10 @@ function flatten(nodes: TreeNode[]): Row[] {
 }
 
 const rows = computed(() => flatten(tree.value));
-const current_notation = computed(() => get_notation(settings.current_notation_id));
+const current_notation = computed(() => {
+    void registry_revision.value;
+    return get_notation(settings.current_notation_id);
+});
 const current_path = computed(() => {
     const n = current_notation.value;
     return n?.category_id ? get_category_ancestors(n.category_id).map(category_label) : [];
@@ -268,18 +284,17 @@ function toggle_dropdown() {
 }
 
 function ancestor_keys_for_current(): string[] {
-    const n = current_notation.value;
-    if (!n) return [];
-    const keys = ['folder:builtin'];
-    if (n.category_id) {
-        let key = 'category:';
-        for (const id of get_category_ancestors(n.category_id)) {
-            key += id;
-            keys.push(key);
-            key += '/';
+    function find(nodes: TreeNode[], parents: string[]): string[] | undefined {
+        for (const node of nodes) {
+            if (node.kind === 'notation') {
+                if (node.id === settings.current_notation_id) return parents;
+            } else {
+                const found = find(node.children, [...parents, node.key]);
+                if (found) return found;
+            }
         }
     }
-    return keys;
+    return find(build_tree(), []) ?? [];
 }
 
 function activate(row: Row) {
@@ -287,9 +302,20 @@ function activate(row: Row) {
         expanded.value[row.key] = !row.expanded;
         return;
     }
+    if (!get_notation(row.id)) return;
     settings.current_notation_id = row.id;
     search.value = '';
     close_dropdown(true);
+}
+
+function delete_variant(): void {
+    const id = delete_id.value;
+    const meta = get_init_variant_meta(id);
+    if (!meta) return;
+    if (settings.current_notation_id === id) settings.current_notation_id = meta.base_id;
+    save_load.remove_notation_data(id);
+    remove_init_variant(id);
+    delete_id.value = '';
 }
 
 function focus_row(index: number) {
@@ -379,7 +405,9 @@ function handle_generator(id: string, direction: 'increment' | 'decrement', even
             <span class="notation-picker__folder" aria-hidden="true">▰</span>
             <span class="notation-picker__trigger-main">
                 <span class="notation-picker__trigger-name">{{
-                    display_name(current_notation) || t('notation-tree.empty')
+                    (is_init_variant(settings.current_notation_id)
+                        ? display_name(current_notation) + ' (' + item_label(settings.current_notation_id) + ')'
+                        : display_name(current_notation)) || t('notation-tree.empty')
                 }}</span>
                 <span v-if="current_path.length" class="notation-picker__trigger-path">{{
                     current_path.join(' / ')
@@ -429,6 +457,7 @@ function handle_generator(id: string, direction: 'increment' | 'decrement', even
                         :aria-level="row.depth + 1"
                         :aria-expanded="row.kind === 'folder' ? row.expanded : undefined"
                         :aria-selected="row.kind === 'notation' ? row.id === settings.current_notation_id : undefined"
+                        :aria-disabled="row.kind === 'notation' && !get_notation(row.id) ? true : undefined"
                         :tabindex="focus_index === index ? 0 : -1"
                         @mousedown.prevent.stop="activate(row)"
                         @keydown="on_row_keydown($event, row, index)"
@@ -445,6 +474,14 @@ function handle_generator(id: string, direction: 'increment' | 'decrement', even
                         <span v-if="row.kind === 'folder'" class="notation-picker__count">{{ row.count }}</span>
                         <span v-else class="notation-picker__id">{{ row.id }}</span>
                     </button>
+                    <button
+                        v-if="!IS_STANDALONE && row.kind === 'notation' && is_init_variant(row.id)"
+                        type="button"
+                        class="notation-picker__delete"
+                        :title="t('variant.delete-variant')"
+                        :aria-label="t('variant.delete-title', { label: item_label(row.id) })"
+                        @click.stop="delete_id = row.id"
+                    >×</button>
                     <span
                         v-if="row.kind === 'folder' && row.categoryId && generator_can_increment(row.categoryId)"
                         class="notation-picker__generator"
@@ -471,6 +508,11 @@ function handle_generator(id: string, direction: 'increment' | 'decrement', even
             </div>
         </div>
     </div>
+    <ModalDialog :show="!!delete_id" :title="t('variant.delete-title', { label: item_label(delete_id) })" @close="delete_id = ''">
+        <p>{{ t('variant.delete-message') }}</p>
+        <button @click="delete_id = ''">{{ t('variant.cancel') }}</button>
+        <button @click="delete_variant">{{ t('variant.delete-confirm') }}</button>
+    </ModalDialog>
 </template>
 
 <style scoped>
@@ -626,6 +668,8 @@ function handle_generator(id: string, direction: 'increment' | 'decrement', even
     color: var(--color-accent-active);
     font-weight: 600;
 }
+.notation-picker__row[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; }
+.notation-picker__delete { flex: 0 0 30px; border: 0; background: transparent; color: var(--color-danger); cursor: pointer; }
 
 .notation-picker__row-chevron {
     width: 0;

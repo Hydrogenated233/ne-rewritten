@@ -3,8 +3,8 @@ import { computed, inject } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
-import { resolve_display_name, resolve_name } from '@/notation-definition.ts';
-import { get_notation, is_extra_generated, list_notations } from '@/core/registry.ts';
+import { type NotationDefinition, resolve_display_name, resolve_name } from '@/notation-definition.ts';
+import { get_init_variant_meta, get_notation, is_extra_generated, list_notations } from '@/core/registry.ts';
 
 const settings = inject(SETTINGS_KEY)!;
 const t = inject(I18N_KEY)!;
@@ -17,7 +17,17 @@ const all = computed(() => {
     return notations.filter((n) => !is_extra_generated(n.id) && !settings.hidden_notations.includes(n.id));
 });
 
-function get_name(n: (typeof all.value)[number]): string {
+function get_name(n: NotationDefinition<unknown>): string {
+    const meta = get_init_variant_meta(n.id);
+    if (meta) {
+        const base = get_notation(meta.base_id);
+        const source = base ?? n;
+        const label =
+            settings.notation_name_mode === 'simple' && source.simple_name
+                ? resolve_name(source.simple_name, t)
+                : resolve_name(source.name, t);
+        return (label ?? n.id) + ' (variant ' + meta.seq + ')';
+    }
     if (settings.notation_name_mode === 'simple' && n.simple_name) return resolve_name(n.simple_name, t)!;
     return resolve_name(n.name, t)!;
 }

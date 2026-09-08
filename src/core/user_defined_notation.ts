@@ -3,7 +3,9 @@ import {
     get_category,
     get_category_children,
     get_notation,
-    init_generator,
+    get_generator_state,
+    get_init_variant_meta,
+    set_generator_state,
     notify_change,
     register_category,
     register_notation,
@@ -146,7 +148,6 @@ function register_items(items: CollectedItem[], source_index: Map<CollectedItem,
             user_registered_ids.add(item.def.id);
             const index = source_index.get(item);
             if (item.def.generator) {
-                init_generator(item.def);
                 for (const child of get_category_children(item.def.id)) {
                     user_registered_ids.add(child.id);
                     add_script_notation(index, child.id);
@@ -212,6 +213,7 @@ export interface ReloadResult {
 }
 
 export function reload_all(scripts: UserScript[]): ReloadResult {
+    const previous_generator_state = { ...get_generator_state() };
     const previous_items = new Map(active_script_items);
     const previous_warnings = new Map(script_warnings);
     const previous_notation_ids = new Map(script_notation_ids);
@@ -261,6 +263,7 @@ export function reload_all(scripts: UserScript[]): ReloadResult {
         register_items(sorted, source_index);
     } catch (error) {
         remove_active_items();
+        set_generator_state(previous_generator_state);
         try {
             const old_items = [...previous_items.values()].flat();
             const old_index = new Map<CollectedItem, number>();
@@ -289,6 +292,13 @@ export function get_script_warnings(): Map<string, string[]> {
     return new Map(script_warnings);
 }
 
+export function is_local_notation(id: string): boolean {
+    const base_id = get_init_variant_meta(id)?.base_id ?? id;
+    if (user_registered_ids.has(base_id)) return true;
+    const category_id = get_notation(base_id)?.category_id;
+    return !!category_id && !!get_category(category_id)?.generator && user_registered_ids.has(category_id);
+}
+
 function add_script_notation(index: number | undefined, id: string): void {
     if (index === undefined) return;
     const list = script_notation_ids.get(index) ?? [];
@@ -297,7 +307,10 @@ function add_script_notation(index: number | undefined, id: string): void {
 }
 
 export function get_script_notation_ids(index: number): string[] {
-    return script_notation_ids.get(index) ?? [];
+    const generated = get_script_category_ids(index)
+        .filter((id) => get_category(id)?.generator)
+        .flatMap((id) => get_category_children(id).filter((item) => item.kind === 'notation').map((item) => item.id));
+    return [...new Set([...(script_notation_ids.get(index) ?? []), ...generated])];
 }
 
 export function get_script_category_ids(index: number): string[] {

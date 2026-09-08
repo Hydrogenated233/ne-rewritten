@@ -3,7 +3,7 @@ import { computed, inject, onMounted, ref, watch } from 'vue';
 import { I18N_KEY } from '@/composables/use_i18n.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
-import { resolve_display_name, resolve_name } from '@/notation-definition.ts';
+import { resolve_display_name, resolve_name, type TextSpec } from '@/notation-definition.ts';
 import {
     generator_can_decrement,
     generator_can_increment,
@@ -12,6 +12,7 @@ import {
     get_category,
     get_category_ancestors,
     get_category_children,
+    get_init_variant_meta,
     get_notation,
     get_root_items,
 } from '@/core/registry.ts';
@@ -55,14 +56,26 @@ function navigate(id: string) {
     }
 }
 
+/** 解析名称; 初始变体在 base 名称后追加渲染期实时拼接的 "(variant N)" 后缀。 */
+function resolve_label_of(def: { name: TextSpec; simple_name?: TextSpec } | undefined, id: string): string | undefined {
+    const meta = get_init_variant_meta(id);
+    if (def && meta) {
+        const base = get_notation(meta.base_id);
+        const source = base ?? def;
+        const label =
+            settings.notation_name_mode === 'simple' && source.simple_name
+                ? resolve_name(source.simple_name, t)
+                : resolve_name(source.name, t);
+        if (label) return label + ' (variant ' + meta.seq + ')';
+    }
+    if (!def) return undefined;
+    if (settings.notation_name_mode === 'simple' && def.simple_name) return resolve_name(def.simple_name, t);
+    return resolve_name(def.name, t);
+}
+
 function get_name(id: string): string {
     const notation = get_notation(id);
-    if (notation) {
-        if (settings.notation_name_mode === 'simple' && notation.simple_name) {
-            return resolve_name(notation.simple_name, t)!;
-        }
-        return resolve_name(notation.name, t)!;
-    }
+    if (notation) return resolve_label_of(notation, id)!;
     const cat = get_category(id);
     if (!cat) return id;
     if (settings.notation_name_mode === 'simple' && cat.simple_name) return resolve_name(cat.simple_name, t)!;
@@ -70,7 +83,9 @@ function get_name(id: string): string {
 }
 
 function get_simple_name(id: string): string | undefined {
-    return resolve_name(get_notation(id)?.simple_name, t) ?? resolve_name(get_category(id)?.simple_name, t);
+    const notation = get_notation(id);
+    if (notation && get_init_variant_meta(id)) return resolve_label_of(notation, id);
+    return resolve_name(notation?.simple_name, t) ?? resolve_name(get_category(id)?.simple_name, t);
 }
 
 function toggle_hidden(id: string) {

@@ -1,4 +1,4 @@
-import { TextSpec, NotationDefinition, NotationDisplaySpec } from '@/notation-definition.ts';
+import { NotationDefinition, NotationDisplaySpec, TextSpec } from '@/notation-definition.ts';
 import { BM4, Expr, standardize } from '@/notations/BM-like/BM.ts';
 import { make_OCN_display, merge_sum, type OCNDisplayIR } from '@/notations/OCN/OCN_utils.ts';
 import { deepcopy, lex_compare, number_compare } from '@/utils.ts';
