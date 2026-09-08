@@ -1,4 +1,5 @@
-import { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
+import { NotationCategoryDefinition, NotationDefinition, resolve_display } from '@/notation-definition.ts';
+import type { InitVariantDef } from '@/core/settings.ts';
 import { index_of_first } from '@/utils.ts';
 
 // ========== RegisterError ==========
@@ -19,9 +20,24 @@ const category_defs = new Map<string, NotationCategoryDefinition>();
 const root_items: { kind: 'category' | 'notation'; id: string }[] = [];
 const category_items = new Map<string, { kind: 'category' | 'notation'; id: string }[]>();
 
-function add_item(cat_id: string | undefined, kind: 'category' | 'notation', id: string): void {
+/**
+ * 向容器列表(category/root)插入条目; after_id 给定时插入到该锚点之后(须在同一列表)。
+ * 锚点不存在或不在同一列表 → 追加到末尾。
+ */
+function add_item(cat_id: string | undefined, kind: 'category' | 'notation', id: string, after_id?: string): void {
     const list = cat_id ? (category_items.get(cat_id) ?? []) : root_items;
-    list.push({ kind, id });
+    const item = { kind, id };
+    if (after_id !== undefined) {
+        const idx = list.findIndex((x) => x.id === after_id);
+        if (idx !== -1) {
+            list.splice(idx + 1, 0, item);
+            if (cat_id && !category_items.has(cat_id)) {
+                category_items.set(cat_id, list);
+            }
+            return;
+        }
+    }
+    list.push(item);
     if (cat_id && !category_items.has(cat_id)) {
         category_items.set(cat_id, list);
     }
@@ -36,6 +52,17 @@ export function register_category(cat: NotationCategoryDefinition): void {
     }
     category_defs.set(cat.id, cat);
     add_item(cat.parent_id, 'category', cat.id);
+    // generator 分类: 注册定义后立即水合其下属成员(init_generator 并入 register_category)。
+    // 前提: 所有注册发生在 set_generator_state 之后(main.ts 时序保证), 否则持久化计数会丢。
+    if (cat.generator) {
+        if (!gen_state_ready) {
+            console.warn(
+                `register_category: category '${cat.id}' has a generator but set_generator_state() was not called ` +
+                    'before registration; persisted generator progress may be lost.',
+            );
+        }
+        register_generated_members(cat);
+    }
 }
 
 export function get_category(id: string): NotationCategoryDefinition | undefined {
@@ -65,8 +92,11 @@ export function get_category_ancestors(category_id: string): string[] {
 
 const map = new Map<string, NotationDefinition<any>>();
 
-/** 内部注册：不校验 generator 限制（供 init_generator / increment 使用） */
-function _register_notation<T>(notation: NotationDefinition<T>): void {
+/**
+ * 内部注册：不校验 generator 限制(供 generator 水合、变体注册等内部路径使用)。
+ * after_id 给定时, 插入到容器列表中该锚点记号之后(须同一容器)。
+ */
+function _register_notation<T>(notation: NotationDefinition<T>, after_id?: string): void {
     if (notation.category_id !== undefined && !category_defs.has(notation.category_id)) {
         throw new RegisterError(
             notation.id,
@@ -83,21 +113,27 @@ function _register_notation<T>(notation: NotationDefinition<T>): void {
         throw new RegisterError(notation.id, `Notation '${notation.id}' is already registered.`);
     }
     map.set(notation.id, notation);
-    add_item(notation.category_id, 'notation', notation.id);
+    add_item(notation.category_id, 'notation', notation.id, after_id);
+    // 注册后立即水合该记号可能存在的初始变体(幂等; 变体注册递归到此会对非 base 的 id no-op)。
+    ensure_variants(notation.id);
 }
 
-export function register_notation<T>(notation: NotationDefinition<T>): void {
+/**
+ * 注册记号。original_id 给定时, 插入到同一容器列表中该记号之后(用于让派生记号与源记号紧邻)。
+ * generator 分类的下属成员不允许直接注册(应由 register_category 自动水合), 变体等内部派生走 _register_notation。
+ */
+export function register_notation<T>(notation: NotationDefinition<T>, original_id?: string): void {
     if (notation.category_id !== undefined) {
         const cat = category_defs.get(notation.category_id);
         if (cat?.generator) {
             throw new RegisterError(
                 notation.id,
                 `Cannot directly register '${notation.id}' under generator category '${cat.id}'. ` +
-                    `Use init_generator instead.`,
+                    `Generator members are hydrated by register_category; other derived notations use the internal path.`,
             );
         }
     }
-    _register_notation(notation);
+    _register_notation(notation, original_id);
 }
 
 export function get_notation(id: string): NotationDefinition<unknown> | undefined {
@@ -108,13 +144,33 @@ export function list_notations(): NotationDefinition<unknown>[] {
     return Array.from(map.values());
 }
 
-export function unregister_notation(id: string): string[] {
-    const notation = get_notation(id);
-    if (!notation) return [];
+/** 原始注销: 仅从注册表移除单个记号(变体注销与 base 级联的底层)。 */
+function unregister_notation_raw(id: string): void {
+    const notation = map.get(id);
+    if (!notation) return;
     map.delete(id);
     const list = notation.category_id ? (category_items.get(notation.category_id) ?? root_items) : root_items;
     const idx = list.findIndex((item) => item.id === id);
     if (idx !== -1) list.splice(idx, 1);
+}
+
+export function unregister_notation(id: string): string[] {
+    // 变体本身: 仅注销(def 是否删除由 remove_init_variant 决定), 不触发级联。
+    if (variant_base_of.has(id)) {
+        unregister_notation_raw(id);
+        return [id];
+    }
+    const notation = map.get(id);
+    if (!notation) return [];
+    // base: 先卸载其已注册变体(defs 保留, base 重新注册时自动重生)
+    const entries = variant_state.get(id);
+    if (entries) {
+        for (const entry of entries) {
+            const vid = variant_id_of(id, entry.seq);
+            if (map.has(vid)) unregister_notation_raw(vid);
+        }
+    }
+    unregister_notation_raw(id);
     return [id];
 }
 
@@ -155,9 +211,13 @@ export function unregister_item(id: string): string[] {
 
 let gen_state: Record<string, number> = {};
 
-/** 由外部（main.ts）在 settings 就绪后调用，注入持久化的 state。 */
+/** 是否已注入持久化的 generator state(boot 时 set_generator_state 置 true)。 */
+let gen_state_ready = false;
+
+/** 由外部(main.ts)在 settings 就绪后、一切注册之前调用, 注入持久化的 state。 */
 export function set_generator_state(state: Record<string, number>): void {
     gen_state = state;
+    gen_state_ready = true;
 }
 
 export function get_generator_state(): Record<string, number> {
@@ -193,9 +253,10 @@ export function is_extra_generated(id: string): boolean {
     return idx >= cat.generator.initial - cat.generator.start + 1;
 }
 
-export function init_generator(cat: NotationCategoryDefinition): void {
+/** 内部: 注册 generator 分类当前计数下的全部成员。init_generator 已并入 register_category, 不再对外暴露。 */
+function register_generated_members(cat: NotationCategoryDefinition): void {
     const gen = cat.generator;
-    if (!gen) throw new Error(`Category '${cat.id}' has no generator.`);
+    if (!gen) return;
     const cur = gen_state[cat.id] ?? gen.initial;
     for (let n = gen.start; n <= cur; n++) {
         _register_notation(gen.create(n));
@@ -242,5 +303,212 @@ export function generator_decrement(cat_id: string): void {
     const last_id = items.length > 0 ? items[items.length - 1].id : undefined;
     if (last_id) unregister_notation(last_id);
     gen_state[cat_id] = cur - 1;
+    notify_change();
+}
+
+// ========== Init variants(初始变体) ==========
+// 变体 = "base 记号 + 用户自定义初始列表"派生的独立记号(方案 A: 合成 NotationDefinition 并注册)。
+// 注册域并入本文件: 表 + 水合/注销都收敛在 _register_notation / unregister_notation 两个咽喉。
+// 持久化: Settings.variant_state 只是镜像, 经 set_variant_state / get_variant_state_snapshot 同步(流同 generator_state)。
+// 变体 id = `${base_id}$${seq}`(不透明, 不反解; `$` 避开现有 id 字符集)。
+// 删除: 仅注销 + 删 def, 不清理 localStorage/trees/设置条目(纯 core 语义, 编号复用由 seq 回填 + 用户处置残留)。
+
+interface VariantEntry {
+    base_id: string;
+    seq: number;
+    init: string[];
+}
+
+const variant_state = new Map<string, VariantEntry[]>(); // base_id -> entries(seq 升序)
+const variant_base_of = new Map<string, { base_id: string; seq: number }>(); // variant_id -> meta
+
+function variant_id_of(base_id: string, seq: number): string {
+    return base_id + '$' + seq;
+}
+
+function rebuild_variant_index(): void {
+    variant_base_of.clear();
+    for (const [base_id, entries] of variant_state) {
+        for (const entry of entries) {
+            variant_base_of.set(variant_id_of(base_id, entry.seq), { base_id, seq: entry.seq });
+        }
+    }
+}
+
+export function is_init_variant(id: string): boolean {
+    return variant_base_of.has(id);
+}
+
+export function get_init_variant_meta(id: string): { base_id: string; seq: number } | undefined {
+    return variant_base_of.get(id);
+}
+
+export function list_init_variant_ids(base_id: string): string[] {
+    const entries = variant_state.get(base_id);
+    if (!entries) return [];
+    return entries.map((entry) => variant_id_of(base_id, entry.seq));
+}
+
+export function list_init_variants(base_id: string): InitVariantDef[] {
+    const entries = variant_state.get(base_id);
+    if (!entries) return [];
+    return entries.map((entry) => ({ seq: entry.seq, init: entry.init.slice() }));
+}
+
+/** boot: 从 settings 采纳持久化定义(镜像 generator_state 的 set_generator_state)。 */
+export function set_variant_state(state: Record<string, InitVariantDef[]>): void {
+    variant_state.clear();
+    for (const base_id of Object.keys(state)) {
+        const list = state[base_id];
+        if (!Array.isArray(list)) continue;
+        const entries: VariantEntry[] = [];
+        for (const e of list) {
+            if (e && typeof e.seq === 'number' && Number.isFinite(e.seq) && e.seq >= 1 && Array.isArray(e.init)) {
+                entries.push({ base_id, seq: e.seq, init: e.init.map(String) });
+            }
+        }
+        entries.sort((a, b) => a.seq - b.seq);
+        if (entries.length > 0) variant_state.set(base_id, entries);
+    }
+    rebuild_variant_index();
+    // 为已注册的 base 立即水合(正常 boot 时序下 base 尚未注册, 水合随其后的注册自动触发)
+    for (const base_id of variant_state.keys()) ensure_variants(base_id);
+}
+
+/** 供 main.ts 的 on_registry_change 回写 settings(持久化镜像)。 */
+export function get_variant_state_snapshot(): Record<string, InitVariantDef[]> {
+    const result: Record<string, InitVariantDef[]> = {};
+    for (const [base_id, entries] of variant_state) {
+        result[base_id] = entries.map((entry) => ({ seq: entry.seq, init: entry.init.slice() }));
+    }
+    return result;
+}
+
+/** 解析 base 主显示 from_display; 失败返回 null。 */
+function parse_init_list(base: NotationDefinition<any>, strings: string[]): any[] | null {
+    const from_display = resolve_display(base.display).from_display;
+    if (!from_display) return null;
+    const exprs: any[] = [];
+    for (const s of strings) {
+        try {
+            exprs.push(from_display(s));
+        } catch {
+            return null;
+        }
+    }
+    // 初始列表须严格递减
+    for (let i = 1; i < exprs.length; i++) {
+        if (!(base.compare(exprs[i - 1], exprs[i]) > 0)) return null;
+    }
+    return exprs;
+}
+
+function build_init_variant_definition<T>(base: NotationDefinition<T>, id: string, parsed: T[]): NotationDefinition<T> {
+    const def: NotationDefinition<T> = {
+        ...base,
+        id,
+        // 标签(含 "(variant N)" 后缀)由导航在渲染期拼接, 此处沿用 base 的名称字段
+        name: base.name,
+        simple_name: base.simple_name,
+        init: () => parsed.slice(),
+    };
+    return def;
+}
+
+/** 为已注册的 base 注册其全部(尚未注册的)变体; 幂等。 */
+function ensure_variants(base_id: string): void {
+    const entries = variant_state.get(base_id);
+    if (!entries || entries.length === 0) return;
+    const base = map.get(base_id);
+    if (!base) return; // base 未注册 → defs 保留, 待 base 注册时水合
+    // generator 分类的成员暂不支持变体(导航/计数语义复杂), 有历史 defs 则跳过并告警
+    if (base.category_id && category_defs.get(base.category_id)?.generator) {
+        console.warn(`init_variant: base '${base_id}' is a generator member; its variants are skipped.`);
+        return;
+    }
+    let anchor = base_id;
+    for (const entry of entries) {
+        const id = variant_id_of(base_id, entry.seq);
+        if (map.has(id)) {
+            anchor = id; // 已注册(幂等)
+            continue;
+        }
+        const parsed = parse_init_list(base, entry.init);
+        if (!parsed) {
+            console.warn(`init_variant: skip '${id}' (parse or strict-decreasing check failed).`);
+            continue;
+        }
+        try {
+            _register_notation(build_init_variant_definition(base, id, parsed), anchor);
+        } catch (err) {
+            console.warn(`init_variant: register '${id}' failed.`, err);
+            continue;
+        }
+        anchor = id;
+    }
+}
+
+export interface InitVariantCreateResult {
+    ok: boolean;
+    id?: string;
+    error?: 'unknown-base' | 'no-from-display' | 'generator-base' | 'parse' | 'id-conflict';
+}
+
+/** 新建变体: 编号回填该 base 的最小空缺 seq。base 须已注册且不在 generator 分类。 */
+export function create_init_variant(base_id: string, init_strings: string[]): InitVariantCreateResult {
+    const base = map.get(base_id);
+    if (!base) return { ok: false, error: 'unknown-base' };
+    if (base.category_id && category_defs.get(base.category_id)?.generator) {
+        return { ok: false, error: 'generator-base' };
+    }
+    if (!resolve_display(base.display).from_display) return { ok: false, error: 'no-from-display' };
+    const parsed = parse_init_list(base, init_strings);
+    if (!parsed) return { ok: false, error: 'parse' };
+
+    const entries = variant_state.get(base_id) ?? [];
+    let seq = 1;
+    while (entries.some((e) => e.seq === seq)) seq++;
+    const id = variant_id_of(base_id, seq);
+    if (map.has(id) || variant_base_of.has(id)) return { ok: false, error: 'id-conflict' };
+
+    const entry: VariantEntry = { base_id, seq, init: init_strings.slice() };
+    entries.push(entry);
+    entries.sort((a, b) => a.seq - b.seq);
+    variant_state.set(base_id, entries);
+    rebuild_variant_index();
+
+    // 锚点 = base(或其最后一个已注册变体), 保证导航紧邻且 seq 递增
+    let anchor = base_id;
+    for (const e of entries) {
+        const vid = variant_id_of(base_id, e.seq);
+        if (map.has(vid)) anchor = vid;
+    }
+    try {
+        _register_notation(build_init_variant_definition(base, id, parsed), anchor);
+    } catch (err) {
+        console.warn(`init_variant: register '${id}' failed; removing def.`, err);
+        variant_state.set(
+            base_id,
+            entries.filter((e) => e.seq !== seq),
+        );
+        rebuild_variant_index();
+        return { ok: false, error: 'id-conflict' };
+    }
+    notify_change();
+    return { ok: true, id };
+}
+
+/** 删除变体(仅注销 + 删 def; 不做存储/设置清理)。 */
+export function remove_init_variant(id: string): void {
+    const meta = variant_base_of.get(id);
+    if (!meta) return;
+    const entries = variant_state.get(meta.base_id);
+    if (!entries) return;
+    variant_state.set(
+        meta.base_id,
+        entries.filter((entry) => entry.seq !== meta.seq),
+    );
+    rebuild_variant_index();
+    unregister_notation_raw(id); // 已注册才实际注销; 未注册(dormant)则仅为 no-op
     notify_change();
 }

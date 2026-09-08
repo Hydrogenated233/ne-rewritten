@@ -30,12 +30,13 @@ import { BLM } from '@/notations/BM-like/BLM.ts';
 import { DSM } from '@/notations/BM-like/DSM.ts';
 import {
     get_generator_state,
-    init_generator,
+    get_variant_state_snapshot,
     list_notations,
     on_registry_change,
     register_category,
     register_notation,
     set_generator_state,
+    set_variant_state,
 } from '@/core/registry.ts';
 import { DEFAULT_SETTINGS, Settings } from '@/core/settings.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
@@ -125,6 +126,7 @@ const settings: Settings = reactive({
 });
 
 set_generator_state(settings.generator_state ?? {});
+set_variant_state(settings.variant_state ?? {});
 
 watch(
     () => settings,
@@ -134,9 +136,10 @@ watch(
     { deep: true },
 );
 
-// registry 变更时同步 generator state 回 settings（由 settings 的 deep watch 自动保存）
+// registry 变更时同步 generator/variant state 回 settings（由 settings 的 deep watch 自动保存）
 on_registry_change(() => {
     settings.generator_state = { ...get_generator_state() };
+    settings.variant_state = get_variant_state_snapshot();
 });
 
 register_notation(omega);
@@ -169,12 +172,10 @@ register_notation(TBM);
 register_notation(CMS);
 register_notation(BHM);
 register_category(category_BM_BHM);
-init_generator(category_BM_BHM);
 register_notation(BSM);
 register_notation(BLM);
 register_notation(UPMS);
 register_category(category_partial_UPMS);
-init_generator(category_partial_UPMS);
 register_notation(TUPMS);
 register_notation(LPMS);
 register_notation(LPTSS);
@@ -182,30 +183,21 @@ register_notation(wMM);
 register_notation(DSM);
 register_category(category_minus1_y_nss_series);
 register_category(category_bm_minus1_y_nss);
-init_generator(category_bm_minus1_y_nss);
 register_category(category_bm_t_minus1_y_nss);
-init_generator(category_bm_t_minus1_y_nss);
 register_category(category_bm_bt_minus1_y_nss);
-init_generator(category_bm_bt_minus1_y_nss);
 register_category(category_bm_bt_star_minus1_y_nss);
-init_generator(category_bm_bt_star_minus1_y_nss);
 register_category(category_bm_bt_star_minus1_y_nss_v2);
-init_generator(category_bm_bt_star_minus1_y_nss_v2);
 register_category(category_bm_bt_star_minus1_y_nss_v3);
-init_generator(category_bm_bt_star_minus1_y_nss_v3);
 register_category(category_bm_btl_minus1_y_nss);
-init_generator(category_bm_btl_minus1_y_nss);
 register_notation(BTBM);
 register_notation(BTBM_weak);
 register_notation(BBM);
 for (const cat of GMS_categories) {
     register_category(cat);
-    if (cat.generator) init_generator(cat);
 }
 for (const n of GMS_notations) register_notation(n);
 register_category(category_mn);
 register_category(category_n_mn);
-init_generator(category_n_mn);
 register_notation(omega_MN);
 register_notation(T_omega_MN);
 register_category(category_hypcos_w2mn);

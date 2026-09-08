@@ -1,7 +1,6 @@
 import type { NotationCategoryDefinition, NotationDefinition } from '@/notation-definition.ts';
 import {
     get_category_children,
-    init_generator,
     notify_change,
     register_category,
     register_notation,
@@ -139,11 +138,9 @@ export function reload_all(scripts: UserScript[]): ReloadResult {
     for (const item of sorted) {
         try {
             if (item.kind === 'category') {
-                register_category(item.def);
+                register_category(item.def); // generator 分类由 register_category 自动水合成员
                 user_registered_ids.add(item.def.id);
-                // 自动初始化 generator category
                 if (item.def.generator) {
-                    init_generator(item.def);
                     for (const child of get_category_children(item.def.id)) {
                         user_registered_ids.add(child.id);
                         add_script_notation(source_index.get(item), child.id);

@@ -25,6 +25,18 @@ export interface UserScript {
     enabled: boolean;
 }
 
+/**
+ * 初始变体定义: base 记号 X 的第 seq 个变体, 其自定义初始列表。
+ * init 存 canonical 字符串(解析→display.plain 回写), 不存 raw expr
+ * (JSON.stringify 会把 Infinity 序列化为 null)。
+ */
+export interface InitVariantDef {
+    /** 变体编号(>=1, 同 base 内稠密, 删除回填最小空缺, 不因删除重排他人)。id = `${base_id}$${seq}`。 */
+    seq: number;
+    /** canonical 初始表达式列表, 严格递减。 */
+    init: string[];
+}
+
 export interface Settings {
     current_notation_id: string;
     tier: number;
@@ -53,6 +65,8 @@ export interface Settings {
     color_scheme: string;
     hidden_notations: string[];
     generator_state: Record<string, number>;
+    /** 初始变体: base 记号 id → 其变体定义列表(seq 升序)。由 registry 持有, settings 仅作持久化镜像。 */
+    variant_state: Record<string, InitVariantDef[]>;
     user_scripts: UserScript[];
     expand: ExpandSettings;
     latex_analysis: LatexAnalysisSettings;
@@ -83,6 +97,7 @@ export const DEFAULT_SETTINGS: Settings = {
     color_scheme: 'default',
     hidden_notations: [],
     generator_state: {},
+    variant_state: {},
     user_scripts: [],
     expand: { FS_index: 1, notation_id: 'omega', notation_equiv: undefined, variant: 'FS_short' },
     latex_analysis: {
