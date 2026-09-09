@@ -193,6 +193,7 @@ const messages: Record<Language, Record<string, string>> = {
             '进而 ,,4 的复制不变. 从而 (,7,4) 中的 ,4 也不能提升. 因此, 也不能简单添加所有 BMS 提升.',
         'description.up2mn-v1b': '与 v1a 相比, 移除了全部 BMS 提升.',
         'description.up2mn-v1b-plus': '在 v1b 的基础上, 将极限表达式由 ()(,,1)(,,2) 改为 ()(,,1,1), 并作适配.',
+        'description.up2dbms-v1b-plus': '直接将 UP2MN v1b 的逻辑应用于 1Y 山脉, 即得到 Y(1,3,9) 以下的 UP1Y.',
         'diagram.den.offset': '起始偏移',
         'diagram.den.offset-x': '横向偏移',
         'diagram.den.max-display': '最大显示行数',
@@ -442,6 +443,8 @@ const messages: Record<Language, Record<string, string>> = {
         'description.up2mn-v1b': 'Compared to v1a, all BMS elevation is removed.',
         'description.up2mn-v1b-plus':
             'Based on v1b, the limit expression is changed from ()(,,1)(,,2) to ()(,,1,1), with corresponding adaptation.',
+        'description.up2dbms-v1b-plus':
+            'Directly applying the UP2MN v1b logic to the 1Y mountain yields UP1Y below Y(1,3,9).',
         'diagram.den.offset': 'Start offset',
         'diagram.den.offset-x': 'Horizontal offset',
         'diagram.den.max-display': 'Max display rows',

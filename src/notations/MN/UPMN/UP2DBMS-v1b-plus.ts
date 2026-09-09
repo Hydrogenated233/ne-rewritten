@@ -281,7 +281,7 @@ function compute_up_2mn(expr: Expr, P: Position[][], [Ri, Rj]: Position): boolea
             continue;
         }
 
-        const p = P[i][Rj][0];
+        const p = P[i][Rj + 1][0];
         if (p !== Ri) {
             result[i] = result[p];
             continue;
@@ -292,7 +292,7 @@ function compute_up_2mn(expr: Expr, P: Position[][], [Ri, Rj]: Position): boolea
             const X_start = i;
             let Y_start = right;
             while (expr[Y_start].length !== Rj + 2) {
-                Y_start = P[Y_start][Rj][0];
+                Y_start = P[Y_start][Rj + 1][0];
             }
 
             if (Y_start <= X_start) {
@@ -590,7 +590,7 @@ export const draw_diagram_control: DiagramControl<Mountain, DiagramData> = {
 export const UP2DBMS_v1b_plus: NotationDefinition<Expr> = {
     id: 'up2dbms-v1b+',
     name: 'UP2DBMS v1B+',
-    description: [{ id: 'description.up2mn-v1b-plus' }],
+    description: [{ id: 'description.up2dbms-v1b-plus' }],
     category_id: 'category-upmn',
     display: {
         plain: (m) => display(m),
