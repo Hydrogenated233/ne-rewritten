@@ -40,6 +40,7 @@ interface NotationDefinition<T> {
     draw_diagram?: DiagramControl<T, unknown>;
     credit_text_id?: string | string[];
     debug?: Record<string, unknown>;
+    debug_verification?: (a: T) => boolean;
 }
 ```
 
@@ -166,6 +167,19 @@ credit_text_id: ['credit.author', 'credit.converter']
 ```
 
 本地文件没有自定义 i18n 表，通常使用 `description` 写普通字符串。
+
+## `debug_verification`
+
+```ts
+    debug_verification?: (a: T) => boolean;
+```
+
+`debug_verification` 可选字段为调试校验器: 若定义了该字段, 每次展开创建新节点时,
+都会对新生成的表达式调用该函数. 若返回 `false`, 仅会在控制台打印警告, 节点仍会正常创建,
+便于在手动展开表达式树时快速校验展开是否正确.
+
+> **注意**: 该字段仅供调试使用, 对每个新建节点都有额外调用开销;
+> 在正式发布(或把记号分发给他人)之前, 建议删除该字段以减少性能开销.
 
 ## `debug`
 

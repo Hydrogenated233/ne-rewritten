@@ -356,7 +356,7 @@ function on_mousemove(event: MouseEvent) {
 function do_expand(tier?: number, focus?: boolean) {
     const v = settings.variant;
     try {
-        const child = expand_item(props.node, props.notation, v, tier ?? props.tier ?? 0, settings.max_find_fs);
+        const child = expand_item(props.node, props.notation, v, tier ?? props.tier ?? 0);
         if (focus && child) focus_node_input(child, settings.scroll_on_focus);
     } catch (e) {
         if (e instanceof FsTrialExpansionError) {
@@ -374,7 +374,7 @@ function on_expr_mousedown(e: MouseEvent) {
 }
 
 function on_pending_badge_click() {
-    expand_pending_node(props.node, props.notation, settings.variant, settings.max_find_fs);
+    expand_pending_node(props.node, props.notation, settings.variant);
 }
 
 function on_expr_click(e: MouseEvent) {

@@ -38,7 +38,7 @@ function handle_find(): void {
     if (!display_spec.from_display) return;
     try {
         const expr = display_spec.from_display(val);
-        const matched = import_analysis_eager(r, [{ expr, analysis: [] }], n, settings.variant, settings.max_find_fs);
+        const matched = import_analysis_eager(r, [{ expr, analysis: [] }], n, settings.variant);
         if (matched.length > 0) {
             focus_node_input(matched[0], settings.scroll_on_focus);
         } else {
@@ -119,7 +119,7 @@ function open_direct_expand(): void {
 
 function handle_expand_all(): void {
     if (!notation.value || !root.value) return;
-    expand_all_pending(root.value, notation.value, settings.variant, settings.max_find_fs);
+    expand_all_pending(root.value, notation.value, settings.variant);
     save_load.save_analysis();
 }
 </script>

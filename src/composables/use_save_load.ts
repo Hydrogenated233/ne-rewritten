@@ -13,6 +13,7 @@ import type { NotationDefinition } from '@/notation-definition.ts';
 import { resolve_display } from '@/notation-definition.ts';
 import { download_buffer, export_analysis_with_notes_to_xlsx, import_from_xlsx } from '@/core/xlsx_io.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
+import { create_t } from '@/composables/use_i18n.ts';
 import { use_ui_states } from '@/composables/use_ui_states.ts';
 import { app_storage } from '@/core/storage.ts';
 import { analysis_storage_key, note_storage_key } from '@/core/storage_keys.ts';
@@ -222,10 +223,10 @@ export function use_save_load(
             const entries = await import_from_xlsx(buf, display_spec.from_display);
             const { matched, not_found } = import_analysis(r, entries, n);
             if ((entries as any).skipped?.length || not_found.length > 0) {
-                alert(t('import.error'));
+                alert(create_t(settings.language)('import.error'));
             }
             if (settings.expand_all_on_import) {
-                expand_all_pending(r, n, settings.variant, settings.max_find_fs);
+                expand_all_pending(r, n, settings.variant);
             }
             // Persist imported analyses and any eager expansion immediately;
             // otherwise the option appears to work only until a reload.

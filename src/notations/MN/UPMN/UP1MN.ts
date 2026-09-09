@@ -1,6 +1,6 @@
 import { boolean_compare, deepcopy, lex_compare, number_compare, tuple_lex_compare_by } from '@/utils.ts';
 import { diagram_in_mode, DiagramControl, NotationDefinition } from '@/notation-definition.ts';
-import { MN_FS_variants } from '@/notations/notation_utils.ts';
+import { sequence_FS_variants } from '@/notations/notation_utils.ts';
 import {
     DiagramData,
     draw_diagram_control as draw_diagram_control_nMN,
@@ -13,6 +13,7 @@ import {
     mountain_display_marked as display_marked_nMN,
 } from '@/notations/MN/SMN/n_MN.ts';
 import { Diagram } from '@/core/diagram_types.ts';
+import { UPMS } from '@/notations/BM-like/UPMS.ts';
 
 type Expr = Column[];
 type Column = Entry[];
@@ -75,7 +76,7 @@ function compute_up(expr: Expr, r: number, b: number): boolean[] {
                     while (expr[Y_start][j] !== r) Y_start = expr[Y_start][j];
 
                     if (Y_start <= X_start) {
-                        result[i] = true;
+                        result[i] = X_start === Y_start;
                         break;
                     }
 
@@ -233,6 +234,22 @@ const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
     handle_action: draw_diagram_control_nMN.handle_action,
 };
 
+function debug_verification(e: Expr): boolean {
+    if (is_infinity(e)) return true;
+
+    if (compare(e, convert_from_layer(convert_to_layer(e))) !== 0) return false;
+
+    function to_upms(expr: Expr): number[][] {
+        return convert_to_layer(expr).map((col) => col.map((v) => v + 1));
+    }
+
+    const e_upms = to_upms(e);
+    const e2 = UP1MN.FS(e, 2);
+    const e_upms2 = UPMS.FS(e_upms, 2);
+
+    return UPMS.compare(to_upms(e2), e_upms2) === 0;
+}
+
 export const UP1MN: NotationDefinition<Expr> = {
     id: 'up1mn',
     name: 'UP1MN',
@@ -258,10 +275,12 @@ export const UP1MN: NotationDefinition<Expr> = {
         },
     },
     draw_diagram: draw_diagram_control,
-    ...MN_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
+    ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
     is_limit,
     compare,
     credit_text_id: 'credit.upmn',
 
     init: () => [INFINITY, []],
+
+    // debug_verification,
 };

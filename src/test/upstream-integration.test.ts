@@ -65,10 +65,10 @@ describe('upstream round-one integration', () => {
             FS: () => 0,
         };
         const root = init_dataset(stalled);
-        expect(() => expand_item(root.children[0], stalled, 'FS', 0, 2)).toThrow(FsTrialExpansionError);
+        expect(() => expand_item(root.children[0], stalled, 'FS', 0)).toThrow(FsTrialExpansionError);
         expect(root.children[0].children).toHaveLength(0);
         const failure = new TypeError('notation failed');
         const broken = { ...stalled, FS: () => { throw failure; } };
-        expect(() => expand_item(root.children[0], broken, 'FS', 0, 2)).toThrow(failure);
+        expect(() => expand_item(root.children[0], broken, 'FS', 0)).toThrow(failure);
     });
 });

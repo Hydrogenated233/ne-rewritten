@@ -342,7 +342,7 @@ const upmsPrepare = (matrix: Expr, rows: number = maxRows(matrix)): Prep | null 
             }
 
             let higherEscapes = false;
-            for (let r = row + 1; r < t - 1; r++)
+            for (let r = row + 1; r < t; r++)
                 if (ctx.getBParent(col, r + 1) !== root) {
                     higherEscapes = true;
                     break;

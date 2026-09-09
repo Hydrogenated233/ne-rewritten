@@ -41,6 +41,7 @@ import {
     set_variant_state,
 } from '@/core/registry.ts';
 import { DEFAULT_SETTINGS, Settings } from '@/core/settings.ts';
+import { set_max_find_fs } from '@/core/expander.ts';
 import { SETTINGS_KEY } from '@/composables/use_settings.ts';
 import { A_omega2_MN2, wA_omega2_MN2 } from '@/notations/MN/Aw2MN2.ts';
 import { A_omega2_MN3, wA_omega2_MN3 } from '@/notations/MN/Aw2MN3.ts';
@@ -181,6 +182,12 @@ if (IS_STANDALONE) {
     );
 }
 set_variant_state(settings.variant_state ?? {});
+// max_find_fs(试展开守卫阈值)由 settings watch 同步到 expander 模块级变量, 不再走参数链
+watch(
+    () => settings.max_find_fs,
+    (value) => set_max_find_fs(value),
+    { immediate: true },
+);
 
 watch(
     () => settings,
