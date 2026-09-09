@@ -2,6 +2,33 @@ import type { AppStorageLike } from '@/core/storage.ts';
 import { note_storage_key } from '@/core/storage_keys.ts';
 
 export type NoteRows = string[][];
+export type NoteAxis = 'row' | 'col';
+export interface NoteLayout {
+    row_heights: number[];
+    col_widths: number[];
+}
+interface NoteSnapshot {
+    rows: NoteRows;
+    layout: NoteLayout;
+}
+export const NOTE_AXIS_SIZE = {
+    row: { default: 32, min: 24, max: 600 },
+    col: { default: 144, min: 56, max: 800 },
+} as const;
+
+export function note_axis_size(axis: NoteAxis, value: unknown): number {
+    const bounds = NOTE_AXIS_SIZE[axis];
+    return typeof value === 'number' && Number.isFinite(value)
+        ? Math.max(bounds.min, Math.min(bounds.max, Math.round(value)))
+        : bounds.default;
+}
+
+function normalize_layout(rows: NoteRows, layout?: Partial<NoteLayout>): NoteLayout {
+    return {
+        row_heights: rows.map((_, r) => note_axis_size('row', layout?.row_heights?.[r])),
+        col_widths: rows[0].map((_, c) => note_axis_size('col', layout?.col_widths?.[c])),
+    };
+}
 export interface CellPosition {
     row: number;
     col: number;
@@ -68,8 +95,8 @@ export function decode_note(raw: string | null): NoteRows {
     );
 }
 
-export function encode_note(rows: NoteRows): string {
-    return JSON.stringify({ format: FORMAT, version: 1, rows });
+export function encode_note(rows: NoteRows, layout?: NoteLayout): string {
+    return JSON.stringify({ format: FORMAT, version: 1, rows, ...(layout ? { layout } : {}) });
 }
 
 export function selected_range(anchor: CellPosition, active: CellPosition): CellRange {
@@ -161,10 +188,11 @@ function equal_rows(left: NoteRows, right: NoteRows): boolean {
 /** One notation's saved table and in-memory transaction history. */
 export class NoteSession {
     rows: NoteRows;
+    layout: NoteLayout;
     save_failed = false;
     valid = true;
-    private past: NoteRows[] = [];
-    private future: NoteRows[] = [];
+    private past: NoteSnapshot[] = [];
+    private future: NoteSnapshot[] = [];
     private edit_start: NoteRows | null = null;
 
     constructor(
@@ -173,6 +201,16 @@ export class NoteSession {
         private storage: () => AppStorageLike | null,
     ) {
         this.rows = decode_note(saved_raw);
+        let layout: Partial<NoteLayout> | undefined;
+        try {
+            const value = JSON.parse(saved_raw ?? 'null');
+            if (value?.format === FORMAT && value?.layout && typeof value.layout === 'object') {
+                layout = value.layout;
+            }
+        } catch {
+            /* Legacy plain text has default dimensions. */
+        }
+        this.layout = normalize_layout(this.rows, layout);
     }
 
     get can_undo(): boolean {
@@ -182,8 +220,12 @@ export class NoteSession {
         return this.future.length > 0;
     }
 
-    private remember(rows: NoteRows): void {
-        this.past.push(rows);
+    private snapshot(): NoteSnapshot {
+        return { rows: this.rows, layout: this.layout };
+    }
+
+    private remember(snapshot: NoteSnapshot): void {
+        this.past.push(snapshot);
         if (this.past.length > MAX_HISTORY) this.past.shift();
         this.future = [];
     }
@@ -193,7 +235,7 @@ export class NoteSession {
         try {
             const storage = this.storage();
             if (!storage) throw new Error('Storage unavailable');
-            const raw = encode_note(this.rows);
+            const raw = encode_note(this.rows, this.layout);
             storage.setItem(note_storage_key(this.id), raw);
             this.saved_raw = raw;
             this.save_failed = false;
@@ -220,16 +262,42 @@ export class NoteSession {
         if (cancel) {
             this.rows = before;
             this.save();
-        } else this.remember(before);
+        } else this.remember({ rows: before, layout: this.layout });
     }
 
-    change(rows: NoteRows): void {
+    change(rows: NoteRows, layout = this.layout): void {
         if (!this.valid) return;
         this.finish_edit();
-        if (equal_rows(this.rows, rows)) return;
-        this.remember(this.rows);
+        const next_layout = normalize_layout(rows, layout);
+        if (equal_rows(this.rows, rows) && JSON.stringify(this.layout) === JSON.stringify(next_layout)) return;
+        this.remember(this.snapshot());
         this.rows = rows;
+        this.layout = next_layout;
         this.save();
+    }
+
+    resize_axis(axis: NoteAxis, index: number, size: number): void {
+        const key = axis === 'row' ? 'row_heights' : 'col_widths';
+        if (!Number.isInteger(index) || index < 0 || index >= this.layout[key].length) return;
+        const sizes = this.layout[key].slice();
+        sizes[index] = note_axis_size(axis, size);
+        this.change(this.rows, { ...this.layout, [key]: sizes });
+    }
+
+    insert_axis(axis: NoteAxis, after: number): void {
+        const rows = insert_note_axis(this.rows, axis, after);
+        const key = axis === 'row' ? 'row_heights' : 'col_widths';
+        const sizes = this.layout[key].slice();
+        sizes.splice(after + 1, 0, NOTE_AXIS_SIZE[axis].default);
+        this.change(rows, { ...this.layout, [key]: sizes });
+    }
+
+    delete_axis(axis: NoteAxis, range: CellRange): void {
+        const key = axis === 'row' ? 'row_heights' : 'col_widths';
+        const start = axis === 'row' ? range.top : range.left;
+        const end = axis === 'row' ? range.bottom : range.right;
+        const sizes = this.layout[key].filter((_, index) => index < start || index > end);
+        this.change(delete_note_axis(this.rows, axis, range), { ...this.layout, [key]: sizes });
     }
 
     undo(): void {
@@ -237,8 +305,9 @@ export class NoteSession {
         this.finish_edit();
         const before = this.past.pop();
         if (!before) return;
-        this.future.push(this.rows);
-        this.rows = before;
+        this.future.push(this.snapshot());
+        this.rows = before.rows;
+        this.layout = before.layout;
         this.save();
     }
 
@@ -247,8 +316,9 @@ export class NoteSession {
         this.finish_edit();
         const after = this.future.pop();
         if (!after) return;
-        this.past.push(this.rows);
-        this.rows = after;
+        this.past.push(this.snapshot());
+        this.rows = after.rows;
+        this.layout = after.layout;
         this.save();
     }
 

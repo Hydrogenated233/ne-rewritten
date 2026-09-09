@@ -10,14 +10,15 @@ import { APP_STORAGE_KEYS } from '@/core/storage_keys.ts';
 import {
     clear_cells,
     column_label,
-    delete_note_axis,
-    insert_note_axis,
+    NOTE_AXIS_SIZE,
+    note_axis_size,
     put_cells,
     range_rows,
     selected_range,
     type CellPosition,
     type NoteRows,
     type NoteSession,
+    type NoteAxis,
 } from '@/core/note_table.ts';
 import { note_clipboard_html, note_clipboard_text, parse_note_html, parse_note_text } from '@/core/note_clipboard.ts';
 
@@ -32,6 +33,19 @@ const active = ref<CellPosition>({ row: 0, col: 0 });
 const editing = ref<CellPosition | null>(null);
 const error = ref('');
 const rows = computed(() => session.value?.rows ?? []);
+const resizing = ref<{
+    axis: NoteAxis;
+    index: number;
+    start: number;
+    initial: number;
+    size: number;
+    pointer: number;
+} | null>(null);
+function axis_size(axis: NoteAxis, index: number): number {
+    if (resizing.value?.axis === axis && resizing.value.index === index) return resizing.value.size;
+    return session.value?.layout[axis === 'row' ? 'row_heights' : 'col_widths'][index] ?? NOTE_AXIS_SIZE[axis].default;
+}
+const table_width = computed(() => 40 + rows.value[0]?.reduce((sum, _, c) => sum + axis_size('col', c), 0));
 const range = computed(() => selected_range(anchor.value, active.value));
 const address = (cell: CellPosition) => column_label(cell.col) + (cell.row + 1);
 const selection_label = computed(() => {
@@ -74,11 +88,11 @@ function select(cell: CellPosition, extend = false, focus = true): void {
     active.value = { ...cell };
     if (focus) focus_cell();
 }
-function run_change(action: (values: NoteRows) => NoteRows): void {
+function run_action(action: () => void): void {
     if (!session.value) return;
     finish_edit();
     try {
-        session.value.change(action(rows.value));
+        action();
         error.value = '';
         refresh();
         clamp_selection();
@@ -87,11 +101,14 @@ function run_change(action: (values: NoteRows) => NoteRows): void {
     }
     focus_cell();
 }
+function run_change(action: (values: NoteRows) => NoteRows): void {
+    run_action(() => session.value?.change(action(rows.value)));
+}
 function add_axis(axis: 'row' | 'col'): void {
-    run_change((values) => insert_note_axis(values, axis, axis === 'row' ? range.value.bottom : range.value.right));
+    run_action(() => session.value?.insert_axis(axis, axis === 'row' ? range.value.bottom : range.value.right));
 }
 function remove_axis(axis: 'row' | 'col'): void {
-    run_change((values) => delete_note_axis(values, axis, range.value));
+    run_action(() => session.value?.delete_axis(axis, range.value));
 }
 function clear(): void {
     run_change((values) => clear_cells(values, range.value));
@@ -141,6 +158,57 @@ function pointer_up(): void {
     dragging = false;
     focus_cell();
 }
+function start_resize(event: PointerEvent, axis: NoteAxis, index: number): void {
+    if (event.button !== 0 || !session.value?.valid) return;
+    finish_edit();
+    dragging = false;
+    const initial = axis_size(axis, index);
+    resizing.value = {
+        axis,
+        index,
+        initial,
+        size: initial,
+        start: axis === 'col' ? event.clientX : event.clientY,
+        pointer: event.pointerId,
+    };
+    const handle = event.currentTarget as HTMLElement;
+    handle.focus({ preventScroll: true });
+    handle.setPointerCapture(event.pointerId);
+}
+function move_resize(event: PointerEvent): void {
+    const drag = resizing.value;
+    if (!drag || drag.pointer !== event.pointerId) return;
+    drag.size = note_axis_size(
+        drag.axis,
+        drag.initial + (drag.axis === 'col' ? event.clientX : event.clientY) - drag.start,
+    );
+}
+function finish_resize(event: PointerEvent, cancel = false): void {
+    const drag = resizing.value;
+    if (!drag || drag.pointer !== event.pointerId) return;
+    if (!cancel) move_resize(event);
+    resizing.value = null;
+    if (!cancel) {
+        session.value?.resize_axis(drag.axis, drag.index, drag.size);
+        refresh();
+    }
+}
+function resize_key(event: KeyboardEvent, axis: NoteAxis, index: number): void {
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        if (resizing.value) resizing.value = null;
+        else ui.show_notes.value = false;
+        return;
+    }
+    if (resizing.value || history_key(event)) return;
+    const negative = axis === 'col' ? 'ArrowLeft' : 'ArrowUp';
+    const positive = axis === 'col' ? 'ArrowRight' : 'ArrowDown';
+    if (event.key !== negative && event.key !== positive) return;
+    event.preventDefault();
+    finish_edit();
+    session.value?.resize_axis(axis, index, axis_size(axis, index) + (event.key === positive ? 8 : -8));
+    refresh();
+}
 function begin_edit(initial?: string): void {
     const current = session.value;
     if (!current || !current.valid) return;
@@ -182,7 +250,7 @@ function move(key: string, shift: boolean): void {
     else if (key === 'End') col = rows.value[0].length - 1;
     if (row === rows.value.length && (key === 'Tab' || key === 'Enter')) {
         try {
-            session.value?.change(insert_note_axis(rows.value, 'row', row - 1));
+            session.value?.insert_axis('row', row - 1);
             refresh();
         } catch {
             error.value = 'notes.too-large';
@@ -299,6 +367,7 @@ function load_note(): void {
 watch(
     [() => ui.show_notes.value, save_load.notation],
     ([visible]) => {
+        resizing.value = null;
         if (visible) load_note();
         else finish_edit();
     },
@@ -306,6 +375,7 @@ watch(
 );
 onMounted(() => window.addEventListener('pointerup', pointer_up));
 onUnmounted(() => {
+    resizing.value = null;
     finish_edit();
     window.removeEventListener('pointerup', pointer_up);
 });
@@ -397,14 +467,14 @@ onUnmounted(() => {
                     :aria-rowcount="rows.length + 1"
                     :aria-colcount="rows[0].length + 1"
                     aria-multiselectable="true"
-                    :style="{ width: `${40 + rows[0].length * 144}px` }"
+                    :style="{ width: `${table_width}px` }"
                     @copy.stop="on_copy($event)"
                     @cut.stop="on_copy($event, true)"
                     @paste.stop="on_paste"
                 >
                     <colgroup>
                         <col class="note-index-col" />
-                        <col v-for="(_, c) in rows[0]" :key="c" class="note-value-col" />
+                        <col v-for="(_, c) in rows[0]" :key="c" :style="{ width: `${axis_size('col', c)}px` }" />
                     </colgroup>
                     <thead>
                         <tr>
@@ -426,11 +496,33 @@ onUnmounted(() => {
                                 >
                                     {{ column_label(c) }}
                                 </button>
+                                <span
+                                    class="note-resize note-resize-col"
+                                    role="separator"
+                                    tabindex="0"
+                                    aria-orientation="vertical"
+                                    :aria-label="t('notes.resize-col', { col: column_label(c) })"
+                                    :title="t('notes.resize-col', { col: column_label(c) })"
+                                    :aria-valuemin="NOTE_AXIS_SIZE.col.min"
+                                    :aria-valuemax="NOTE_AXIS_SIZE.col.max"
+                                    :aria-valuenow="axis_size('col', c)"
+                                    @pointerdown.stop.prevent="start_resize($event, 'col', c)"
+                                    @pointermove.stop="move_resize"
+                                    @pointerup.stop="finish_resize($event)"
+                                    @pointercancel.stop="finish_resize($event, true)"
+                                    @lostpointercapture="finish_resize($event, true)"
+                                    @click.stop
+                                    @keydown.stop="resize_key($event, 'col', c)"
+                                />
                             </th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="(row, r) in rows" :key="r">
+                        <tr
+                            v-for="(row, r) in rows"
+                            :key="r"
+                            :style="{ '--note-row-height': `${axis_size('row', r)}px` }"
+                        >
                             <th scope="row" role="rowheader">
                                 <button
                                     type="button"
@@ -439,6 +531,24 @@ onUnmounted(() => {
                                 >
                                     {{ r + 1 }}
                                 </button>
+                                <span
+                                    class="note-resize note-resize-row"
+                                    role="separator"
+                                    tabindex="0"
+                                    aria-orientation="horizontal"
+                                    :aria-label="t('notes.resize-row', { row: String(r + 1) })"
+                                    :title="t('notes.resize-row', { row: String(r + 1) })"
+                                    :aria-valuemin="NOTE_AXIS_SIZE.row.min"
+                                    :aria-valuemax="NOTE_AXIS_SIZE.row.max"
+                                    :aria-valuenow="axis_size('row', r)"
+                                    @pointerdown.stop.prevent="start_resize($event, 'row', r)"
+                                    @pointermove.stop="move_resize"
+                                    @pointerup.stop="finish_resize($event)"
+                                    @pointercancel.stop="finish_resize($event, true)"
+                                    @lostpointercapture="finish_resize($event, true)"
+                                    @click.stop
+                                    @keydown.stop="resize_key($event, 'row', r)"
+                                />
                             </th>
                             <td
                                 v-for="(value, c) in row"
@@ -569,9 +679,6 @@ onUnmounted(() => {
 .note-index-col {
     width: 40px;
 }
-.note-value-col {
-    width: 144px;
-}
 .note-grid th,
 .note-grid td {
     padding: 0;
@@ -586,6 +693,10 @@ onUnmounted(() => {
     color: var(--color-text-secondary);
     font-weight: normal;
     user-select: none;
+}
+.note-grid tbody th,
+.note-grid tbody td {
+    height: var(--note-row-height);
 }
 .note-grid th button {
     display: block;
@@ -602,6 +713,33 @@ onUnmounted(() => {
     position: sticky;
     top: 0;
     z-index: 3;
+}
+.note-grid tbody th button {
+    height: calc(var(--note-row-height) - 1px);
+}
+.note-resize {
+    position: absolute;
+    z-index: 1;
+    touch-action: none;
+}
+.note-resize:hover,
+.note-resize:focus-visible {
+    background: var(--color-accent);
+    outline: none;
+}
+.note-resize-col {
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+}
+.note-resize-row {
+    left: 0;
+    bottom: 0;
+    width: 100%;
+    height: 8px;
+    cursor: row-resize;
 }
 .note-grid tbody th {
     position: sticky;
@@ -624,9 +762,10 @@ onUnmounted(() => {
     box-shadow: inset 0 0 0 2px var(--color-accent);
 }
 .note-cell-text {
-    height: 31px;
-    padding: 0 6px;
-    line-height: 31px;
+    height: calc(var(--note-row-height) - 1px);
+    box-sizing: border-box;
+    padding: 5px 6px;
+    line-height: 21px;
     overflow: hidden;
     white-space: pre;
     text-overflow: ellipsis;

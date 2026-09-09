@@ -55,7 +55,8 @@ describe('standalone initial variants', () => {
         storage.setItem(APP_STORAGE_KEYS.settings, JSON.stringify({ current_notation_id: second }));
         storage.setItem(analysis_storage_key(first), 'selected analysis');
         const note = [['1,2,4,8', '001'], ['two\nlines', '"literal"']];
-        storage.setItem(note_storage_key(first), encode_note(note));
+        const noteRaw = encode_note(note, { row_heights: [64, 96], col_widths: [240, 160] });
+        storage.setItem(note_storage_key(first), noteRaw);
         storage.setItem(analysis_storage_key(second), 'excluded analysis');
         storage.setItem(note_storage_key(second), 'excluded note');
         storage.setItem(analysis_storage_key(base.id), 'unselected base analysis');
@@ -69,7 +70,10 @@ describe('standalone initial variants', () => {
         const settings = JSON.parse(target.NotationStorage.getItem(APP_STORAGE_KEYS.settings));
         expect(settings.variant_state).toEqual({ [base.id]: [{ seq: 1, init: ['5', '0'] }] });
         expect(target.NotationStorage.getItem(analysis_storage_key(first))).toBe(includeData ? 'selected analysis' : null);
-        if (includeData) expect(decode_note(target.NotationStorage.getItem(note_storage_key(first)))).toEqual(note);
+        if (includeData) {
+            expect(decode_note(target.NotationStorage.getItem(note_storage_key(first)))).toEqual(note);
+            expect(target.NotationStorage.getItem(note_storage_key(first))).toBe(noteRaw);
+        }
         else expect(target.NotationStorage.getItem(note_storage_key(first))).toBeNull();
         expect(target.NotationStorage.getItem(analysis_storage_key(second))).toBeNull();
         expect(target.NotationStorage.getItem(note_storage_key(second))).toBeNull();

@@ -29,12 +29,24 @@ Status: both recommendation rounds accepted; implemented and verified.
 - Delete clears the selected rectangle. Toolbar commands remove rows/columns.
 - Undo/redo is isolated by notation and survives closing the panel or switching
   notation, but not a page reload. No repeated deletion confirmation dialogs.
+- Drag the right edge of a column header or the bottom edge of a row header to
+  resize it. Focused resize handles also accept the corresponding arrow keys
+  in 8px steps. Column widths range from 56 to 800px; row heights from 24 to 600px.
+- Dimensions are saved per notation. Each completed drag is one undo transaction;
+  pointer cancellation or changing/closing the note discards an unfinished preview.
+  Increasing row height reveals additional lines without changing cell text.
 
 ## Implementation Boundaries
 
 - Keep existing note storage keys and standalone storage isolation. Store versioned
   `nerw-note-table` documents with string-cell arrays; read old plain text literally.
   Reading legacy notes alone does not overwrite them; the next edit writes the new format.
+- Version 1 optionally includes `layout.row_heights` and `layout.col_widths` in
+  pixels. Missing or invalid sizes use defaults (32px rows, 144px columns);
+  finite sizes are rounded and clamped. Existing documents remain readable.
+  Layout travels with rows/columns on insertion/deletion and is restored alongside
+  cell values by undo/redo. Paste growth gives new rows/columns default dimensions.
+  Standalone export preserves layout; XLSX and clipboard still export cell values only.
 - New empty notes show 8 rows and 4 columns. Tables grow on paste or advancing past
   the last row. Keep at least one row and column after deletion.
 - Bound tables to 20,000 cells and undo history to the last 100 transactions.
@@ -52,7 +64,7 @@ Status: both recommendation rounds accepted; implemented and verified.
 
 ## Verification
 
-- Full suite: 50 files / 326 tests; type checking passes.
+- Original editor verification: 50 files / 326 tests; type checking passes.
 - Standard, compatibility and standalone builds pass, with the existing build warnings.
 - Regression coverage includes legacy migration, quoted TSV, atomic paste and
   limits, session isolation, save retry, deletion/history invalidation, XLSX readback
@@ -66,3 +78,14 @@ Status: both recommendation rounds accepted; implemented and verified.
   automating a running Microsoft Excel instance.
 - Existing npm audit findings concern the pre-existing Vitest development dependency;
   the unrelated test-runner upgrade is not included in this change.
+
+### Row and Column Resizing
+
+- Full suite: 50 files / 332 tests. Regression tests cover legacy/default sizes,
+  persistence and notation isolation, mixed cell/layout undo history, insertion,
+  deletion, paste growth, size limits, save retry, and standalone layout preservation.
+- Live browser checks verify actual cell bounds after mouse drags (240px column,
+  96px row), one undo per completed drag, redo, keyboard resizing/undo, and reload.
+- Desktop and 390x844 screenshots confirm that multiline cells remain contained
+  and overflow scrolls within the panel. Narrow-screen dragging also passes.
+  Browser console checks report no warnings or errors.
