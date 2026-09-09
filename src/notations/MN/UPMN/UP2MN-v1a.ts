@@ -63,7 +63,7 @@ function copy_column(col: Column, [Ri, Rj]: [number, number], offset: number, up
     return result;
 }
 
-function expand_a(m: Mountain, index: number, shorter: boolean = false): Mountain {
+function expand(m: Mountain, index: number, shorter: boolean = false): Mountain {
     if (is_infinity(m)) return infinity_FS(index);
     if (m.length === 0) return m;
     const right = m.length - 1;
@@ -181,7 +181,7 @@ export const UP2MN_v1a: NotationDefinition<Mountain> = {
         },
     },
     draw_diagram: draw_diagram_control,
-    ...MN_FS_variants(expand_a, is_infinity, infinity_FS, is_limit, to_data_key),
+    ...MN_FS_variants(expand, is_infinity, infinity_FS, is_limit, to_data_key),
     is_limit,
     compare,
     credit_text_id: 'credit.upmn',

@@ -1,10 +1,18 @@
-import { boolean_compare, deepcopy, lex_compare, number_compare, tuple_lex_compare_by } from '@/utils.ts';
+import {
+    boolean_compare,
+    deepcopy,
+    lex_compare,
+    number_compare,
+    tuple_lex_compare,
+    tuple_lex_compare_by,
+} from '@/utils.ts';
 import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
 import { sequence_FS_variants } from '@/notations/notation_utils.ts';
 import {
     DiagramData,
     draw_diagram_control as draw_diagram_control_nMN,
     from_display as from_display_nMN,
+    from_display_simple as from_display_simple_nMN,
     INFINITY as INFINITY_nMN,
     is_infinity as is_infinity_nMN,
     MarkSpec,
@@ -44,14 +52,13 @@ function compare_column(a: Column, b: Column) {
 
 type RelEntry = [boolean, number];
 type RelColumn = RelEntry[];
-type RelExpr = RelColumn[];
-
-function compare_rel(a: RelExpr, b: RelExpr): number {
-    return lex_compare(a, b, compare_rel_column);
-}
 
 function compare_rel_column(a: RelColumn, b: RelColumn) {
-    return lex_compare(a, b, tuple_lex_compare_by([boolean_compare, number_compare]));
+    return lex_compare(a, b, compare_rel_entry);
+}
+
+function compare_rel_entry(a: RelEntry, b: RelEntry): number {
+    return tuple_lex_compare(a, b, [boolean_compare, number_compare]);
 }
 
 function to_rel_column(col: Column, r: number): RelColumn {
@@ -66,53 +73,56 @@ function compute_up(expr: Expr, r: number, b: number): boolean[] {
     result[r] = true;
 
     for (let i = r + 1; i < expr.length; i++) {
-        for (let j = 0; j < Math.min(expr[i].length, b); j++) {
-            if (expr[i][j] === r) {
-                // perform UP check
-
-                do {
-                    const X_start = i;
-                    let Y_start = right;
-                    while (expr[Y_start][j] !== r) Y_start = expr[Y_start][j];
-
-                    if (Y_start <= X_start) {
-                        result[i] = X_start === Y_start;
-                        break;
-                    }
-
-                    const X0 = expr[X_start].slice(j);
-                    const Y0 = expr[Y_start].slice(j);
-                    const cmp_0 = lex_compare(X0, Y0, number_compare);
-                    if (cmp_0 !== 0) {
-                        result[i] = cmp_0 > 0;
-                        break;
-                    }
-
-                    for (let k = 1; Y_start + k < expr.length; k++) {
-                        const Xk = to_rel_column(expr[X_start + k], X_start);
-                        const Yk = to_rel_column(expr[Y_start + k], Y_start);
-                        const cmp = compare_rel_column(Xk, Yk);
-                        if (cmp !== 0) {
-                            result[i] = cmp > 0;
-                            break;
-                        }
-                    }
-
-                    if (result[i] === undefined) {
-                        result[i] = true;
-                        break;
-                    }
-                } while (false);
-
+        for (let j = 0; j <= b; j++) {
+            if (j >= expr.length) {
+                result[i] = false;
+            }
+            if (j === b) {
+                result[i] = result[b === 0 ? i - 1 : expr[i][b - 1]];
+            }
+            if (expr[i][j] < r) {
+                result[i] = false;
                 break;
             }
-        }
-        if (result[i] === undefined) {
-            if (expr[i].length <= b || b === 0) {
-                result[i] = true;
-            } else {
-                result[i] = result[expr[i][b - 1]];
+            if (expr[i][j] > r) {
+                continue;
             }
+
+            // perform UP check
+            do {
+                const X_start = i;
+                let Y_start = right;
+                while (expr[Y_start][j] !== r) Y_start = expr[Y_start][j];
+
+                if (Y_start <= X_start) {
+                    result[i] = X_start === Y_start;
+                    break;
+                }
+
+                const X0 = expr[X_start].slice(j);
+                const Y0 = expr[Y_start].slice(j);
+                const cmp_0 = lex_compare(X0, Y0, number_compare);
+                if (cmp_0 !== 0) {
+                    result[i] = cmp_0 > 0;
+                    break;
+                }
+
+                for (let k = 1; Y_start + k < expr.length; k++) {
+                    const Xk = to_rel_column(expr[X_start + k], X_start);
+                    const Yk = to_rel_column(expr[Y_start + k], Y_start);
+                    const cmp = compare_rel_column(Xk, Yk);
+                    if (cmp !== 0) {
+                        result[i] = cmp > 0;
+                        break;
+                    }
+                }
+
+                if (result[i] === undefined) {
+                    result[i] = true;
+                    break;
+                }
+            } while (false);
+            break;
         }
     }
 
@@ -149,8 +159,16 @@ function to_nMN(expr: Expr): Mountain {
     return expr.map((col) => col.map((v) => [v + 1, 0]));
 }
 
-function display(expr: Expr): string {
-    return display_nMN(to_nMN(expr), false);
+function from_nMN(m: Mountain): Expr {
+    if (is_infinity_nMN(m)) return INFINITY;
+    if (!m.every((col) => col.every((entry) => entry[1] === 0))) {
+        throw new Error();
+    }
+    return m.map((col) => col.map((entry) => entry[0] - 1));
+}
+
+function display(expr: Expr, simple: boolean = false): string {
+    return display_nMN(to_nMN(expr), simple);
 }
 
 function display_marked(expr: Expr, mark: MarkSpec): string {
@@ -159,30 +177,35 @@ function display_marked(expr: Expr, mark: MarkSpec): string {
 
 function from_display(str: string): Expr {
     const m = from_display_nMN(str);
-    if (is_infinity_nMN(m)) return INFINITY;
-    if (!m.every((col) => col.every((entry) => entry[1] === 0))) {
+    try {
+        return from_nMN(m);
+    } catch (_) {
         throw new Error('Illegal input string: ' + str);
     }
-    return m.map((col) => col.map((entry) => entry[0] - 1));
 }
 
-function calc_ancestor_depths(m: Expr): number[][] {
-    const depthMap: number[][] = [];
-
-    for (let i = 0; i < m.length; i++) {
-        depthMap[i] = [];
-        for (let j = 0; j < m[i].length; j++) {
-            const pi = m[i][j];
-            depthMap[i][j] = j >= m[pi].length ? 0 : 1 + depthMap[pi][j];
-        }
+function from_display_simple(str: string): Expr {
+    const m = from_display_simple_nMN(str);
+    try {
+        return from_nMN(m);
+    } catch (_) {
+        throw new Error('Illegal input string: ' + str);
     }
-    return depthMap;
 }
 
 export function convert_to_layer(om: Expr): Expr {
     if (is_infinity(om)) return om;
 
-    const depthMap = calc_ancestor_depths(om);
+    const depthMap: number[][] = [];
+
+    for (let i = 0; i < om.length; i++) {
+        depthMap[i] = [];
+        for (let j = 0; j < om[i].length; j++) {
+            const pi = om[i][j];
+            depthMap[i][j] = j >= om[pi].length ? 0 : 1 + depthMap[pi][j];
+        }
+    }
+
     const dm = deepcopy(om);
     for (let i = 0; i < dm.length; i++) {
         const column = dm[i];
@@ -272,6 +295,16 @@ export const UP1MN: NotationDefinition<Expr> = {
             from_display: from_display,
             name: { id: 'display.index-marked' },
         },
+        simple: {
+            plain: (m) => display(m, true),
+            from_display: from_display_simple,
+            name: { id: 'display.index-simple' },
+        },
+        'layer simple': {
+            plain: (m) => display(convert_to_layer(m), true),
+            from_display: (s) => convert_from_layer(from_display_simple(s)),
+            name: { id: 'display.layer-simple' },
+        },
     },
     draw_diagram: draw_diagram_control,
     ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
@@ -281,5 +314,5 @@ export const UP1MN: NotationDefinition<Expr> = {
 
     init: () => [INFINITY, []],
 
-    // debug_verification,
+    debug_verification,
 };

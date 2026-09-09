@@ -97,6 +97,7 @@ import { category_upmn } from '@/notations/MN/UPMN/categories.ts';
 import { UP2MN_v1a } from '@/notations/MN/UPMN/UP2MN-v1a.ts';
 import { BBM } from '@/notations/BM-like/BBM.ts';
 import { UP1MN } from '@/notations/MN/UPMN/UP1MN.ts';
+import { UP2MN_v1b } from '@/notations/MN/UPMN/UP2MN-v1b.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -220,6 +221,7 @@ register_notation(S_omega_pow_omega_MN);
 register_category(category_upmn);
 register_notation(UP1MN);
 register_notation(UP2MN_v1a);
+register_notation(UP2MN_v1b);
 register_category(category_den);
 register_notation(DEN);
 register_notation(DEN2);
