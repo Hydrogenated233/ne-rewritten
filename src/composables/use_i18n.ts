@@ -192,6 +192,7 @@ const messages: Record<Language, Record<string, string>> = {
         'description.UP2MN-v1a.5':
             '进而 ,,4 的复制不变. 从而 (,7,4) 中的 ,4 也不能提升. 因此, 也不能简单添加所有 BMS 提升.',
         'description.up2mn-v1b': '与 v1a 相比, 移除了全部 BMS 提升.',
+        'description.up2mn-v1b-plus': '在 v1b 的基础上, 将极限表达式由 ()(,,1)(,,2) 改为 ()(,,1,1), 并作适配.',
         'diagram.den.offset': '起始偏移',
         'diagram.den.offset-x': '横向偏移',
         'diagram.den.max-display': '最大显示行数',
@@ -439,6 +440,8 @@ const messages: Record<Language, Record<string, string>> = {
         'description.UP2MN-v1a.5':
             'and hence the copy of ,,4 remains unchanged. Thus ,4 in (,7,4) cannot be elevated either. Therefore, one cannot simply add all BMS elevations.',
         'description.up2mn-v1b': 'Compared to v1a, all BMS elevation is removed.',
+        'description.up2mn-v1b-plus':
+            'Based on v1b, the limit expression is changed from ()(,,1)(,,2) to ()(,,1,1), with corresponding adaptation.',
         'diagram.den.offset': 'Start offset',
         'diagram.den.offset-x': 'Horizontal offset',
         'diagram.den.max-display': 'Max display rows',
