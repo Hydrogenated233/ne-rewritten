@@ -191,6 +191,7 @@ const messages: Record<Language, Record<string, string>> = {
             '例子 ()(,,1)(,2,,1)(,3)(,4,,4)(,5,5,,4)(,6,,4)(,7,4)(,4,,4)(,9,9,,4) 中, UP 条件要求 (,6,,4) 的复制不提升,',
         'description.UP2MN-v1a.5':
             '进而 ,,4 的复制不变. 从而 (,7,4) 中的 ,4 也不能提升. 因此, 也不能简单添加所有 BMS 提升.',
+        'description.up2mn-v1b': '与 v1a 相比, 移除了全部 BMS 提升.',
         'diagram.den.offset': '起始偏移',
         'diagram.den.offset-x': '横向偏移',
         'diagram.den.max-display': '最大显示行数',
@@ -437,6 +438,7 @@ const messages: Record<Language, Record<string, string>> = {
             'In the example ()(,,1)(,2,,1)(,3)(,4,,4)(,5,5,,4)(,6,,4)(,7,4)(,4,,4)(,9,9,,4), the UP condition requires that the copy of (,6,,4) is not elevated,',
         'description.UP2MN-v1a.5':
             'and hence the copy of ,,4 remains unchanged. Thus ,4 in (,7,4) cannot be elevated either. Therefore, one cannot simply add all BMS elevations.',
+        'description.up2mn-v1b': 'Compared to v1a, all BMS elevation is removed.',
         'diagram.den.offset': 'Start offset',
         'diagram.den.offset-x': 'Horizontal offset',
         'diagram.den.max-display': 'Max display rows',
