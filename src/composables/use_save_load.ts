@@ -24,6 +24,7 @@ import {
     type LocalNotationLifecycleSnapshot,
 } from '@/core/local_notation_lifecycle.ts';
 import type { LocalNotationFile } from '@/core/local_notation_store.ts';
+import { note_tables } from '@/composables/use_note_tables.ts';
 
 export interface SaveLoadInstance {
     trees: Map<string, TreeNode<unknown>>;
@@ -130,6 +131,7 @@ export function use_save_load(
     }
 
     function remove_notation_data(id: string) {
+        note_tables.forget(id);
         app_storage()?.removeItem?.(analysis_storage_key(id));
         app_storage()?.removeItem?.(note_storage_key(id));
         trees.delete(id);
@@ -186,17 +188,15 @@ export function use_save_load(
             equiv_name && n.display_equiv?.[equiv_name]
                 ? resolve_display(n.display_equiv[equiv_name]).plain
                 : resolve_display(n.display).plain;
-        let note = '';
-        try {
-            note = app_storage()?.getItem(note_storage_key(n.id)) ?? '';
-        } catch {
-            // Notes are optional; a storage failure must not block analysis export.
-        }
+        // Use the live session too, so export can recover edits after a storage failure.
+        let note;
+        try { note = note_tables.open(n.id).rows; }
+        catch { alert(t('notes.load-error')); return; }
         const buf = await export_analysis_with_notes_to_xlsx(
             entries,
             display_fn,
             settings.export_hide,
-            note ? [{ name: t('notes.sheet'), text: note }] : [],
+            [{ name: t('notes.sheet'), rows: note }],
         );
         download_buffer(buf, `${n.id}_analysis.xlsx`);
     }

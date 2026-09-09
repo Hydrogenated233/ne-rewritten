@@ -1,49 +1,16 @@
 import type { AnalysisEntry } from '@/core/analysis.ts';
+import { decode_note, note_export_rows, type NoteRows } from '@/core/note_table.ts';
 
-export interface XlsxNoteSheet {
+export type XlsxNoteSheet = {
     name: string;
-    text: string;
-}
+} & ({ rows: NoteRows; text?: never } | { text: string; rows?: never });
 
 type XlsxCell = string | number | boolean | null;
 type XlsxRow = XlsxCell[];
 
-/** Parse the CSV-like lines used by the original notes exporter. */
+/** Compatibility entry point: both saved tables and legacy literal lines. */
 export function note_text_to_rows(text: string): string[][] {
-    const rows: string[][] = [];
-    for (const raw_line of text.replace(/\r\n?/g, '\n').split('\n')) {
-        const line = raw_line.trim();
-        if (!line) continue;
-
-        const fields: string[] = [];
-        let current = '';
-        let quoted = false;
-        for (let i = 0; i < line.length; i++) {
-            const character = line[i];
-            if (quoted) {
-                if (character === '"') {
-                    if (line[i + 1] === '"') {
-                        current += '"';
-                        i++;
-                    } else {
-                        quoted = false;
-                    }
-                } else {
-                    current += character;
-                }
-            } else if (character === '"') {
-                quoted = true;
-            } else if (character === ',') {
-                fields.push(current);
-                current = '';
-            } else {
-                current += character;
-            }
-        }
-        fields.push(current);
-        rows.push(fields);
-    }
-    return rows;
+    return note_export_rows(decode_note(text));
 }
 
 async function write_xlsx_sheets(sheets: Array<{ data: XlsxRow[]; sheet: string }>): Promise<ArrayBuffer> {
@@ -83,7 +50,7 @@ export async function export_analysis_with_notes_to_xlsx<T>(
     ]);
     const sheets: Array<{ data: XlsxRow[]; sheet: string }> = [{ data: rows, sheet: 'sheet1' }];
     for (const note of notes) {
-        const note_rows = note_text_to_rows(note.text);
+        const note_rows = note.rows ? note_export_rows(note.rows) : note_text_to_rows(note.text!);
         if (note_rows.length > 0) sheets.push({ data: note_rows, sheet: note.name || 'Notes' });
     }
     return write_xlsx_sheets(sheets);

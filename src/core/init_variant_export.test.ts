@@ -4,6 +4,7 @@ import {
     create_init_variant, generator_increment, register_notation, set_generator_state, set_variant_state, unregister_notation,
 } from '@/core/registry.ts';
 import { APP_STORAGE_KEYS, analysis_storage_key, note_storage_key } from '@/core/storage_keys.ts';
+import { decode_note, encode_note } from '@/core/note_table.ts';
 import { LocalNotationRuntime } from '@/core/local_notation_runtime.ts';
 import { is_local_notation, reload_all } from '@/core/user_defined_notation.ts';
 
@@ -53,6 +54,8 @@ describe('standalone initial variants', () => {
         const { storage, first, second } = setup();
         storage.setItem(APP_STORAGE_KEYS.settings, JSON.stringify({ current_notation_id: second }));
         storage.setItem(analysis_storage_key(first), 'selected analysis');
+        const note = [['1,2,4,8', '001'], ['two\nlines', '"literal"']];
+        storage.setItem(note_storage_key(first), encode_note(note));
         storage.setItem(analysis_storage_key(second), 'excluded analysis');
         storage.setItem(note_storage_key(second), 'excluded note');
         storage.setItem(analysis_storage_key(base.id), 'unselected base analysis');
@@ -66,6 +69,8 @@ describe('standalone initial variants', () => {
         const settings = JSON.parse(target.NotationStorage.getItem(APP_STORAGE_KEYS.settings));
         expect(settings.variant_state).toEqual({ [base.id]: [{ seq: 1, init: ['5', '0'] }] });
         expect(target.NotationStorage.getItem(analysis_storage_key(first))).toBe(includeData ? 'selected analysis' : null);
+        if (includeData) expect(decode_note(target.NotationStorage.getItem(note_storage_key(first)))).toEqual(note);
+        else expect(target.NotationStorage.getItem(note_storage_key(first))).toBeNull();
         expect(target.NotationStorage.getItem(analysis_storage_key(second))).toBeNull();
         expect(target.NotationStorage.getItem(note_storage_key(second))).toBeNull();
         expect(target.NotationStorage.getItem(analysis_storage_key(base.id))).toBeNull();

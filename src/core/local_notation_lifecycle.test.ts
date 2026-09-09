@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { apply_local_notation_lifecycle, type LocalNotationLifecycleSnapshot } from '@/core/local_notation_lifecycle';
 import type { LocalNotationFile } from '@/core/local_notation_store';
 import { analysis_storage_key, note_storage_key } from '@/core/storage_keys';
 import { DEFAULT_SETTINGS, type Settings } from '@/core/settings';
+import { note_tables } from '@/composables/use_note_tables.ts';
 
 class MemoryStorage {
     readonly data = new Map<string, string>();
@@ -155,6 +156,7 @@ describe('local notation lifecycle', () => {
     });
 
     it('permanently removes retained analysis and notes on delete', () => {
+        const forget = vi.spyOn(note_tables, 'forget');
         const storage = new MemoryStorage();
         storage.setItem(analysis_storage_key('local-old'), 'analysis');
         storage.setItem(note_storage_key('local-old'), 'note');
@@ -172,6 +174,8 @@ describe('local notation lifecycle', () => {
 
         expect(storage.getItem(analysis_storage_key('local-old'))).toBeNull();
         expect(storage.getItem(note_storage_key('local-old'))).toBeNull();
+        expect(forget).toHaveBeenCalledWith('local-old');
+        forget.mockRestore();
         expect(appSettings.equiv_active['local-old']).toBeUndefined();
     });
 

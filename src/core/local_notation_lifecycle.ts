@@ -2,6 +2,7 @@ import type { Settings } from '@/core/settings.ts';
 import type { LocalNotationFile, StorageLike } from '@/core/local_notation_store.ts';
 import { analysis_storage_key, note_storage_key } from '@/core/storage_keys.ts';
 import { with_init_variant_ids } from '@/core/registry.ts';
+import { note_tables } from '@/composables/use_note_tables.ts';
 
 export type LocalNotationLifecycleAction = 'save' | 'replace-upload' | 'upload' | 'enable' | 'disable' | 'delete';
 
@@ -47,7 +48,10 @@ function remove_analysis(storage: LocalNotationLifecycleContext['storage'], ids:
 }
 
 function remove_notes(storage: LocalNotationLifecycleContext['storage'], ids: Iterable<string>): void {
-    for (const id of unique(ids)) remove_storage(storage, note_storage_key(id));
+    for (const id of unique(ids)) {
+        note_tables.forget(id);
+        remove_storage(storage, note_storage_key(id));
+    }
 }
 
 function clear_equivalent_state(
