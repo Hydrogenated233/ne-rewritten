@@ -99,6 +99,7 @@ import { BBM } from '@/notations/BM-like/BBM.ts';
 import { UP1MN } from '@/notations/MN/UPMN/UP1MN.ts';
 import { UP2MN_v1b } from '@/notations/MN/UPMN/UP2MN-v1b.ts';
 import { UP2MN_v1b_plus } from '@/notations/MN/UPMN/UP2MN-v1b-plus.ts';
+import { UP2DBMS_v1b_plus } from '@/notations/MN/UPMN/UP2DBMS-v1b-plus.ts';
 
 const SETTINGS_KEY_NAME = 'ne-settings';
 
@@ -224,6 +225,7 @@ register_notation(UP1MN);
 register_notation(UP2MN_v1a);
 register_notation(UP2MN_v1b);
 register_notation(UP2MN_v1b_plus);
+register_notation(UP2DBMS_v1b_plus);
 register_category(category_den);
 register_notation(DEN);
 register_notation(DEN2);

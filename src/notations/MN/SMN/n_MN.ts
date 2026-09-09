@@ -44,7 +44,7 @@ function column_display(c: Column, simple: boolean): string {
     return simple ? result : '(' + result + ')';
 }
 
-function entry_display([v, sep]: Entry, simple: boolean): string {
+export function entry_display([v, sep]: Entry, simple: boolean): string {
     let d_sep = sep_display(sep, simple);
     let d_v = '' + v;
     if (simple && d_v.length >= 2) d_v = '(' + d_v + ')';

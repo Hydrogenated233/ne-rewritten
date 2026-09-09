@@ -351,7 +351,7 @@ function expand(expr: Expr, index: number, shorter: boolean): Expr {
     return result;
 }
 
-export function convert_to_layer(om: Mountain): Mountain {
+export function convert_to_layer(om: Expr): Expr {
     if (is_infinity(om)) return om;
 
     const V = om.map(column_verticals);
@@ -376,7 +376,7 @@ export function convert_to_layer(om: Mountain): Mountain {
     return dm;
 }
 
-export function convert_from_layer(dm: Mountain): Mountain {
+export function convert_from_layer(dm: Expr): Expr {
     if (is_infinity(dm)) return dm;
 
     const om = deepcopy(dm);

@@ -2,19 +2,20 @@ import {
     Mountain,
     INFINITY as INFINITY_nMN,
     is_infinity as is_infinity_nMN,
+    entry_display as entry_display_nMN,
     mountain_display as display_nMN,
     mountain_display_marked as display_marked_nMN,
     from_display as from_display_nMN,
     MarkSpec,
     from_display_simple as from_display_simple_nMN,
     find_index_below_equal,
-    DiagramData,
-    draw_diagram_control as draw_diagram_control_nMN,
 } from '@/notations/MN/SMN/n_MN.ts';
 import {
     anti_lex_compare,
     boolean_compare,
     deepcopy,
+    DisplayMap,
+    DisplaySet,
     lex_compare,
     number_compare,
     tuple_lex_compare,
@@ -22,6 +23,7 @@ import {
 import { DiagramControl, NotationDefinition } from '@/notation-definition.ts';
 import { Diagram } from '@/core/diagram_types.ts';
 import { sequence_FS_variants } from '@/notations/notation_utils.ts';
+import { draw_mountain_diagram, MountainDiagramData } from '@/notations/draw_mountain_util.ts';
 
 type Expr = Column[];
 type Column = Entry[];
@@ -38,8 +40,10 @@ function infinity_FS(index: number): Expr {
     const result: Expr = [[]];
     for (let i = 1; i <= index; ++i) {
         result[i] = [];
-        for (let j = 0; j < i - 1; j++) result[i].push([i - 1, 0]);
-        result[i].push([0, 1]);
+        for (let j = 0; j < i; j++) {
+            result[i].push([i - 1, 0]);
+        }
+        result[i].push([i - 1, 1]);
     }
     return result;
 }
@@ -69,6 +73,10 @@ function to_nMN(expr: Expr): Mountain {
 function from_nMN(m: Mountain): Expr {
     if (is_infinity_nMN(m)) return INFINITY;
     return m.map((col) => col.map((entry) => [entry[0] - 1, entry[1]]));
+}
+
+function entry_display(entry: Entry): string {
+    return entry_display_nMN([entry[0] + 1, entry[1]], false);
 }
 
 function display(expr: Expr, simple: boolean = false): string {
@@ -257,25 +265,25 @@ function compute_up_2mn(expr: Expr, P: Position[][], [Ri, Rj]: Position): boolea
     for (let i = Ri + 1; i < expr.length; i++) {
         const col = expr[i];
 
-        if (col.length <= Rj) {
+        if (col.length <= Rj + 1) {
             result[i] = false;
             continue;
         }
 
-        if (col.length >= Rj + 2) {
-            result[i] = result[P[i][Rj][0]];
+        if (col.length >= Rj + 3) {
+            result[i] = result[P[i][Rj + 1][0]];
             continue;
         }
 
         const is_finite = col[col.length - 1][1] === 0;
         if (is_finite) {
-            result[i] = false;
+            result[i] = result[P[i][Rj + 1][0]];
             continue;
         }
 
         const p = P[i][Rj][0];
         if (p !== Ri) {
-            result[i] = false;
+            result[i] = result[p];
             continue;
         }
 
@@ -283,7 +291,7 @@ function compute_up_2mn(expr: Expr, P: Position[][], [Ri, Rj]: Position): boolea
         do {
             const X_start = i;
             let Y_start = right;
-            while (expr[Y_start].length !== Rj + 1) {
+            while (expr[Y_start].length !== Rj + 2) {
                 Y_start = P[Y_start][Rj][0];
             }
 
@@ -337,12 +345,9 @@ function expand(expr: Expr, index: number, shorter: boolean): Expr {
 
     const result: Expr = expr.slice(0, -1);
     result.push(expr[right].slice(0, -1));
-    if (!is_finite && top === Rj) {
-        result[right].push([Ri, 0]);
-    }
     result[right].push(...expr[Ri].slice(Rj));
 
-    let y_offset = is_finite ? 0 : Math.max(top - Rj, 1);
+    let y_offset = top - Rj;
 
     for (let w = 1; w <= index; w++) {
         for (let i = Ri + 1; i <= right; i++) {
@@ -414,19 +419,178 @@ export function convert_from_layer(dm: Expr): Expr {
     return om;
 }
 
-const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
-    default_data: draw_diagram_control_nMN.default_data,
-    settings: draw_diagram_control_nMN.settings,
-    draw_diagram(expr, data): Diagram | undefined {
-        return draw_diagram_control_nMN.draw_diagram(to_nMN(expr), data);
+function compute_1Y_mountain(expr: Expr): number[][] {
+    const V = expr_verticals(expr);
+    const P = parents(expr, V);
+
+    const result: number[][] = [];
+
+    for (let i = 0; i < expr.length; i++) {
+        result[i] = [1];
+        for (let j = expr[i].length - 1; j >= 0; j--) {
+            const [Pi, Pj] = P[i][j];
+            result[i].unshift(result[i][0] + result[Pi][Pj]);
+        }
+    }
+
+    return result;
+}
+
+function compute_1Y(expr: Expr): number[] {
+    return compute_1Y_mountain(expr).map((col) => col[0]);
+}
+
+function display_as_1Y(expr: Expr): string {
+    if (is_infinity(expr)) return '1,3,9';
+    return '' + compute_1Y(expr);
+}
+
+function from_1Y(seq: number[]): Expr {
+    const m_1y: number[][] = seq.map((x) => [x]);
+    const result: Expr = [];
+    for (let i = 0; i < seq.length; i++) {
+        result[i] = [];
+        let current = seq[i];
+        while (current !== 1) {
+            const j = result[i].length;
+            let pi = j === 0 ? i - 1 : result[i][j - 1][0];
+            let pj: number = -1;
+
+            while (true) {
+                if (result[pi].length === 0) {
+                    pj = 0;
+                    break;
+                }
+
+                const top_j = result[pi][result[pi].length - 1][1] > 0 ? result[pi].length - 1 : result[pi].length;
+                pj = Math.min(j, top_j);
+
+                if (m_1y[pi][pj] < current) {
+                    break;
+                } else {
+                    pi = j === 0 ? pi - 1 : result[pi][pj - 1][0];
+                }
+            }
+
+            result[i].push([pi, pj < j ? 1 : 0]);
+            current -= m_1y[pi][pj];
+            m_1y[i].push(current);
+            if (pj < j && current !== 1) throw new Error('Illegal 1Y seq: ' + seq);
+        }
+    }
+    return result;
+}
+
+function from_display_as_1Y(str: string): Expr {
+    const seq_1Y = str.split(',').map(Number);
+    if (!seq_1Y.every((x) => Number.isInteger(x) && x > 0)) throw new Error('Illegal 1Y seq: ' + str);
+    if (seq_1Y.length > 0 && seq_1Y[0] !== 1) throw new Error('Illegal 1Y seq: ' + str);
+    if (lex_compare(seq_1Y, [1, 3, 9], number_compare) === 0) return INFINITY;
+    return from_1Y(seq_1Y);
+}
+
+function sep_display(sep: number, simple: boolean): string {
+    if (simple && sep === 0) return '';
+    return ','.repeat(sep + 1);
+}
+
+function vertical_display(v: Vertical): string {
+    const result: number[] = [];
+    for (let i = v.length - 1; i >= 0; i--) result.push(...Array<number>(v[i]).fill(i));
+    return result.map((s) => sep_display(s, false)).join('/');
+}
+
+export function vertical_diff(v1: Vertical, v2: Vertical): number {
+    if (v1.length !== v2.length) return v1.length - 1;
+    for (let i = v1.length - 1; i >= 0; i--) {
+        if (v1[i] !== v2[i]) return i;
+    }
+
+    return -1;
+}
+
+export interface DiagramData {
+    current_equiv: string | undefined;
+    invert_vertical?: boolean;
+}
+
+function compute_mountain_diagram(m: Mountain, current_equiv?: string): MountainDiagramData | undefined {
+    if (is_infinity(m) || m.length === 0) return undefined;
+
+    const m_display = current_equiv?.includes('layer') ? convert_to_layer(m) : m;
+    const is_y = current_equiv?.includes('1Y') === true;
+    const m_1y = is_y ? compute_1Y_mountain(m) : [];
+    const V = expr_verticals(m);
+    const P = parents(m, V);
+
+    const vertical_set = new DisplaySet<Vertical>(vertical_display);
+    vertical_set.add([]);
+    for (const Vi of V) for (const v of Vi) vertical_set.add(v);
+    const sorted = vertical_set.values().sort(vertical_compare);
+    const sorted_verticals = sorted.map(vertical_display);
+    const vertical_index = new DisplayMap<Vertical, number>(vertical_display);
+    for (let i = 0; i < sorted.length; i++) {
+        vertical_index.set(sorted[i], i);
+    }
+
+    // 计算行高
+    const H = 40,
+        HS = 5;
+    const line_heights: number[] = [];
+    const heights: number[] = [0];
+    for (let i = 1; i < sorted.length; i++) {
+        const sep = vertical_diff(sorted[i], sorted[i - 1]);
+        const d_height = H + HS * sep;
+        heights.push(heights[i - 1] + d_height);
+        for (let k = 0; k <= sep; k++) line_heights.push(heights[i - 1] + H / 2 + HS * k);
+    }
+
+    const entries: (string | undefined)[][] = Array.from({ length: m.length }, () =>
+        Array.from({ length: vertical_index.size }, () => undefined),
+    );
+    const left_legs: ([number, number] | undefined)[][] = Array.from({ length: m.length }, () =>
+        Array.from({ length: vertical_index.size }, () => undefined),
+    );
+
+    for (let i = 0; i < m.length; ++i) {
+        entries[i][0] = is_y ? '' + m_1y[i][0] : '*';
+        for (let j = 0; j < m[i].length; j++) {
+            const vj = vertical_index.get(V[i][j])!;
+            entries[i][vj] = is_y ? '' + m_1y[i][j + 1] : entry_display(m_display[i][j]);
+            const [pi, pj] = P[i][j];
+            if (pi !== -1) {
+                const pvj = pj === 0 ? 0 : vertical_index.get(V[pi][pj - 1])!;
+                left_legs[i][vj] = [pi, pvj];
+            }
+        }
+    }
+
+    return { sorted_verticals, heights, line_heights, entries, left_legs };
+}
+
+export const draw_diagram_control: DiagramControl<Mountain, DiagramData> = {
+    default_data: { current_equiv: undefined, invert_vertical: undefined },
+    draw_diagram: (_expr, _data) => {
+        const mountain = compute_mountain_diagram(_expr, _data.current_equiv);
+        if (!mountain) return undefined;
+        return draw_mountain_diagram(mountain, { invert_vertical: _data.invert_vertical ?? false });
     },
-    handle_action: draw_diagram_control_nMN.handle_action,
+    handle_action: (data: DiagramData, action): DiagramData | null => {
+        if (action.type === 'scroll') {
+            if (action.direction === 'down') {
+                return { ...data, invert_vertical: true };
+            } else if (action.direction === 'up') {
+                return { ...data, invert_vertical: false };
+            }
+        }
+        return null;
+    },
 };
 
-export const UP2MN_v1b: NotationDefinition<Expr> = {
-    id: 'up2mn-v1b',
-    name: 'UP2MN v1B',
-    description: [{ id: 'description.up2mn-v1b' }],
+export const UP2DBMS_v1b_plus: NotationDefinition<Expr> = {
+    id: 'up2dbms-v1b+',
+    name: 'UP2DBMS v1B+',
+    description: [{ id: 'description.up2mn-v1b-plus' }],
     category_id: 'category-upmn',
     display: {
         plain: (m) => display(m),
@@ -454,6 +618,10 @@ export const UP2MN_v1b: NotationDefinition<Expr> = {
             plain: (m) => display(convert_to_layer(m), true),
             from_display: (s) => convert_from_layer(from_display_simple(s)),
             name: { id: 'display.layer-simple' },
+        },
+        UP1Y: {
+            plain: display_as_1Y,
+            from_display: from_display_as_1Y,
         },
     },
     draw_diagram: draw_diagram_control,
