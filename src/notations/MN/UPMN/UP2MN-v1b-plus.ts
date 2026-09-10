@@ -440,7 +440,7 @@ const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
 export const UP2MN_v1b_plus: NotationDefinition<Expr> = {
     id: 'up2mn-v1b+',
     name: 'UP2MN v1B+',
-    description: [{ id: 'description.up2mn-v1b-plus' }],
+    description: [{ id: 'description.up2mn-v1b-plus.1' }, { id: 'description.up2mn-v1b-plus.2' }],
     category_id: 'category-upmn',
     display: {
         plain: (m) => display(m),

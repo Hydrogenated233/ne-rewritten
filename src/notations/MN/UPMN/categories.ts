@@ -6,3 +6,9 @@ export const category_upmn: NotationCategoryDefinition = {
     simple_name: 'UPMN',
     parent_id: 'category-mn',
 };
+
+export const category_upmn_test: NotationCategoryDefinition = {
+    id: 'category-upmn-test',
+    name: { id: 'category-name.upmn-test' },
+    parent_id: 'category-upmn',
+};

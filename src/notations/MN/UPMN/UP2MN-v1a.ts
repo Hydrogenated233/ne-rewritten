@@ -144,7 +144,7 @@ function expand(m: Mountain, index: number, shorter: boolean = false): Mountain 
 export const UP2MN_v1a: NotationDefinition<Mountain> = {
     id: 'up2mn-v1a',
     name: 'UP2MN v1A',
-    category_id: 'category-upmn',
+    category_id: 'category-upmn-test',
     description: [
         { id: 'description.UP2MN-v1a.1' },
         { id: 'description.UP2MN-v1a.2' },

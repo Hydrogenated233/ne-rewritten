@@ -310,7 +310,7 @@ export const UP1MN: NotationDefinition<Expr> = {
     ...sequence_FS_variants(expand, is_infinity, infinity_FS, is_limit, display),
     is_limit,
     compare,
-    credit_text_id: 'credit.upmn',
+    credit_text_id: 'credit.up1mn',
 
     init: () => [INFINITY, []],
 

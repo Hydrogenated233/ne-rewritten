@@ -443,7 +443,7 @@ export const UP2MN_v1b: NotationDefinition<Expr> = {
     id: 'up2mn-v1b',
     name: 'UP2MN v1B',
     description: [{ id: 'description.up2mn-v1b' }],
-    category_id: 'category-upmn',
+    category_id: 'category-upmn-test',
     display: {
         plain: (m) => display(m),
         from_display,

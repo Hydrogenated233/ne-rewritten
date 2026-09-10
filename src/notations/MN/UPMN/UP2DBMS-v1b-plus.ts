@@ -606,8 +606,17 @@ export const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
 export const UP2DBMS_v1b_plus: NotationDefinition<Expr> = {
     id: 'up2dbms-v1b+',
     name: 'UP2DBMS v1B+',
-    description: [{ id: 'description.up2dbms-v1b-plus' }],
-    category_id: 'category-upmn',
+    description: [
+        { id: 'description.up2dbms-v1b-plus.1' },
+        { id: 'description.up2dbms-v1b-plus.2' },
+        { id: 'description.up2dbms-v1b-plus.3' },
+        { id: 'description.up2dbms-v1b-plus.4' },
+        { id: 'description.up2dbms-v1b-plus.5' },
+        { id: 'description.up2dbms-v1b-plus.6' },
+        { id: 'description.up2dbms-v1b-plus.7' },
+        { id: 'description.up2dbms-v1b-plus.8' },
+    ],
+    category_id: 'category-upmn-test',
     display: {
         plain: (m) => display(m),
         from_display,
