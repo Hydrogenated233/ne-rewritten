@@ -194,6 +194,8 @@ const messages: Record<Language, Record<string, string>> = {
         'description.up2mn-v1b': '与 v1a 相比, 移除了全部 BMS 提升.',
         'description.up2mn-v1b-plus': '在 v1b 的基础上, 将极限表达式由 ()(,,1)(,,2) 改为 ()(,,1,1), 并作适配.',
         'description.up2dbms-v1b-plus': '直接将 UP2MN v1b 的逻辑应用于 1Y 山脉, 即得到 Y(1,3,9) 以下的 UP1Y.',
+        'description.up2dbms-v1.1': '在 v1b+ 的基础上, 重新加入了所有 BMS 提升.',
+        'description.up2dbms-v1.2': '预期此版本正确实现了 1,3,9 以下的 IIIY.',
         'diagram.den.offset': '起始偏移',
         'diagram.den.offset-x': '横向偏移',
         'diagram.den.max-display': '最大显示行数',
@@ -445,6 +447,8 @@ const messages: Record<Language, Record<string, string>> = {
             'Based on v1b, the limit expression is changed from ()(,,1)(,,2) to ()(,,1,1), with corresponding adaptation.',
         'description.up2dbms-v1b-plus':
             'Directly applying the UP2MN v1b logic to the 1Y mountain yields UP1Y below Y(1,3,9).',
+        'description.up2dbms-v1.1': 'Based on v1b+, all BMS elevation is added back.',
+        'description.up2dbms-v1.2': 'This version is expected to correctly implement IIIY below 1,3,9.',
         'diagram.den.offset': 'Start offset',
         'diagram.den.offset-x': 'Horizontal offset',
         'diagram.den.max-display': 'Max display rows',
