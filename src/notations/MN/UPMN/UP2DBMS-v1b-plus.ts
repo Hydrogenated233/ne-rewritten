@@ -1,5 +1,5 @@
 import {
-    Mountain,
+    Mountain as Expr_nMN,
     INFINITY as INFINITY_nMN,
     is_infinity as is_infinity_nMN,
     entry_display as entry_display_nMN,
@@ -8,7 +8,6 @@ import {
     from_display as from_display_nMN,
     MarkSpec,
     from_display_simple as from_display_simple_nMN,
-    find_index_below_equal,
 } from '@/notations/MN/SMN/n_MN.ts';
 import {
     anti_lex_compare,
@@ -61,16 +60,19 @@ export function column_compare(col1: Column, col2: Column): number {
     return lex_compare(col1, col2, entry_compare);
 }
 
-function compare(expr1: Mountain, expr2: Mountain): number {
+function compare(expr1: Expr, expr2: Expr): number {
+    if (is_infinity(expr1) || is_infinity(expr2)) {
+        return boolean_compare(is_infinity(expr1), is_infinity(expr2));
+    }
     return lex_compare(expr1, expr2, column_compare);
 }
 
-function to_nMN(expr: Expr): Mountain {
+function to_nMN(expr: Expr): Expr_nMN {
     if (is_infinity(expr)) return INFINITY_nMN();
     return expr.map((col) => col.map((entry) => [entry[0] + 1, entry[1]]));
 }
 
-function from_nMN(m: Mountain): Expr {
+function from_nMN(m: Expr_nMN): Expr {
     if (is_infinity_nMN(m)) return INFINITY;
     return m.map((col) => col.map((entry) => [entry[0] - 1, entry[1]]));
 }
@@ -144,6 +146,20 @@ function find_index_below_row(V: Vertical[], v: Vertical): number {
         const mid = (l + r + 1) >> 1;
         const cmp = vertical_compare(v, working[mid]);
         if (cmp > 0) l = mid;
+        else r = mid - 1;
+    }
+    return l;
+}
+
+function find_index_below_equal_row(V: Vertical[], v: Vertical): number {
+    const working = [[], ...V];
+    let l = 0,
+        r = V.length;
+    if (vertical_compare(v, working[r]) >= 0) return r;
+    while (l < r) {
+        const mid = (l + r + 1) >> 1;
+        const cmp = vertical_compare(v, working[mid]);
+        if (cmp >= 0) l = mid;
         else r = mid - 1;
     }
     return l;
@@ -407,7 +423,7 @@ export function convert_from_layer(dm: Expr): Expr {
                 } else {
                     i1 = i1 - 1;
                 }
-                let j0 = find_index_below_equal(V[i1], j === 0 ? [] : V[i][j - 1]);
+                let j0 = find_index_below_equal_row(V[i1], j === 0 ? [] : V[i][j - 1]);
                 if (j0 === dm[i1].length || dm[i1][j0][0] < entry[0]) {
                     entry[0] = i1;
                     break;
@@ -514,7 +530,7 @@ export interface DiagramData {
     invert_vertical?: boolean;
 }
 
-function compute_mountain_diagram(m: Mountain, current_equiv?: string): MountainDiagramData | undefined {
+function compute_mountain_diagram(m: Expr, current_equiv?: string): MountainDiagramData | undefined {
     if (is_infinity(m) || m.length === 0) return undefined;
 
     const m_display = current_equiv?.includes('layer') ? convert_to_layer(m) : m;
@@ -568,7 +584,7 @@ function compute_mountain_diagram(m: Mountain, current_equiv?: string): Mountain
     return { sorted_verticals, heights, line_heights, entries, left_legs };
 }
 
-export const draw_diagram_control: DiagramControl<Mountain, DiagramData> = {
+export const draw_diagram_control: DiagramControl<Expr, DiagramData> = {
     default_data: { current_equiv: undefined, invert_vertical: undefined },
     draw_diagram: (_expr, _data) => {
         const mountain = compute_mountain_diagram(_expr, _data.current_equiv);
