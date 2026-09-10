@@ -88,8 +88,8 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
         try {
             const entries: any[] = parse_analysis_entries(raw);
             import_analysis(r, entries, n);
-        } catch {
-            /* ignore corrupt data */
+        } catch (e) {
+            console.error('load_analysis: corrupt saved analysis for ' + id + ' (ignored):', e);
         }
     }
 
@@ -137,11 +137,17 @@ export function use_save_load(trees: Map<string, TreeNode<any>>) {
                 equiv_name && n.display_equiv?.[equiv_name]
                     ? resolve_display(n.display_equiv[equiv_name])
                     : resolve_display(n.display);
-            if (!display_spec.from_display) return;
+            if (!display_spec.from_display) {
+                console.error('import: current notation (or active equivalence) has no from_display; aborted.');
+                return;
+            }
             const buf = await file.arrayBuffer();
             const entries = await import_from_xlsx(buf, display_spec.from_display);
             const { matched, not_found } = import_analysis(r, entries, n);
             if ((entries as any).skipped?.length || not_found.length > 0) {
+                console.error(
+                    `import: ${(entries as any).skipped?.length ?? 0} row(s) failed to parse, ${not_found.length} entry(ies) not located.`,
+                );
                 alert(create_t(settings.language)('import.error'));
             }
             if (settings.expand_all_on_import) {

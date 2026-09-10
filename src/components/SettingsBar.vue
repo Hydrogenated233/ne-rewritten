@@ -115,7 +115,10 @@ function handle_find() {
         equiv_name && n.display_equiv?.[equiv_name]
             ? resolve_display(n.display_equiv[equiv_name])
             : resolve_display(n.display);
-    if (!display_spec.from_display) return;
+    if (!display_spec.from_display) {
+        console.error('import: current notation (or active equivalence) has no from_display; lookup aborted.');
+        return;
+    }
     try {
         const expr = display_spec.from_display(val);
         const matched = import_analysis_eager(r, [{ expr, analysis: [] }], n, settings.variant);
@@ -124,7 +127,8 @@ function handle_find() {
         } else {
             alert(t('import.error'));
         }
-    } catch {
+    } catch (e) {
+        console.error('import: failed to parse "' + val + '":', e);
         alert(t('import.error'));
     }
 }

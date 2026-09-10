@@ -95,6 +95,10 @@ export function import_analysis<T>(
         const node = locate_host(root, entry.expr, notation);
         if (!node) {
             not_found.push(entry);
+            console.error(
+                'import: not located (outside of tree range):',
+                resolve_display(notation.display).plain(entry.expr),
+            );
             continue;
         }
         if (notation.compare(node.expr, entry.expr) === 0) {
