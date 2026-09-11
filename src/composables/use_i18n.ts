@@ -197,6 +197,7 @@ const messages: Record<Language, Record<string, string>> = {
         'font.system-default': '系统默认字体',
         'language.label': '语言:',
         'category-name.translators': '互译器',
+        'category-name.upmn-test': '试作记号',
         'settings.more': '▼ 展开',
         'settings.less': '▲ 收起',
         'settings.section-general': '常规',
@@ -243,6 +244,7 @@ const messages: Record<Language, Record<string, string>> = {
         'credit.test-alpha0-ocn': '由 test_alpha0 定义, 并给出展开器. 同时提供 OCN 渲染.',
         'credit.tupms': '由 test_alpha0 定义, 由 笑姐姐 给出展开器.',
         'credit.upmn': '由 最菜萌新 定义, 由 笑姐姐 制作展开器.',
+        'credit.up1mn': '基于 test_alpha0 定义的 UPMS 修改得到.',
         'credit.ton': '由 Taranosvky 定义; 展开器来自原 NE 项目.',
         'credit.asan': '由 Aarex 定义; 展开器来自原 NE 项目.',
         'credit.community_y': '由社区定义.',
@@ -292,6 +294,25 @@ const messages: Record<Language, Record<string, string>> = {
             '例子 ()(,,1)(,2,,1)(,3)(,4,,4)(,5,5,,4)(,6,,4)(,7,4)(,4,,4)(,9,9,,4) 中, UP 条件要求 (,6,,4) 的复制不提升,',
         'description.UP2MN-v1a.5':
             '进而 ,,4 的复制不变. 从而 (,7,4) 中的 ,4 也不能提升. 因此, 也不能简单添加所有 BMS 提升.',
+        'description.up2mn-v1b': '与 v1a 相比, 移除了全部 BMS 提升.',
+        'description.up2mn-v1b-plus.1': '在 v1b 的基础上, 将极限表达式由 ()(,,1)(,,2) 改为 ()(,,1,1), 并作适配.',
+        'description.up2mn-v1b-plus.2': 'UP2MN v1b+ 为无 BMS 提升也无 Y 提升的 2MN 版本, 预期与 TUPMS 对应良好.',
+        'description.up2dbms-v1b-plus.1': '直接将 UP2MN v1b 的逻辑应用于 1Y 山脉, 即得到 Y(1,3,9) 以下的 UP1Y.',
+        'description.up2dbms-v1b-plus.2':
+            'UP1Y v1b+ 为无 BMS 提升也无 Y 提升的 1Y 版本. 目前分析 (待验证) 认为, 它对 TUPMS 有提升, 并非正确的 TUPMS 对应物.',
+        'description.up2dbms-v1b-plus.3':
+            'UP1Y v1b+ 与 UP2MN v1b+ 的提升判据的核心区别就是对 (非标准) Y(1,2,5,10,8,5,10) 的提升判别.',
+        'description.up2dbms-v1b-plus.4':
+            '它的标准化是 2MN 中的 ()(,,1)(,2,,1)(,2)(,4,,4)(,5,5,,4)(,5,,4)(,4,,4)(,8,8,,4),',
+        'description.up2dbms-v1b-plus.5':
+            '或 2DBMS 中的 ()(,1,,1)(,2,,1)(,2)(,4,4,,4)(,5,5,,4)(,5,4,,4)(,4,4,,4)(,8,8,,4).',
+        'description.up2dbms-v1b-plus.6':
+            '在 UP2MN 的提升判定中, (,4,,4)(,8,8,,4) 被识别为整体, 导致 (,5,,4) 不被提升;',
+        'description.up2dbms-v1b-plus.7': '而在 UP2DBMS 的提升判定中, (,8,8,,4) 被识别为独立项, 使得 (,5,4,,4) 被提升.',
+        'description.up2dbms-v1b-plus.8': '此处, 和 TBMS 对应的版本中, 应当有提升; 而在 TUPMS 版本中则不应有提升.',
+        'description.up2dbms-v1.1': '在 v1b+ 的基础上, 重新加入了所有 BMS 提升.',
+        'description.up2dbms-v1.2':
+            'UP1Y v1 为有 BMS 提升而无 Y 提升的 1Y 版本, 预期与 TBMS 对应良好, 且正确实现了 IIIY 的预期.',
         'diagram.den.offset': '起始偏移',
         'diagram.den.offset-x': '横向偏移',
         'diagram.den.max-display': '最大显示行数',
@@ -595,6 +616,7 @@ const messages: Record<Language, Record<string, string>> = {
         'font.system-default': 'System Default',
         'language.label': 'Language:',
         'category-name.translators': 'Translators',
+        'category-name.upmn-test': 'Tentative Notations',
         'settings.more': '▼ More',
         'settings.less': '▲ Less',
         'settings.section-general': 'General',
@@ -672,6 +694,30 @@ const messages: Record<Language, Record<string, string>> = {
             'In the example ()(,,1)(,2,,1)(,3)(,4,,4)(,5,5,,4)(,6,,4)(,7,4)(,4,,4)(,9,9,,4), the UP condition requires that the copy of (,6,,4) is not elevated,',
         'description.UP2MN-v1a.5':
             'and hence the copy of ,,4 remains unchanged. Thus ,4 in (,7,4) cannot be elevated either. Therefore, one cannot simply add all BMS elevations.',
+        'description.up2mn-v1b': 'Compared to v1a, all BMS elevation is removed.',
+        'description.up2mn-v1b-plus.1':
+            'Based on v1b, the limit expression is changed from ()(,,1)(,,2) to ()(,,1,1), with corresponding adaptation.',
+        'description.up2mn-v1b-plus.2':
+            'UP2MN v1b+ is the 2MN version with neither BMS elevation nor Y elevation, expected to correspond well with TUPMS.',
+        'description.up2dbms-v1b-plus.1':
+            'Directly applying the UP2MN v1b logic to the 1Y mountain yields UP1Y below Y(1,3,9).',
+        'description.up2dbms-v1b-plus.2':
+            'UP1Y v1b+ is the 1Y version with neither BMS elevation nor Y elevation. Current analysis (to be verified) holds that it elevates where TUPMS does not, so it is not the correct TUPMS counterpart.',
+        'description.up2dbms-v1b-plus.3':
+            'The core difference between the elevation criteria of UP1Y v1b+ and UP2MN v1b+ is the elevation decision on the (non-standard) Y(1,2,5,10,8,5,10).',
+        'description.up2dbms-v1b-plus.4':
+            'Its standardization is ()(,,1)(,2,,1)(,2)(,4,,4)(,5,5,,4)(,5,,4)(,4,,4)(,8,8,,4) in 2MN,',
+        'description.up2dbms-v1b-plus.5':
+            'or ()(,1,,1)(,2,,1)(,2)(,4,4,,4)(,5,5,,4)(,5,4,,4)(,4,4,,4)(,8,8,,4) in 2DBMS.',
+        'description.up2dbms-v1b-plus.6':
+            'In the elevation decision of UP2MN, (,4,,4)(,8,8,,4) is recognized as a whole, so (,5,,4) is not elevated;',
+        'description.up2dbms-v1b-plus.7':
+            'whereas in the elevation decision of UP2DBMS, (,8,8,,4) is recognized as a separate entry, so (,5,4,,4) is elevated.',
+        'description.up2dbms-v1b-plus.8':
+            'Here, the version corresponding to TBMS should have elevation, while the TUPMS version should not.',
+        'description.up2dbms-v1.1': 'Based on v1b+, all BMS elevation is added back.',
+        'description.up2dbms-v1.2':
+            'UP1Y v1 is the 1Y version with BMS elevation but no Y elevation, expected to correspond well with TBMS, and correctly realizes the expectations of IIIY.',
         'diagram.den.offset': 'Start offset',
         'diagram.den.offset-x': 'Horizontal offset',
         'diagram.den.max-display': 'Max display rows',
@@ -708,6 +754,7 @@ const messages: Record<Language, Record<string, string>> = {
             'Defined by test_alpha0, with expander by the same author. Also provides OCN rendering.',
         'credit.tupms': 'Defined by test_alpha0, with expander by 笑姐姐 (Smile Lee).',
         'credit.upmn': 'Defined by 最菜萌新 (Zcmx), with expander made by 笑姐姐 (Smile Lee).',
+        'credit.up1mn': 'Modified from the UPMS defined by test_alpha0.',
         'credit.ton': 'Defined by Taranosvky; expander from the original NE project.',
         'credit.asan': 'Defined by Aarex; expander from the original NE project.',
         'credit.community_y': 'Defined by the community.',
